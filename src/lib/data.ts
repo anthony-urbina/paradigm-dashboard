@@ -204,6 +204,16 @@ function normalizeCompRate(carrier: string, product: string): string {
   return `${carrier.trim().toLowerCase()}::${product.trim().toLowerCase()}`;
 }
 
+function normalizeFflRate(carrier: string, product: string, fflLevel: number): string {
+  return `${carrier.trim().toLowerCase()}::${product.trim().toLowerCase()}::${fflLevel}`;
+}
+
+/** Round an agent's comp_percentage down to the nearest FFL schedule level (65–145, step 5). */
+function snapToFflLevel(compPercentage: number): number {
+  const snapped = Math.floor(compPercentage / 5) * 5;
+  return Math.max(65, Math.min(145, snapped));
+}
+
 function roundCurrency(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -508,7 +518,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
   const idsForGrowth = Array.from(new Set([agentId, ...descendantIds]));
 
   const today = new Date().toISOString().slice(0, 10);
-  const [salesRes, activityRes, compGuide, teamGoalRes] = await Promise.all([
+  const [salesRes, activityRes, compGuide, fflRates, teamGoalRes] = await Promise.all([
     descendantIds.length > 0
       ? supabase
           .from("sales")
@@ -524,6 +534,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
           .gte("date", rangeStart.slice(0, 10))
       : Promise.resolve({ data: [] as ActivityRow[], error: null }),
     getCompGuideData(),
+    getFflRateSchedules(),
     supabase
       .from("goals")
       .select("target")
@@ -634,11 +645,12 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
       if (!branchAgent) return sum;
 
       const branchComp = Number(branchAgent.comp_percentage ?? 80);
-      const overrideDelta = Math.max(viewerComp - branchComp, 0);
-      if (overrideDelta <= 0) return sum;
+      if (viewerComp <= branchComp) return sum;
 
       const baseRate = guideByKey.get(normalizeCompRate(sale.carrier ?? "", sale.product ?? "")) ?? 100;
-      return sum + Number(sale.ap) * pct(baseRate) * pct(overrideDelta);
+      const viewerRate = resolveRate(sale.carrier ?? "", sale.product ?? "", viewerComp, fflRates, baseRate);
+      const branchRate = resolveRate(sale.carrier ?? "", sale.product ?? "", branchComp, fflRates, baseRate);
+      return sum + Number(sale.ap) * Math.max(viewerRate - branchRate, 0) / 100;
     }, 0)
   );
 
@@ -938,6 +950,36 @@ export async function getCompGuideData(): Promise<CompGuideRecord[]> {
   }));
 }
 
+async function getFflRateSchedules(): Promise<Map<string, number>> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("ffl_rate_schedules")
+    .select("carrier, product, ffl_level, rate");
+
+  const map = new Map<string, number>();
+  for (const row of data ?? []) {
+    map.set(normalizeFflRate(row.carrier, row.product, row.ffl_level), Number(row.rate));
+  }
+  return map;
+}
+
+/** Resolve commission rate for a sale at an agent's exact FFL level.
+ *  Returns the rate as a percentage of AP (e.g. 70 means 70% of AP).
+ *  Falls back to base_rate × comp_percentage / 100 when no schedule entry exists. */
+function resolveRate(
+  carrier: string,
+  product: string,
+  compPercentage: number,
+  fflRates: Map<string, number>,
+  baseRate: number,
+): number {
+  const fflLevel = snapToFflLevel(compPercentage);
+  const exact = fflRates.get(normalizeFflRate(carrier, product, fflLevel));
+  if (exact != null) return exact;
+  // Fallback: linear approximation from the 100% base_rate
+  return baseRate * (compPercentage / 100);
+}
+
 export async function getTeamAgentCompensation(
   viewerId: string,
   subjectAgentId: string,
@@ -947,9 +989,10 @@ export async function getTeamAgentCompensation(
   const supabase = createServiceClient();
   const rangeStart = getRangeStart(range);
 
-  const [{ data: agentsData, error: agentsError }, compGuide] = await Promise.all([
+  const [{ data: agentsData, error: agentsError }, compGuide, fflRates] = await Promise.all([
     supabase.from("agents").select("id, name, upline_id, comp_percentage"),
     getCompGuideData(),
+    getFflRateSchedules(),
   ]);
 
   let normalizedAgentsData = agentsData;
@@ -1091,8 +1134,8 @@ export async function getTeamAgentCompensation(
 
   const toLineItem = (sale: SalesRow, compPercentage: number, saleAgentName: string): CompensationLineItem => {
     const baseRate = guideByKey.get(normalizeCompRate(sale.carrier ?? "", sale.product ?? "")) ?? 100;
-    const effectiveRate = roundCurrency(baseRate * pct(compPercentage));
-    const estimatedTotal = roundCurrency(Number(sale.ap) * pct(baseRate) * pct(compPercentage));
+    const effectiveRate = roundCurrency(resolveRate(sale.carrier ?? "", sale.product ?? "", compPercentage, fflRates, baseRate));
+    const estimatedTotal = roundCurrency(Number(sale.ap) * effectiveRate / 100);
     const estimatedAdvance = roundCurrency(estimatedTotal * 0.75);
 
     return {
