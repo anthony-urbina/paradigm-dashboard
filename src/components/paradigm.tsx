@@ -1920,20 +1920,16 @@ export function TeamPage({
               {growthBars.map(([month, amount, height], index) => (
                 <div
                   key={`${month}-${index}`}
-                  className='flex flex-col items-center gap-2'
+                  className='group/col relative flex flex-col items-center gap-2'
                 >
                   <div className='text-xs text-[var(--vf-muted)]'>{amount}</div>
                   <div className='relative flex h-44 w-10 items-end'>
                     {/* Goal shadow bar */}
                     {goalBarHeight && (
                       <div
-                        className='group/goal absolute bottom-0 left-0 w-full cursor-default rounded-t-xl border border-[var(--vf-accent)] border-opacity-30 bg-[var(--vf-accent)] opacity-10 hover:opacity-20 transition-opacity duration-150'
+                        className='absolute bottom-0 left-0 w-full rounded-t-xl border border-[var(--vf-accent)] bg-[var(--vf-accent)] opacity-30 transition-opacity duration-150 group-hover/col:opacity-50'
                         style={{ height: `${goalBarHeight}%` }}
-                      >
-                        <div className='pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-[var(--vf-border)] bg-[var(--vf-panel)] px-2 py-1 text-xs font-medium text-[var(--vf-text)] opacity-0 shadow-lg transition-opacity duration-150 group-hover/goal:opacity-100'>
-                          Goal: {fmt(teamGoalTarget!)}
-                        </div>
-                      </div>
+                      />
                     )}
                     {/* Actual bar */}
                     <div
@@ -1947,6 +1943,12 @@ export function TeamPage({
                     />
                   </div>
                   <div className='text-sm text-[var(--vf-muted)]'>{month}</div>
+                  {/* Tooltip — appears below month label, no collision */}
+                  {goalBarHeight && (
+                    <div className='pointer-events-none absolute top-full z-10 mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-[var(--vf-border)] bg-[var(--vf-panel)] px-2 py-1 text-xs font-medium text-[var(--vf-text)] opacity-0 shadow-lg transition-opacity duration-150 group-hover/col:opacity-100'>
+                      Goal: {fmt(teamGoalTarget!)}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
