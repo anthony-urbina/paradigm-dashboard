@@ -5,12 +5,15 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { signOut } from "next-auth/react";
 import {
+  ArrowDown,
   ArrowLeft,
+  ArrowUp,
+  ArrowUpDown,
   Building2,
   ChevronDown,
   ChevronRight,
-  CircleHelp,
   Copy,
+  DollarSign,
   Download,
   Gauge,
   Home,
@@ -97,6 +100,28 @@ function fmt(n: number): string {
   return "$" + Math.round(n).toLocaleString("en-US");
 }
 
+function fmtCompactCurrency(n: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(n);
+}
+
+const DAILY_MOTIVATION_QUOTES = [
+  "Treat today like the day that changes everything, and one day it will.",
+  "Consistency wins long after motivation gets quiet.",
+  "The calls you make today become the momentum you feel tomorrow.",
+  "Big months are built from ordinary days handled with discipline.",
+  "When the pace feels slow, stay sharp. The work is still compounding.",
+  "Confidence grows fastest when you keep promises to yourself.",
+  "You do not need perfect conditions. You need your next rep.",
+  "Pressure is easier to handle when preparation has already been done.",
+  "Success gets louder when excuses get smaller.",
+  "Stay in the fight long enough for your standards to start paying you back.",
+] as const;
+
 const navItems = [
   { label: "Welcome", href: "/dashboard", icon: Home },
   { label: "Goals", href: "/dashboard/goals", icon: Gauge },
@@ -167,8 +192,15 @@ function ProgressRing({
   sublabel: string;
   size?: number;
 }) {
-  const labelSize = size <= 130 ? "text-3xl" : "text-5xl";
   const clamp = Math.max(0, Math.min(100, value));
+  const inset = Math.max(12, Math.round(size * 0.14));
+  const innerSize = size - inset * 2;
+  const labelFontSize = Math.max(20, Math.min(44, size * 0.24));
+  const sublabelFontSize = Math.max(
+    7,
+    Math.min(14, size * 0.07 - Math.max(0, sublabel.length - 9) * 0.22),
+  );
+
   return (
     <div
       className='relative mx-auto shrink-0'
@@ -181,9 +213,28 @@ function ProgressRing({
           filter: clamp > 0 ? "drop-shadow(0 0 10px rgba(241,80,37,0.45))" : undefined,
         }}
       />
-      <div className='absolute inset-[14px] flex flex-col items-center justify-center rounded-full bg-[var(--vf-surface)]'>
-        <div className={`${labelSize} font-semibold text-[var(--vf-accent)]`}>{label}</div>
-        <div className='mt-1 text-xs text-[var(--vf-muted)]'>{sublabel}</div>
+      <div
+        className='absolute flex flex-col items-center justify-center rounded-full bg-[var(--vf-surface)] text-center'
+        style={{ inset }}
+      >
+        <div
+          className='font-semibold leading-none text-[var(--vf-accent)]'
+          style={{
+            fontSize: labelFontSize,
+            maxWidth: innerSize * 0.68,
+          }}
+        >
+          {label}
+        </div>
+        <div
+          className='mt-1 text-[var(--vf-muted)] leading-tight'
+          style={{
+            fontSize: sublabelFontSize,
+            maxWidth: innerSize * 0.74,
+          }}
+        >
+          {sublabel}
+        </div>
       </div>
     </div>
   );
@@ -442,16 +493,45 @@ function GoalEditor({
   type: string;
 }) {
   const router = useRouter();
+  const fieldRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [value, setValue] = useState(initial);
   const [saving, setSaving] = useState(false);
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    setValue(initial);
+  }, [initial]);
+
+  useEffect(() => {
+    if (!focused) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!fieldRef.current?.contains(event.target as Node)) {
+        setFocused(false);
+        inputRef.current?.blur();
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+    };
+  }, [focused]);
 
   async function save() {
+    const target = Number(value);
+    if (Number.isNaN(target) || target < 0) {
+      toast.error("Enter a valid goal amount");
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch("/api/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, target: Number(value) }),
+        body: JSON.stringify({ type, target }),
       });
       if (res.ok) {
         toast.success("Goal saved");
@@ -474,25 +554,56 @@ function GoalEditor({
         Enter your AP target for the month. Set it to 0 to clear your goal.
       </p>
       <div className='mt-8 text-lg text-[var(--vf-text)]'>{label}</div>
-      <div className='mt-3 flex flex-wrap gap-4'>
-        <div className='flex w-full max-w-xs items-center rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 py-3 text-lg text-[var(--vf-text)]'>
-          <span className='mr-3 text-[var(--vf-muted)]'>$</span>
+      <form
+        className='mt-4'
+        onSubmit={(event) => {
+          event.preventDefault();
+          void save();
+        }}
+      >
+        <div
+          ref={fieldRef}
+          className={cn(
+            'group relative flex w-full max-w-sm items-center rounded-2xl border bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-4 py-3 text-lg text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition',
+            focused
+              ? 'border-[var(--vf-accent)] shadow-[0_0_0_4px_rgba(241,80,37,0.12)]'
+              : 'border-[var(--vf-surface-2)]',
+          )}
+        >
+          <span className='mr-3 text-xl text-[var(--vf-muted)] transition group-focus-within:text-[var(--vf-accent)]'>$</span>
           <input
-            className='w-full bg-transparent outline-none'
+            ref={inputRef}
+            className='w-full bg-transparent pr-14 text-xl outline-none placeholder:text-[var(--vf-muted)]'
             type='number'
             min={0}
             value={value}
+            disabled={saving}
             onChange={(e) => setValue(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setValue(initial);
+                setFocused(false);
+                event.currentTarget.blur();
+              }
+            }}
+            placeholder='Enter target'
           />
+          <div
+            className={cn(
+              'pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center rounded-lg border px-2 py-1 transition-all duration-150',
+              focused
+                ? 'translate-x-0 border-[var(--vf-border)] bg-[var(--vf-surface-2)] opacity-100'
+                : 'translate-x-1 border-transparent opacity-0',
+            )}
+          >
+            <span className='text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--vf-muted)]'>
+              {saving ? "Saving" : "Enter"}
+            </span>
+          </div>
         </div>
-        <button
-          onClick={save}
-          disabled={saving}
-          className='rounded-2xl bg-[var(--vf-accent)] px-6 py-3 text-lg font-semibold text-[var(--vf-accent-fg)] disabled:opacity-50'
-        >
-          {saving ? "Saving..." : "Save goal"}
-        </button>
-      </div>
+      </form>
     </Panel>
   );
 }
@@ -721,10 +832,6 @@ function HeaderNav({
             onNavigate={() => setMenuOpen(false)}
           />
           <div className='mt-auto space-y-4 pt-8'>
-            <button className='flex items-center gap-2 text-sm text-[var(--vf-text)]'>
-              <CircleHelp className='h-4 w-4 text-[var(--vf-blurple)]' />
-              Guide
-            </button>
             <UserCard
               user={user}
               onClick={() => setMenuOpen(false)}
@@ -754,10 +861,6 @@ function HeaderNav({
           isAdmin={isAdmin}
         />
         <div className='mt-auto space-y-4'>
-          <button className='flex items-center gap-2 text-sm text-[var(--vf-text)]'>
-            <CircleHelp className='h-4 w-4 text-[var(--vf-blurple)]' />
-            Guide
-          </button>
           <UserCard user={user} />
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
@@ -953,6 +1056,12 @@ export function WelcomePage({
   const firstName = agentName.split(" ")[0];
   const [logSaleOpen, setLogSaleOpen] = useState(false);
   const router = useRouter();
+  const today = new Date();
+  const startOfYear = new Date(today.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((today.getTime() - startOfYear.getTime()) / 86_400_000);
+  const dailyMotivationQuote =
+    DAILY_MOTIVATION_QUOTES[dayOfYear % DAILY_MOTIVATION_QUOTES.length] ??
+    DAILY_MOTIVATION_QUOTES[0];
   return (
     <div className='space-y-8'>
       <LogSaleModal
@@ -997,7 +1106,7 @@ export function WelcomePage({
           <div className='absolute inset-0 bg-[linear-gradient(135deg,rgba(241,80,37,0.07),transparent_60%)] pointer-events-none' />
           <div className='text-5xl font-bold text-[var(--vf-blurple)] opacity-80'>&ldquo;</div>
           <div className='mt-8 max-w-md text-xl font-medium leading-snug text-[var(--vf-text)] sm:text-[2rem]'>
-            Treat today like the day that changes everything, and one day it will.
+            {dailyMotivationQuote}
           </div>
           <div className='mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--vf-muted)]'>
             Daily motivation
@@ -1021,19 +1130,26 @@ export function WelcomePage({
             <div className='grid gap-4 p-4 md:grid-cols-2'>
               {salesGoal && (
                 <Panel className='rounded-[24px] bg-[var(--vf-surface)] p-4'>
-                  <div className='text-sm uppercase tracking-[0.2em] text-[var(--vf-muted)]'>
-                    Sales production
+                  <div className='flex items-start justify-between gap-3'>
+                    <div className='text-sm uppercase tracking-[0.2em] text-[var(--vf-muted)]'>
+                      Sales production
+                    </div>
+                    <div className='shrink-0 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--vf-muted)]'>
+                      Monthly
+                    </div>
                   </div>
-                  <div className='mt-3 flex items-center gap-4'>
+                  <div className='mt-3 grid gap-4 md:grid-cols-[118px_minmax(0,1fr)] md:items-center'>
                     <ProgressRing
                       value={salesGoal.pct}
                       label={`${salesGoal.pct}%`}
                       sublabel={`of ${fmt(salesGoal.target)}`}
-                      size={126}
+                      size={110}
                     />
-                    <div>
-                      <div className='text-4xl font-semibold text-[var(--vf-text)]'>{fmt(salesGoal.ap)}</div>
-                      <div className='mt-1 text-sm text-[var(--vf-muted)]'>/ {fmt(salesGoal.target)}</div>
+                    <div className='min-w-0 overflow-hidden pr-1'>
+                      <div className='min-w-0 max-w-full overflow-hidden text-[clamp(1.5rem,2.6vw,2.25rem)] font-semibold leading-none tracking-tight text-[var(--vf-text)]'>
+                        {fmtCompactCurrency(salesGoal.ap)}
+                      </div>
+                      <div className='mt-2 text-sm text-[var(--vf-muted)]'>/ {fmt(salesGoal.target)}</div>
                       <div className='mt-2 text-base text-[var(--vf-muted)]'>
                         {fmt(salesGoal.target - salesGoal.ap)} to go
                       </div>
@@ -1043,19 +1159,26 @@ export function WelcomePage({
               )}
               {teamGoal && (
                 <Panel className='rounded-[24px] bg-[var(--vf-surface)] p-4'>
-                  <div className='text-sm uppercase tracking-[0.2em] text-[var(--vf-muted)]'>
-                    Team production
+                  <div className='flex items-start justify-between gap-3'>
+                    <div className='text-sm uppercase tracking-[0.2em] text-[var(--vf-muted)]'>
+                      Team production
+                    </div>
+                    <div className='shrink-0 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--vf-muted)]'>
+                      Monthly
+                    </div>
                   </div>
-                  <div className='mt-3 flex items-center gap-4'>
+                  <div className='mt-3 grid gap-4 md:grid-cols-[118px_minmax(0,1fr)] md:items-center'>
                     <ProgressRing
                       value={teamGoal.pct}
                       label={`${teamGoal.pct}%`}
                       sublabel={`of ${fmt(teamGoal.target)}`}
-                      size={126}
+                      size={110}
                     />
-                    <div>
-                      <div className='text-4xl font-semibold text-[var(--vf-text)]'>{fmt(teamGoal.ap)}</div>
-                      <div className='mt-1 text-sm text-[var(--vf-muted)]'>/ {fmt(teamGoal.target)}</div>
+                    <div className='min-w-0 overflow-hidden pr-1'>
+                      <div className='min-w-0 max-w-full overflow-hidden text-[clamp(1.5rem,2.6vw,2.25rem)] font-semibold leading-none tracking-tight text-[var(--vf-text)]'>
+                        {fmtCompactCurrency(teamGoal.ap)}
+                      </div>
+                      <div className='mt-2 text-sm text-[var(--vf-muted)]'>/ {fmt(teamGoal.target)}</div>
                       <div className='mt-2 text-base text-[var(--vf-muted)]'>
                         {fmt(teamGoal.target - teamGoal.ap)} to go
                       </div>
@@ -1117,6 +1240,7 @@ function TeamGrowthEditor({
   const [target, setTarget] = useState(String(teamGrowth?.target ?? ""));
   const [deadline, setDeadline] = useState(teamGrowth?.deadline ?? "");
   const [saving, setSaving] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   async function save() {
     if (!target || Number(target) < 0) {
@@ -1124,6 +1248,10 @@ function TeamGrowthEditor({
       return;
     }
     setSaving(true);
+    console.log("[Goals] Saving team growth goal", {
+      target: Number(target),
+      hasDeadline: Boolean(deadline),
+    });
     try {
       const res = await fetch("/api/goals", {
         method: "POST",
@@ -1135,9 +1263,16 @@ function TeamGrowthEditor({
         }),
       });
       if (res.ok) {
+        console.log("[Goals] Team growth goal saved");
         toast.success("Team growth goal saved");
         router.refresh();
-      } else toast.error("Failed to save");
+      } else {
+        console.log("[Goals] Team growth goal save failed", { status: res.status });
+        toast.error("Failed to save");
+      }
+    } catch (error) {
+      console.log("[Goals] Team growth goal request failed", { error });
+      toast.error("Failed to save");
     } finally {
       setSaving(false);
     }
@@ -1155,32 +1290,69 @@ function TeamGrowthEditor({
         Set a target number of agents to recruit by a specific deadline. Tracks automatically from your
         downline. Set to 0 to clear.
       </p>
-      <div className='mt-8 text-lg font-medium text-[var(--vf-text)]'>Team growth target</div>
-      <input
-        className='mt-2 w-full rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 py-3 text-lg text-[var(--vf-text)] outline-none'
-        type='number'
-        min={0}
-        value={target}
-        onChange={(e) => setTarget(e.target.value)}
-        placeholder='e.g. 25'
-      />
-      <div className='mt-5 text-sm text-[var(--vf-muted)]'>Target deadline (optional)</div>
-      <DatePicker
-        value={deadline}
-        onChange={setDeadline}
-        placeholder='Pick a deadline'
-        className='mt-2 text-lg'
-      />
+      <form
+        className='mt-8 grid gap-5 md:grid-cols-2'
+        onSubmit={(event) => {
+          event.preventDefault();
+          void save();
+        }}
+      >
+        <div>
+          <div className='text-lg font-medium text-[var(--vf-text)]'>Team growth target</div>
+          <div
+            className={cn(
+              'group relative mt-2 flex w-full items-center rounded-2xl border bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-4 py-3 text-lg text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition',
+              focused
+                ? 'border-[var(--vf-accent)] shadow-[0_0_0_4px_rgba(241,80,37,0.12)]'
+                : 'border-[var(--vf-surface-2)]',
+            )}
+          >
+            <input
+              className='w-full bg-transparent pr-14 text-xl outline-none placeholder:text-[var(--vf-muted)]'
+              type='number'
+              min={0}
+              value={target}
+              disabled={saving}
+              onChange={(event) => setTarget(event.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setTarget(String(teamGrowth?.target ?? ""));
+                  setFocused(false);
+                  event.currentTarget.blur();
+                }
+              }}
+              placeholder='e.g. 25'
+            />
+            <div
+              className={cn(
+                'pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center rounded-lg border px-2 py-1 transition-all duration-150',
+                focused
+                  ? 'translate-x-0 border-[var(--vf-border)] bg-[var(--vf-surface-2)] opacity-100'
+                  : 'translate-x-1 border-transparent opacity-0',
+              )}
+            >
+              <span className='text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--vf-muted)]'>
+                {saving ? "Saving" : "Enter"}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div className='text-lg font-medium text-[var(--vf-text)]'>Target deadline (optional)</div>
+          <DatePicker
+            value={deadline}
+            onChange={setDeadline}
+            placeholder='Pick a deadline'
+            className='mt-2 text-lg'
+            disablePast
+          />
+        </div>
+      </form>
       <div className='mt-3 text-sm text-[var(--vf-muted)]'>
         Total agents in your downline: {teamGrowth?.count ?? 0}
       </div>
-      <button
-        onClick={save}
-        disabled={saving}
-        className='mt-6 rounded-2xl bg-[var(--vf-accent)] px-6 py-3 text-lg font-semibold text-[var(--vf-accent-fg)] disabled:opacity-50'
-      >
-        {saving ? "Saving..." : "Save goal"}
-      </button>
     </Panel>
   );
 }
@@ -1248,7 +1420,7 @@ export function GoalsPage({ salesGoal, teamGoal, teamGrowth, teamUnlocked }: Goa
             <div className='text-lg font-semibold'>Monthly team goal</div>
             <div className='mt-1 text-base text-[var(--vf-muted)]'>
               {teamUnlocked
-                ? "Tracks your whole team&apos;s AP for the Agency leaderboard and resets each month."
+                ? "Tracks your whole team's AP for the Agency leaderboard and resets each month."
                 : "Unlocks after your first direct downline so team production goals only appear once you can actually build a team."}
             </div>
           </div>
@@ -1305,7 +1477,7 @@ export function GoalsPage({ salesGoal, teamGoal, teamGrowth, teamUnlocked }: Goa
         </div>
       </div>
 
-      <div className='grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]'>
+      <div className='space-y-5'>
         {teamGrowth && (
           <Panel className='p-5'>
             <div className='flex items-start justify-between'>
@@ -1357,7 +1529,7 @@ export function GoalsPage({ salesGoal, teamGoal, teamGrowth, teamUnlocked }: Goa
 }
 
 type TeamProps = {
-  metrics: { totalTeam: number; directAgents: number; teamAP: number; activeWriters: number };
+  metrics: { totalTeam: number; directAgents: number; teamAP: number; activeWriters: number; totalOverrides: number };
   growthBars: [string, string, number][];
   teamAgents: TeamAgentRecord[];
   teamUnlocked: boolean;
@@ -1371,7 +1543,47 @@ type FlatNode = {
   hasChildren: boolean;
 };
 
-function buildFlatTree(rows: TeamAgentRecord[], collapsed: Set<string>): FlatNode[] {
+type TeamSortKey =
+  | "name"
+  | "uplineName"
+  | "directCount"
+  | "teamAP"
+  | "ownAP"
+  | "salesCount"
+  | "dials"
+  | "conversations"
+  | "appointments"
+  | "presentations";
+
+type TeamSortConfig = {
+  key: TeamSortKey;
+  direction: "asc" | "desc";
+};
+
+type AdminSortKey = "lifetimeAP" | "lifetimeSales" | "compPercentage";
+
+type AdminSortConfig = {
+  key: AdminSortKey;
+  direction: "asc" | "desc";
+};
+
+function compareAgents(a: TeamAgentRecord, b: TeamAgentRecord, sort: TeamSortConfig | null) {
+  if (!sort) return 0;
+
+  const left = a[sort.key];
+  const right = b[sort.key];
+
+  let result = 0;
+  if (typeof left === "string" && typeof right === "string") {
+    result = left.localeCompare(right, undefined, { sensitivity: "base" });
+  } else {
+    result = Number(left) - Number(right);
+  }
+
+  return sort.direction === "asc" ? result : -result;
+}
+
+function buildFlatTree(rows: TeamAgentRecord[], collapsed: Set<string>, sort: TeamSortConfig | null): FlatNode[] {
   const childrenOf = new Map<string, TeamAgentRecord[]>();
   rows.forEach((agent) => {
     const upline = agent.uplineName;
@@ -1382,7 +1594,7 @@ function buildFlatTree(rows: TeamAgentRecord[], collapsed: Set<string>): FlatNod
   const result: FlatNode[] = [];
 
   function traverse(parentName: string, depth: number) {
-    const children = childrenOf.get(parentName) ?? [];
+    const children = [...(childrenOf.get(parentName) ?? [])].sort((a, b) => compareAgents(a, b, sort));
     for (const agent of children) {
       const name = agent.name;
       const hasChildren = (childrenOf.get(name)?.length ?? 0) > 0;
@@ -1475,6 +1687,7 @@ export function TeamPage({
   const [selectedAgent, setSelectedAgent] = useState<TeamAgentRecord | null>(null);
   const [agentDetail, setAgentDetail] = useState<TeamAgentCompensationDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [sort, setSort] = useState<TeamSortConfig | null>(null);
 
   function toggle(name: string) {
     setCollapsed((prev) => {
@@ -1501,21 +1714,52 @@ export function TeamPage({
     }
   }
 
-  const flatNodes = buildFlatTree(teamAgents, collapsed);
+  const rankedAgents = [...teamAgents].sort((a, b) => compareAgents(a, b, sort));
+  const flatNodes = buildFlatTree(teamAgents, collapsed, sort);
 
   const rankedCols = [
-    "Agent",
-    "Upline",
-    "Direct",
-    "Team AP",
-    "AP",
-    "Sales",
-    "Dials",
-    "Convos",
-    "Appts",
-    "Pres",
+    { label: "Agent", key: "name" as TeamSortKey },
+    { label: "Upline", key: "uplineName" as TeamSortKey },
+    { label: "Direct", key: "directCount" as TeamSortKey },
+    { label: "Team AP", key: "teamAP" as TeamSortKey },
+    { label: "AP", key: "ownAP" as TeamSortKey },
+    { label: "Sales", key: "salesCount" as TeamSortKey },
+    { label: "Dials", key: "dials" as TeamSortKey },
+    { label: "Convos", key: "conversations" as TeamSortKey },
+    { label: "Appts", key: "appointments" as TeamSortKey },
+    { label: "Pres", key: "presentations" as TeamSortKey },
   ];
-  const hierCols = ["Agent", "Direct", "Team AP", "Own AP", "Sales", "Dials", "Convos", "Appts", "Pres"];
+  const hierCols = [
+    { label: "Agent", key: "name" as TeamSortKey },
+    { label: "Direct", key: "directCount" as TeamSortKey },
+    { label: "Team AP", key: "teamAP" as TeamSortKey },
+    { label: "Own AP", key: "ownAP" as TeamSortKey },
+    { label: "Sales", key: "salesCount" as TeamSortKey },
+    { label: "Dials", key: "dials" as TeamSortKey },
+    { label: "Convos", key: "conversations" as TeamSortKey },
+    { label: "Appts", key: "appointments" as TeamSortKey },
+    { label: "Pres", key: "presentations" as TeamSortKey },
+  ];
+
+  function toggleSort(key: TeamSortKey) {
+    setSort((current) => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "desc" };
+    });
+  }
+
+  function SortIcon({ columnKey }: { columnKey: TeamSortKey }) {
+    if (sort?.key !== columnKey) {
+      return <ArrowUpDown className='h-3.5 w-3.5 text-[var(--vf-muted)]' />;
+    }
+    return sort.direction === "asc" ? (
+      <ArrowUp className='h-3.5 w-3.5 text-[var(--vf-accent)]' />
+    ) : (
+      <ArrowDown className='h-3.5 w-3.5 text-[var(--vf-accent)]' />
+    );
+  }
 
   return (
     <div className='space-y-8'>
@@ -1568,6 +1812,32 @@ export function TeamPage({
               helper='Submitted a policy this month'
             />
           </div>
+
+          {/* Total Overrides hero card */}
+          <Panel className='overflow-hidden p-0'>
+            <div className='flex flex-col gap-6 bg-[linear-gradient(135deg,rgba(88,101,242,0.18),rgba(88,101,242,0.04))] px-6 py-6 sm:flex-row sm:items-center sm:justify-between'>
+              <div className='flex items-center gap-5'>
+                <div className='flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#5865F2] shadow-[0_12px_24px_rgba(88,101,242,0.3)]'>
+                  <DollarSign className='h-7 w-7 text-white' />
+                </div>
+                <div>
+                  <div className='text-sm uppercase tracking-[0.16em] text-[var(--vf-muted)]'>Total overrides</div>
+                  <div className='mt-1 text-4xl font-semibold text-[#5865F2] sm:text-5xl'>{fmt(metrics.totalOverrides)}</div>
+                  <div className='mt-1.5 text-sm text-[var(--vf-muted)]'>Estimated override earnings from your entire downline this period</div>
+                </div>
+              </div>
+              <div className='flex shrink-0 flex-col gap-3 sm:items-end'>
+                <div className='rounded-xl border border-[rgba(88,101,242,0.25)] bg-[rgba(88,101,242,0.1)] px-4 py-3 text-center sm:text-right'>
+                  <div className='text-xs uppercase tracking-[0.14em] text-[var(--vf-muted)]'>Est. advance</div>
+                  <div className='mt-1 text-xl font-semibold text-[var(--vf-text)]'>{fmt(metrics.totalOverrides * 0.75)}</div>
+                </div>
+                <div className='rounded-xl border border-[rgba(88,101,242,0.25)] bg-[rgba(88,101,242,0.1)] px-4 py-3 text-center sm:text-right'>
+                  <div className='text-xs uppercase tracking-[0.14em] text-[var(--vf-muted)]'>Downline agents</div>
+                  <div className='mt-1 text-xl font-semibold text-[var(--vf-text)]'>{metrics.totalTeam}</div>
+                </div>
+              </div>
+            </div>
+          </Panel>
 
           <Panel className='p-6'>
             <div className='flex flex-wrap items-start justify-between gap-4'>
@@ -1643,16 +1913,22 @@ export function TeamPage({
                     <tr>
                       {rankedCols.map((col) => (
                         <th
-                          key={col}
+                          key={col.key}
                           className='px-3 py-3 font-medium'
                         >
-                          {col}
+                          <button
+                            onClick={() => toggleSort(col.key)}
+                            className='flex cursor-pointer items-center gap-1.5 transition hover:text-[var(--vf-text)]'
+                          >
+                            <span>{col.label}</span>
+                            <SortIcon columnKey={col.key} />
+                          </button>
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {teamAgents.map((agent) => (
+                    {rankedAgents.map((agent) => (
                       <tr
                         key={agent.id}
                         onClick={() => openAgent(agent)}
@@ -1692,10 +1968,16 @@ export function TeamPage({
                     <tr>
                       {hierCols.map((col) => (
                         <th
-                          key={col}
+                          key={col.key}
                           className='px-3 py-3 font-medium'
                         >
-                          {col}
+                          <button
+                            onClick={() => toggleSort(col.key)}
+                            className='flex cursor-pointer items-center gap-1.5 transition hover:text-[var(--vf-text)]'
+                          >
+                            <span>{col.label}</span>
+                            <SortIcon columnKey={col.key} />
+                          </button>
                         </th>
                       ))}
                     </tr>
@@ -3469,6 +3751,7 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
   const [agentFilter, setAgentFilter] = useState<"All" | "New" | "Unassigned">("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [sort, setSort] = useState<AdminSortConfig | null>(null);
 
   const pageSize = 10;
 
@@ -3671,12 +3954,50 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
       agent.email.toLowerCase().includes(normalizedSearch)
     );
   });
+  const sortedAgents = [...filteredAgents].sort((a, b) => {
+    if (!sort) return 0;
+    const left =
+      sort.key === "lifetimeAP"
+        ? Number(a.lifetimeAP)
+        : sort.key === "lifetimeSales"
+          ? Number(a.lifetimeSales)
+          : a.compPercentage;
+    const right =
+      sort.key === "lifetimeAP"
+        ? Number(b.lifetimeAP)
+        : sort.key === "lifetimeSales"
+          ? Number(b.lifetimeSales)
+          : b.compPercentage;
+    const result = left - right;
+    return sort.direction === "asc" ? result : -result;
+  });
 
-  const totalPages = Math.max(1, Math.ceil(filteredAgents.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(sortedAgents.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
-  const paginatedAgents = filteredAgents.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
-  const startRow = filteredAgents.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const paginatedAgents = sortedAgents.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+  const startRow = sortedAgents.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
   const endRow = filteredAgents.length === 0 ? 0 : startRow + paginatedAgents.length - 1;
+
+  function toggleSort(key: AdminSortKey) {
+    setSort((current) => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "desc" };
+    });
+    setCurrentPage(1);
+  }
+
+  function AdminSortIcon({ columnKey }: { columnKey: AdminSortKey }) {
+    if (sort?.key !== columnKey) {
+      return <ArrowUpDown className='h-3.5 w-3.5 text-[var(--vf-muted)]' />;
+    }
+    return sort.direction === "asc" ? (
+      <ArrowUp className='h-3.5 w-3.5 text-[var(--vf-accent)]' />
+    ) : (
+      <ArrowDown className='h-3.5 w-3.5 text-[var(--vf-accent)]' />
+    );
+  }
 
   return (
     <div className='space-y-8'>
@@ -3774,14 +4095,37 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                   <table className='w-full min-w-[980px] text-left'>
                     <thead className='bg-[var(--vf-surface)] text-sm text-[var(--vf-muted)]'>
                       <tr>
-                        {["Agent", "Lifetime AP", "Sales", "Comp", "Access", "Upline", ""].map((label) => (
-                          <th
-                            key={label}
-                            className='px-4 py-4 font-medium'
+                        <th className='px-4 py-4 font-medium'>Agent</th>
+                        <th className='px-4 py-4 font-medium'>
+                          <button
+                            onClick={() => toggleSort("lifetimeAP")}
+                            className='flex cursor-pointer items-center gap-1.5 transition hover:text-[var(--vf-text)]'
                           >
-                            {label}
-                          </th>
-                        ))}
+                            <span>Lifetime AP</span>
+                            <AdminSortIcon columnKey="lifetimeAP" />
+                          </button>
+                        </th>
+                        <th className='px-4 py-4 font-medium'>
+                          <button
+                            onClick={() => toggleSort("lifetimeSales")}
+                            className='flex cursor-pointer items-center gap-1.5 transition hover:text-[var(--vf-text)]'
+                          >
+                            <span>Sales</span>
+                            <AdminSortIcon columnKey="lifetimeSales" />
+                          </button>
+                        </th>
+                        <th className='px-4 py-4 font-medium'>
+                          <button
+                            onClick={() => toggleSort("compPercentage")}
+                            className='flex cursor-pointer items-center gap-1.5 transition hover:text-[var(--vf-text)]'
+                          >
+                            <span>Comp</span>
+                            <AdminSortIcon columnKey="compPercentage" />
+                          </button>
+                        </th>
+                        <th className='px-4 py-4 font-medium'>Access</th>
+                        <th className='px-4 py-4 font-medium'>Upline</th>
+                        <th className='px-4 py-4 font-medium' />
                       </tr>
                     </thead>
                     <tbody>
