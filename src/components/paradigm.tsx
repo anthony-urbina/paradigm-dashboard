@@ -116,16 +116,12 @@ function parseFormattedNumber(value: string): number {
 }
 
 const DAILY_MOTIVATION_QUOTES = [
-  "Treat today like the day that changes everything, and one day it will.",
-  "Consistency wins long after motivation gets quiet.",
-  "The calls you make today become the momentum you feel tomorrow.",
-  "Big months are built from ordinary days handled with discipline.",
-  "When the pace feels slow, stay sharp. The work is still compounding.",
-  "Confidence grows fastest when you keep promises to yourself.",
-  "You do not need perfect conditions. You need your next rep.",
-  "Pressure is easier to handle when preparation has already been done.",
-  "Success gets louder when excuses get smaller.",
-  "Stay in the fight long enough for your standards to start paying you back.",
+  "If you're gonna do it next year, you might as well start now.",
+  "Volume negates luck.",
+  "Outwork your self-doubt.",
+  "Be impatient with your actions. Be patient with your results.",
+  "Every action you take is a vote for the type of person you wish to become.",
+  "Most people need consistency more than they need intensity.",
 ] as const;
 
 const navItems = [
@@ -202,10 +198,7 @@ function ProgressRing({
   const inset = Math.max(12, Math.round(size * 0.14));
   const innerSize = size - inset * 2;
   const labelFontSize = Math.max(20, Math.min(44, size * 0.24));
-  const sublabelFontSize = Math.max(
-    7,
-    Math.min(14, size * 0.07 - Math.max(0, sublabel.length - 9) * 0.22),
-  );
+  const sublabelFontSize = Math.max(7, Math.min(14, size * 0.07 - Math.max(0, sublabel.length - 9) * 0.22));
 
   return (
     <div
@@ -267,7 +260,7 @@ function TimeRangeFilters({ selectedRange, storageKey }: { selectedRange: TimeRa
       params.set("range", saved);
       router.replace(`${pathname}?${params.toString()}`);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function chooseRange(range: TimeRange) {
@@ -324,7 +317,9 @@ function LeaderboardList({
           <div className='flex flex-col items-center justify-center py-10 text-center'>
             <Trophy className='mb-3 h-8 w-8 text-[var(--vf-muted)] opacity-30' />
             <p className='text-sm font-medium text-[var(--vf-muted)]'>No sales yet this period</p>
-            <p className='mt-1 text-xs text-[var(--vf-muted)] opacity-60'>Submit a sale to appear on the leaderboard</p>
+            <p className='mt-1 text-xs text-[var(--vf-muted)] opacity-60'>
+              Submit a sale to appear on the leaderboard
+            </p>
           </div>
         )}
         {entries.map((entry) => (
@@ -374,14 +369,10 @@ function LeaderboardList({
                 <div className='truncate text-sm font-semibold text-white sm:text-base'>
                   {entry.name}
                   {entry.badge ? (
-                    <span className='ml-1.5 text-xs font-normal text-[var(--vf-muted)]'>
-                      {entry.badge}
-                    </span>
+                    <span className='ml-1.5 text-xs font-normal text-[var(--vf-muted)]'>{entry.badge}</span>
                   ) : null}
                 </div>
-                <div className='mt-0.5 text-xs text-[var(--vf-muted)]'>
-                  {entry.subtitle}
-                </div>
+                <div className='mt-0.5 text-xs text-[var(--vf-muted)]'>{entry.subtitle}</div>
                 {showProgress && entry.progressLabel && entry.progressValue !== undefined ? (
                   <div className='mt-2 max-w-xs sm:mt-3'>
                     <div className='h-1.5 rounded-full bg-[rgba(255,255,255,0.07)]'>
@@ -570,13 +561,15 @@ function GoalEditor({
         <div
           ref={fieldRef}
           className={cn(
-            'group relative flex w-full max-w-sm items-center rounded-2xl border bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-4 py-3 text-lg text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition',
+            "group relative flex w-full max-w-sm items-center rounded-2xl border bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-4 py-3 text-lg text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition",
             focused
-              ? 'border-[var(--vf-accent)] shadow-[0_0_0_4px_rgba(241,80,37,0.12)]'
-              : 'border-[var(--vf-surface-2)]',
+              ? "border-[var(--vf-accent)] shadow-[0_0_0_4px_rgba(241,80,37,0.12)]"
+              : "border-[var(--vf-surface-2)]",
           )}
         >
-          <span className='mr-3 text-xl text-[var(--vf-muted)] transition group-focus-within:text-[var(--vf-accent)]'>$</span>
+          <span className='mr-3 text-xl text-[var(--vf-muted)] transition group-focus-within:text-[var(--vf-accent)]'>
+            $
+          </span>
           <input
             ref={inputRef}
             className='w-full bg-transparent pr-14 text-xl outline-none placeholder:text-[var(--vf-muted)]'
@@ -598,10 +591,10 @@ function GoalEditor({
           />
           <div
             className={cn(
-              'pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center rounded-lg border px-2 py-1 transition-all duration-150',
+              "pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center rounded-lg border px-2 py-1 transition-all duration-150",
               focused
-                ? 'translate-x-0 border-[var(--vf-border)] bg-[var(--vf-surface-2)] opacity-100'
-                : 'translate-x-1 border-transparent opacity-0',
+                ? "translate-x-0 border-[var(--vf-border)] bg-[var(--vf-surface-2)] opacity-100"
+                : "translate-x-1 border-transparent opacity-0",
             )}
           >
             <span className='text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--vf-muted)]'>
@@ -1065,9 +1058,32 @@ export function WelcomePage({
   const today = new Date();
   const startOfYear = new Date(today.getFullYear(), 0, 0);
   const dayOfYear = Math.floor((today.getTime() - startOfYear.getTime()) / 86_400_000);
-  const dailyMotivationQuote =
-    DAILY_MOTIVATION_QUOTES[dayOfYear % DAILY_MOTIVATION_QUOTES.length] ??
-    DAILY_MOTIVATION_QUOTES[0];
+  const initialDailyMotivationQuote =
+    DAILY_MOTIVATION_QUOTES[dayOfYear % DAILY_MOTIVATION_QUOTES.length] ?? DAILY_MOTIVATION_QUOTES[0];
+  const [dailyMotivationQuote, setDailyMotivationQuote] = useState(initialDailyMotivationQuote);
+  const [rollingQuote, setRollingQuote] = useState(false);
+
+  async function rollMotivationQuote() {
+    if (DAILY_MOTIVATION_QUOTES.length <= 1 || rollingQuote) return;
+    const availableQuotes = DAILY_MOTIVATION_QUOTES.filter((quote) => quote !== dailyMotivationQuote);
+    const nextQuote =
+      availableQuotes[Math.floor(Math.random() * availableQuotes.length)] ?? initialDailyMotivationQuote;
+
+    setRollingQuote(true);
+    try {
+      for (let index = 0; index < 10; index += 1) {
+        const shufflePool = DAILY_MOTIVATION_QUOTES.filter((quote) => quote !== dailyMotivationQuote);
+        const shuffleQuote =
+          shufflePool[Math.floor(Math.random() * shufflePool.length)] ?? initialDailyMotivationQuote;
+        setDailyMotivationQuote(shuffleQuote);
+        await new Promise((resolve) => setTimeout(resolve, 55 + index * 12));
+      }
+      setDailyMotivationQuote(nextQuote);
+    } finally {
+      setRollingQuote(false);
+    }
+  }
+
   return (
     <div className='space-y-8'>
       <LogSaleModal
@@ -1111,14 +1127,25 @@ export function WelcomePage({
         <Panel className='relative min-h-[260px] overflow-hidden p-6'>
           <div className='absolute inset-0 bg-[linear-gradient(135deg,rgba(241,80,37,0.07),transparent_60%)] pointer-events-none' />
           <div className='text-5xl font-bold text-[var(--vf-blurple)] opacity-80'>&ldquo;</div>
-          <div className='mt-8 max-w-md text-xl font-medium leading-snug text-[var(--vf-text)] sm:text-[2rem]'>
-            {dailyMotivationQuote}
+          <div className='mt-8 max-w-md min-h-[7.5rem] overflow-hidden sm:min-h-[9rem]'>
+            <div
+              className={cn(
+                'text-xl font-medium leading-snug text-[var(--vf-text)] transition duration-150 sm:text-[2rem]',
+                rollingQuote && 'translate-y-0.5 opacity-80',
+              )}
+            >
+              {dailyMotivationQuote}
+            </div>
           </div>
           <div className='mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--vf-muted)]'>
             Daily motivation
           </div>
-          <button className='mt-4 rounded-xl bg-[var(--vf-blurple)] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_16px_var(--vf-blurple-dim)] transition hover:opacity-90'>
-            Hype me up
+          <button
+            onClick={rollMotivationQuote}
+            disabled={rollingQuote}
+            className='mt-4 rounded-xl bg-[var(--vf-blurple)] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_16px_var(--vf-blurple-dim)] transition hover:opacity-90 disabled:cursor-default disabled:opacity-85'
+          >
+            {rollingQuote ? "Rolling..." : "Hype me up"}
           </button>
         </Panel>
 
@@ -1290,11 +1317,11 @@ function TeamGrowthEditor({
         <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--vf-surface)] text-[var(--vf-accent)]'>
           <Gauge className='h-4 w-4' />
         </div>
-        <div className='text-3xl font-semibold text-[var(--vf-text)]'>Set your goals</div>
+        <div className='text-3xl font-semibold text-[var(--vf-text)]'>Set your team growth goal</div>
       </div>
       <p className='mt-5 text-base text-[var(--vf-muted)]'>
-        Set a target number of agents to recruit by a specific deadline. Tracks automatically from your
-        downline. Set to 0 to clear.
+        Set the number of agents you want in your downline by a specific deadline. Progress updates
+        automatically as your team grows. Set to 0 to clear.
       </p>
       <form
         className='mt-8 grid gap-5 md:grid-cols-2'
@@ -1307,10 +1334,10 @@ function TeamGrowthEditor({
           <div className='text-lg font-medium text-[var(--vf-text)]'>Team growth target</div>
           <div
             className={cn(
-              'group relative mt-2 flex w-full items-center rounded-2xl border bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-4 py-3 text-lg text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition',
+              "group relative mt-2 flex w-full items-center rounded-2xl border bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-4 py-3 text-lg text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition",
               focused
-                ? 'border-[var(--vf-accent)] shadow-[0_0_0_4px_rgba(241,80,37,0.12)]'
-                : 'border-[var(--vf-surface-2)]',
+                ? "border-[var(--vf-accent)] shadow-[0_0_0_4px_rgba(241,80,37,0.12)]"
+                : "border-[var(--vf-surface-2)]",
             )}
           >
             <input
@@ -1333,10 +1360,10 @@ function TeamGrowthEditor({
             />
             <div
               className={cn(
-                'pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center rounded-lg border px-2 py-1 transition-all duration-150',
+                "pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center rounded-lg border px-2 py-1 transition-all duration-150",
                 focused
-                  ? 'translate-x-0 border-[var(--vf-border)] bg-[var(--vf-surface-2)] opacity-100'
-                  : 'translate-x-1 border-transparent opacity-0',
+                  ? "translate-x-0 border-[var(--vf-border)] bg-[var(--vf-surface-2)] opacity-100"
+                  : "translate-x-1 border-transparent opacity-0",
               )}
             >
               <span className='text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--vf-muted)]'>
@@ -1535,7 +1562,13 @@ export function GoalsPage({ salesGoal, teamGoal, teamGrowth, teamUnlocked }: Goa
 }
 
 type TeamProps = {
-  metrics: { totalTeam: number; directAgents: number; teamAP: number; activeWriters: number; totalOverrides: number };
+  metrics: {
+    totalTeam: number;
+    directAgents: number;
+    teamAP: number;
+    activeWriters: number;
+    totalOverrides: number;
+  };
   growthBars: [string, string, number][];
   teamAgents: TeamAgentRecord[];
   teamUnlocked: boolean;
@@ -1589,7 +1622,11 @@ function compareAgents(a: TeamAgentRecord, b: TeamAgentRecord, sort: TeamSortCon
   return sort.direction === "asc" ? result : -result;
 }
 
-function buildFlatTree(rows: TeamAgentRecord[], collapsed: Set<string>, sort: TeamSortConfig | null): FlatNode[] {
+function buildFlatTree(
+  rows: TeamAgentRecord[],
+  collapsed: Set<string>,
+  sort: TeamSortConfig | null,
+): FlatNode[] {
   const childrenOf = new Map<string, TeamAgentRecord[]>();
   rows.forEach((agent) => {
     const upline = agent.uplineName;
@@ -1775,7 +1812,10 @@ export function TeamPage({
           description="This month's sales and activity for you and everyone in your downline. Once you have agents assigned, they'll appear here beneath you."
           icon={<Users className='h-6 w-6' />}
         />
-        <TimeRangeFilters selectedRange={selectedRange} storageKey="paradigm-team-range" />
+        <TimeRangeFilters
+          selectedRange={selectedRange}
+          storageKey='paradigm-team-range'
+        />
       </div>
 
       {!teamUnlocked && (
@@ -1827,18 +1867,30 @@ export function TeamPage({
                   <DollarSign className='h-7 w-7 text-white' />
                 </div>
                 <div>
-                  <div className='text-sm uppercase tracking-[0.16em] text-[var(--vf-muted)]'>Total overrides</div>
-                  <div className='mt-1 text-4xl font-semibold text-[#5865F2] sm:text-5xl'>{fmt(metrics.totalOverrides)}</div>
-                  <div className='mt-1.5 text-sm text-[var(--vf-muted)]'>Estimated override earnings from your entire downline this period</div>
+                  <div className='text-sm uppercase tracking-[0.16em] text-[var(--vf-muted)]'>
+                    Total overrides
+                  </div>
+                  <div className='mt-1 text-4xl font-semibold text-[#5865F2] sm:text-5xl'>
+                    {fmt(metrics.totalOverrides)}
+                  </div>
+                  <div className='mt-1.5 text-sm text-[var(--vf-muted)]'>
+                    Estimated override earnings from your entire downline this period
+                  </div>
                 </div>
               </div>
               <div className='flex shrink-0 flex-col gap-3 sm:items-end'>
                 <div className='rounded-xl border border-[rgba(88,101,242,0.25)] bg-[rgba(88,101,242,0.1)] px-4 py-3 text-center sm:text-right'>
-                  <div className='text-xs uppercase tracking-[0.14em] text-[var(--vf-muted)]'>Est. advance</div>
-                  <div className='mt-1 text-xl font-semibold text-[var(--vf-text)]'>{fmt(metrics.totalOverrides * 0.75)}</div>
+                  <div className='text-xs uppercase tracking-[0.14em] text-[var(--vf-muted)]'>
+                    Est. advance
+                  </div>
+                  <div className='mt-1 text-xl font-semibold text-[var(--vf-text)]'>
+                    {fmt(metrics.totalOverrides * 0.75)}
+                  </div>
                 </div>
                 <div className='rounded-xl border border-[rgba(88,101,242,0.25)] bg-[rgba(88,101,242,0.1)] px-4 py-3 text-center sm:text-right'>
-                  <div className='text-xs uppercase tracking-[0.14em] text-[var(--vf-muted)]'>Downline agents</div>
+                  <div className='text-xs uppercase tracking-[0.14em] text-[var(--vf-muted)]'>
+                    Downline agents
+                  </div>
                   <div className='mt-1 text-xl font-semibold text-[var(--vf-text)]'>{metrics.totalTeam}</div>
                 </div>
               </div>
@@ -2088,7 +2140,10 @@ export function TeamPage({
               {/* 4 metric cards */}
               <div className='grid gap-4 md:grid-cols-4'>
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className='rounded-[20px] border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4'>
+                  <div
+                    key={i}
+                    className='rounded-[20px] border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4'
+                  >
                     <Skeleton className='h-3 w-20' />
                     <Skeleton className='mt-3 h-7 w-24' />
                     <Skeleton className='mt-2 h-3 w-28' />
@@ -2099,13 +2154,19 @@ export function TeamPage({
               <div className='overflow-hidden rounded-[22px] border border-[var(--vf-border)]'>
                 <div className='bg-[var(--vf-surface)] px-4 py-3'>
                   <div className='flex gap-8'>
-                    {['w-20', 'w-32', 'w-16', 'w-20', 'w-20', 'w-24', 'w-20', 'w-16'].map((w, i) => (
-                      <Skeleton key={i} className={`h-3 ${w}`} />
+                    {["w-20", "w-32", "w-16", "w-20", "w-20", "w-24", "w-20", "w-16"].map((w, i) => (
+                      <Skeleton
+                        key={i}
+                        className={`h-3 ${w}`}
+                      />
                     ))}
                   </div>
                 </div>
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className='flex gap-8 border-t border-[var(--vf-border)] px-4 py-3.5'>
+                  <div
+                    key={i}
+                    className='flex gap-8 border-t border-[var(--vf-border)] px-4 py-3.5'
+                  >
                     <Skeleton className='h-4 w-20' />
                     <Skeleton className='h-4 w-32' />
                     <Skeleton className='h-4 w-16' />
@@ -2131,15 +2192,23 @@ export function TeamPage({
                 <div className='space-y-1.5'>
                   <div className='text-sm text-[var(--vf-muted)]'>
                     {agentDetail.subject.name} is at{" "}
-                    <span className='font-semibold text-[var(--vf-text)]'>{fmtPct(agentDetail.subject.compPercentage)}</span>{" "}
+                    <span className='font-semibold text-[var(--vf-text)]'>
+                      {fmtPct(agentDetail.subject.compPercentage)}
+                    </span>{" "}
                     comp. Your override on this branch is{" "}
-                    <span className='font-semibold text-[var(--vf-accent)]'>{fmtPct(agentDetail.summary.overrideDelta)}</span>.
+                    <span className='font-semibold text-[var(--vf-accent)]'>
+                      {fmtPct(agentDetail.summary.overrideDelta)}
+                    </span>
+                    .
                   </div>
                   {!agentDetail.branchAgent.isSelf && (
                     <div className='text-xs text-[var(--vf-muted)]'>
                       Override flows through{" "}
-                      <span className='font-semibold text-[var(--vf-text)]'>{agentDetail.branchAgent.name}</span>
-                      {" "}({fmtPct(agentDetail.branchAgent.compPercentage)} comp) — your direct downline on this branch.
+                      <span className='font-semibold text-[var(--vf-text)]'>
+                        {agentDetail.branchAgent.name}
+                      </span>{" "}
+                      ({fmtPct(agentDetail.branchAgent.compPercentage)} comp) - your direct downline on this
+                      branch.
                     </div>
                   )}
                 </div>
@@ -2551,7 +2620,11 @@ export function CompetitionPage({
   const searchParams = useSearchParams();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Competition | null>(null);
-  const [confirmPending, setConfirmPending] = useState<{ action: "delete" | "end" | "activate"; id: string; name: string } | null>(null);
+  const [confirmPending, setConfirmPending] = useState<{
+    action: "delete" | "end" | "activate";
+    id: string;
+    name: string;
+  } | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "draft" | "ended">(() => {
     if (typeof window === "undefined") return "all";
     const savedFilter = window.localStorage.getItem("paradigm-competition-filter");
@@ -2795,24 +2868,45 @@ export function CompetitionPage({
       )}
 
       {/* Confirmation modal */}
-      <Dialog open={!!confirmPending} onOpenChange={(open) => { if (!open) setConfirmPending(null); }}>
-        <DialogContent className="max-w-sm border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)]">
+      <Dialog
+        open={!!confirmPending}
+        onOpenChange={(open) => {
+          if (!open) setConfirmPending(null);
+        }}
+      >
+        <DialogContent className='max-w-sm border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)]'>
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">
+            <DialogTitle className='text-xl font-semibold'>
               {confirmPending?.action === "delete" && "Delete competition"}
               {confirmPending?.action === "end" && "End competition"}
               {confirmPending?.action === "activate" && "Activate competition"}
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-[var(--vf-muted)]">
-            {confirmPending?.action === "delete" && <>Are you sure you want to delete <span className="font-medium text-[var(--vf-text)]">"{confirmPending.name}"</span>? This cannot be undone.</>}
-            {confirmPending?.action === "end" && <>End <span className="font-medium text-[var(--vf-text)]">"{confirmPending?.name}"</span>? This will close it to all participants.</>}
-            {confirmPending?.action === "activate" && <>Activate <span className="font-medium text-[var(--vf-text)]">"{confirmPending?.name}"</span>? It will become live and visible to all agents.</>}
+          <p className='text-sm text-[var(--vf-muted)]'>
+            {confirmPending?.action === "delete" && (
+              <>
+                Are you sure you want to delete{" "}
+                <span className='font-medium text-[var(--vf-text)]'>"{confirmPending.name}"</span>? This
+                cannot be undone.
+              </>
+            )}
+            {confirmPending?.action === "end" && (
+              <>
+                End <span className='font-medium text-[var(--vf-text)]'>"{confirmPending?.name}"</span>? This
+                will close it to all participants.
+              </>
+            )}
+            {confirmPending?.action === "activate" && (
+              <>
+                Activate <span className='font-medium text-[var(--vf-text)]'>"{confirmPending?.name}"</span>?
+                It will become live and visible to all agents.
+              </>
+            )}
           </p>
-          <div className="mt-2 flex justify-end gap-3">
+          <div className='mt-2 flex justify-end gap-3'>
             <button
               onClick={() => setConfirmPending(null)}
-              className="rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-medium text-[var(--vf-text)] hover:bg-[var(--vf-surface-2)]"
+              className='rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-medium text-[var(--vf-text)] hover:bg-[var(--vf-surface-2)]'
             >
               Cancel
             </button>
@@ -2874,7 +2968,10 @@ export function AgencyPage({
   const overview = (
     <>
       <div className='flex justify-end'>
-        <TimeRangeFilters selectedRange={selectedRange} storageKey="paradigm-agency-range" />
+        <TimeRangeFilters
+          selectedRange={selectedRange}
+          storageKey='paradigm-agency-range'
+        />
       </div>
       <div className='grid gap-4 md:grid-cols-3'>
         <MetricCard
@@ -2997,7 +3094,9 @@ export function AgencyPage({
                               }}
                               className='w-[120px] rounded-xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] py-2 pl-3 pr-7 text-[var(--vf-text)] outline-none'
                             />
-                            <span className='pointer-events-none absolute right-3 text-sm text-[var(--vf-muted)]'>%</span>
+                            <span className='pointer-events-none absolute right-3 text-sm text-[var(--vf-muted)]'>
+                              %
+                            </span>
                           </div>
                         </td>
                       </tr>
@@ -3057,24 +3156,38 @@ function leaderboardPostSvg(post: LeaderboardPostCard) {
     const rEntry = rightCol[i];
     const separatorY = y + rowH - 4;
     const mid = y + Math.round(rowH / 2) + 8;
-    const leftSvg = lEntry ? `
+    const leftSvg = lEntry
+      ? `
       <text x="86" y="${mid}" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${lEntry.rank}</text>
       <text x="132" y="${mid}" fill="#DBDEE1" font-size="22" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(lEntry.shortName)}</text>
       <text x="370" y="${mid}" fill="#949BA4" font-size="15" font-family="Arial, sans-serif" font-style="italic" text-anchor="end">${lEntry.salesCount} ${lEntry.salesCount === 1 ? "sale" : "sales"}</text>
       <text x="516" y="${mid}" fill="#ffffff" font-size="22" font-family="Arial, sans-serif" font-weight="900" font-style="italic" text-anchor="end">${fmtAp(lEntry.ap)}</text>
-    ` : "";
-    const rightSvg = rEntry ? `
+    `
+      : "";
+    const rightSvg = rEntry
+      ? `
       <text x="558" y="${mid}" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${rEntry.rank}</text>
       <text x="602" y="${mid}" fill="#DBDEE1" font-size="22" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(rEntry.shortName)}</text>
       <text x="840" y="${mid}" fill="#949BA4" font-size="15" font-family="Arial, sans-serif" font-style="italic" text-anchor="end">${rEntry.salesCount} ${rEntry.salesCount === 1 ? "sale" : "sales"}</text>
       <text x="988" y="${mid}" fill="#ffffff" font-size="22" font-family="Arial, sans-serif" font-weight="900" font-style="italic" text-anchor="end">${fmtAp(rEntry.ap)}</text>
-    ` : "";
-    const sep = i < rowCount - 1 ? `<line x1="72" y1="${y + rowH - 1}" x2="1008" y2="${y + rowH - 1}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>` : "";
+    `
+      : "";
+    const sep =
+      i < rowCount - 1
+        ? `<line x1="72" y1="${y + rowH - 1}" x2="1008" y2="${y + rowH - 1}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`
+        : "";
     return leftSvg + rightSvg + sep;
   }).join("");
 
   // Podium avatar helper
-  const avatar = (cx: number, cy: number, r: number, initials: string, ringColor: string, badgeRank: number) => {
+  const avatar = (
+    cx: number,
+    cy: number,
+    r: number,
+    initials: string,
+    ringColor: string,
+    badgeRank: number,
+  ) => {
     const badgeCy = cy + r - 4;
     const badgeColor = badgeRank === 1 ? "#F15025" : badgeRank === 2 ? "#5865F2" : "rgba(205,127,79,0.9)";
     return `
@@ -3087,16 +3200,31 @@ function leaderboardPostSvg(post: LeaderboardPostCard) {
   };
 
   // Name card helper — includes sales count so cards don't look empty
-  const nameCard = (x: number, y: number, w: number, h: number, name: string, ap: number, salesCount: number, borderColor: string, apColor: string, isFirst = false) => `
+  const nameCard = (
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    name: string,
+    ap: number,
+    salesCount: number,
+    borderColor: string,
+    apColor: string,
+    isFirst = false,
+  ) => `
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18" fill="#161819" stroke="${borderColor}" stroke-width="1.5"/>
     <text x="${x + w / 2}" y="${y + 38}" text-anchor="middle" fill="#DBDEE1" font-size="${isFirst ? 28 : 24}" font-family="Arial, sans-serif" font-weight="800" font-style="italic">${escapeXml(name)}</text>
     <text x="${x + w / 2}" y="${y + 64}" text-anchor="middle" fill="#949BA4" font-size="13" font-family="Arial, sans-serif" letter-spacing="3">TOTAL AP</text>
-    ${isFirst ? `
+    ${
+      isFirst
+        ? `
       <text x="${x + w / 2}" y="${y + 108}" text-anchor="middle" fill="${apColor}" font-size="46" font-family="Arial, sans-serif" font-weight="900" font-style="italic"
         filter="url(#apGlow)">${fmtAp(ap)}</text>
-    ` : `
+    `
+        : `
       <text x="${x + w / 2}" y="${y + 104}" text-anchor="middle" fill="${apColor}" font-size="30" font-family="Arial, sans-serif" font-weight="800" font-style="italic">${fmtAp(ap)}</text>
-    `}
+    `
+    }
     <text x="${x + w / 2}" y="${y + 130}" text-anchor="middle" fill="#949BA4" font-size="15" font-family="Arial, sans-serif" font-style="italic">${salesCount} ${salesCount === 1 ? "sale" : "sales"}</text>
   `;
 
@@ -3221,8 +3349,8 @@ function LeaderboardPostPreview({ post }: { post: LeaderboardPostCard }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={dataUrl}
-      alt="Leaderboard post preview"
-      className="mx-auto w-full max-w-[480px] rounded-[28px]"
+      alt='Leaderboard post preview'
+      className='mx-auto w-full max-w-[480px] rounded-[28px]'
     />
   );
 }
@@ -3524,15 +3652,27 @@ function CompetitionModal({
               {editing && (
                 <div>
                   <label className='text-sm uppercase tracking-[0.14em] text-[var(--vf-muted)]'>Status</label>
-                  <select
-                    className={inputCls}
+                  <Select
                     value={form.status}
-                    onChange={field("status")}
                   >
-                    <option value='draft'>Draft</option>
-                    <option value='active'>Active</option>
-                    <option value='ended'>Ended</option>
-                  </select>
+                    <SelectTrigger
+                      className='mt-2 flex h-[56px] w-full items-center justify-between rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 text-left text-base text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <span className='capitalize'>{form.status}</span>
+                    </SelectTrigger>
+                    <SelectContent align="start" className='w-[var(--radix-select-trigger-width)]'>
+                      <SelectItem value='draft' onSelect={() => setForm((f) => ({ ...f, status: "draft" }))}>
+                        Draft
+                      </SelectItem>
+                      <SelectItem value='active' onSelect={() => setForm((f) => ({ ...f, status: "active" }))}>
+                        Active
+                      </SelectItem>
+                      <SelectItem value='ended' onSelect={() => setForm((f) => ({ ...f, status: "ended" }))}>
+                        Ended
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
             </div>
@@ -3589,7 +3729,54 @@ function CompetitionModal({
         {tab === "members" && editing && (
           <div className='mt-2 flex-1 overflow-y-auto pr-1'>
             {membersLoading ? (
-              <div className='py-8 text-center text-sm text-[var(--vf-muted)]'>Loading...</div>
+              <div className='space-y-4 py-1'>
+                <div className='grid grid-cols-2 gap-3'>
+                  {[0, 1].map((index) => (
+                    <div
+                      key={index}
+                      className='rounded-2xl border border-[var(--vf-border)] p-3'
+                    >
+                      <div className='mb-3 flex items-center gap-2'>
+                        <Skeleton className='h-2.5 w-2.5 rounded-full' />
+                        <Skeleton className='h-4 w-28' />
+                        <Skeleton className='ml-auto h-4 w-6' />
+                      </div>
+                      <div className='space-y-2'>
+                        {[0, 1, 2].map((row) => (
+                          <div
+                            key={row}
+                            className='flex items-center justify-between rounded-xl border border-[var(--vf-border)] p-3'
+                          >
+                            <Skeleton className='h-4 w-32' />
+                            <Skeleton className='h-8 w-8 rounded-lg' />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className='rounded-2xl border border-[var(--vf-border)] p-3'>
+                  <div className='mb-3 flex items-center justify-between'>
+                    <Skeleton className='h-4 w-40' />
+                    <Skeleton className='h-4 w-10' />
+                  </div>
+                  <div className='space-y-2'>
+                    {[0, 1, 2, 3].map((row) => (
+                      <div
+                        key={row}
+                        className='flex items-center justify-between rounded-xl bg-[var(--vf-surface)] px-3 py-2'
+                      >
+                        <Skeleton className='h-4 w-36' />
+                        <div className='flex gap-2'>
+                          <Skeleton className='h-7 w-20 rounded-lg' />
+                          <Skeleton className='h-7 w-20 rounded-lg' />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             ) : (
               <>
                 {/* Team columns */}
@@ -3735,17 +3922,28 @@ function UplineSelect({
   const filtered = uplineOptions
     .filter((o) => o.id !== agentId)
     .filter((o) => o.name.toLowerCase().includes(search.toLowerCase()));
+  const adminControlCls =
+    "h-[52px] w-[220px] rounded-xl border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
 
   return (
     <Select
       value={uplineId ?? "unassigned"}
-      onValueChange={(v) => { setSearch(""); onChange(v === "unassigned" ? null : v); }}
+      onValueChange={(v) => {
+        setSearch("");
+        onChange(v === "unassigned" ? null : v);
+      }}
       disabled={disabled}
     >
-      <SelectTrigger className='w-[220px] rounded-xl border-[var(--vf-surface-2)] bg-[var(--vf-surface)] text-[var(--vf-text)]'>
-        <span>{uplineId ? (uplineOptions.find((o) => o.id === uplineId)?.name ?? uplineName) : "Unassigned"}</span>
+      <SelectTrigger className={adminControlCls}>
+        <span>
+          {uplineId ? (uplineOptions.find((o) => o.id === uplineId)?.name ?? uplineName) : "Unassigned"}
+        </span>
       </SelectTrigger>
-      <SelectContent className='w-[280px] max-h-[300px] p-2' align="end" alignItemWithTrigger={false}>
+      <SelectContent
+        className='w-[280px] max-h-[300px] p-2'
+        align='end'
+        alignItemWithTrigger={false}
+      >
         <div className='pb-2'>
           <input
             autoFocus
@@ -3756,9 +3954,20 @@ function UplineSelect({
             className='w-full rounded-lg bg-[rgba(255,255,255,0.07)] px-3 py-2 text-sm text-[var(--vf-text)] outline-none placeholder:text-[var(--vf-muted)]'
           />
         </div>
-        <SelectItem value='unassigned' className='rounded-lg px-3 py-2.5 text-sm'>Unassigned</SelectItem>
+        <SelectItem
+          value='unassigned'
+          className='rounded-lg px-3 py-2.5 text-sm'
+        >
+          Unassigned
+        </SelectItem>
         {filtered.map((option) => (
-          <SelectItem key={option.id} value={option.id} className='rounded-lg px-3 py-2.5 text-sm'>{option.name}</SelectItem>
+          <SelectItem
+            key={option.id}
+            value={option.id}
+            className='rounded-lg px-3 py-2.5 text-sm'
+          >
+            {option.name}
+          </SelectItem>
         ))}
         {filtered.length === 0 && (
           <div className='px-3 py-3 text-sm text-[var(--vf-muted)]'>No agents found</div>
@@ -4061,7 +4270,9 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
           {sidebarItems.map(({ label, key }) => (
             <button
               key={label}
-              onClick={() => { if (key) setTab(key); }}
+              onClick={() => {
+                if (key) setTab(key);
+              }}
               className={cn(
                 "px-4 py-2.5 text-sm font-medium transition-colors",
                 key === tab
@@ -4086,13 +4297,6 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                     </div>
                   </div>
                   <div className='flex flex-wrap items-center gap-2'>
-                    <button
-                      onClick={() => setInviteModalOpen(true)}
-                      className='inline-flex items-center gap-2 rounded-2xl bg-[var(--vf-accent)] px-4 py-2.5 text-sm font-semibold text-[var(--vf-accent-fg)]'
-                    >
-                      <Plus className='h-4 w-4' />
-                      Create new user
-                    </button>
                     {(["All", "New", "Unassigned"] as const).map((label) => (
                       <button
                         key={label}
@@ -4134,7 +4338,7 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                             className='flex cursor-pointer items-center gap-1.5 transition hover:text-[var(--vf-text)]'
                           >
                             <span>Lifetime AP</span>
-                            <AdminSortIcon columnKey="lifetimeAP" />
+                            <AdminSortIcon columnKey='lifetimeAP' />
                           </button>
                         </th>
                         <th className='px-4 py-4 font-medium'>
@@ -4143,7 +4347,7 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                             className='flex cursor-pointer items-center gap-1.5 transition hover:text-[var(--vf-text)]'
                           >
                             <span>Sales</span>
-                            <AdminSortIcon columnKey="lifetimeSales" />
+                            <AdminSortIcon columnKey='lifetimeSales' />
                           </button>
                         </th>
                         <th className='px-4 py-4 font-medium'>
@@ -4152,7 +4356,7 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                             className='flex cursor-pointer items-center gap-1.5 transition hover:text-[var(--vf-text)]'
                           >
                             <span>Comp</span>
-                            <AdminSortIcon columnKey="compPercentage" />
+                            <AdminSortIcon columnKey='compPercentage' />
                           </button>
                         </th>
                         <th className='px-4 py-4 font-medium'>Access</th>
@@ -4196,9 +4400,15 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                                 step='5'
                                 defaultValue={agent.compPercentage}
                                 disabled={savingAgentId === agent.id}
-                                onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
-                                onFocus={(e) => { e.currentTarget.select(); setFocusedAgentId(agent.id); }}
-                                onBlur={(event) => { setFocusedAgentId(null);
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter") event.currentTarget.blur();
+                                }}
+                                onFocus={(e) => {
+                                  e.currentTarget.select();
+                                  setFocusedAgentId(agent.id);
+                                }}
+                                onBlur={(event) => {
+                                  setFocusedAgentId(null);
                                   const nextValue = Number(event.target.value);
                                   if (!Number.isFinite(nextValue) || nextValue === agent.compPercentage) {
                                     event.target.value = agent.compPercentage.toString();
@@ -4206,10 +4416,24 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                                   }
                                   void updateAgent(agent.id, { compPercentage: nextValue });
                                 }}
-                                className='w-[150px] rounded-xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] py-2 pl-3 pr-16 text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-accent)]'
+                                className='h-[52px] w-[220px] rounded-xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] pl-4 pr-16 text-[var(--vf-text)] outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors focus:border-[var(--vf-accent)]'
                               />
-                              <span className={cn('pointer-events-none absolute text-sm text-[var(--vf-muted)] transition-all duration-150', focusedAgentId === agent.id ? 'right-8' : 'right-3')}>%</span>
-                              <div className={cn('pointer-events-none absolute right-2 flex items-center rounded border px-1.5 py-0.5 transition-all duration-150', focusedAgentId === agent.id ? 'border-[var(--vf-border)] bg-[var(--vf-surface-2)] opacity-100 translate-x-0' : 'opacity-0 translate-x-1')}>
+                              <span
+                                className={cn(
+                                  "pointer-events-none absolute text-sm text-[var(--vf-muted)] transition-all duration-150",
+                                  focusedAgentId === agent.id ? "right-8" : "right-3",
+                                )}
+                              >
+                                %
+                              </span>
+                              <div
+                                className={cn(
+                                  "pointer-events-none absolute right-2 flex items-center rounded border px-1.5 py-0.5 transition-all duration-150",
+                                  focusedAgentId === agent.id
+                                    ? "border-[var(--vf-border)] bg-[var(--vf-surface-2)] opacity-100 translate-x-0"
+                                    : "opacity-0 translate-x-1",
+                                )}
+                              >
                                 <span className='text-[9px] font-medium text-[var(--vf-muted)]'>↵</span>
                               </div>
                             </div>
@@ -4222,10 +4446,10 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                               }
                               disabled={savingAgentId === agent.id}
                             >
-                              <SelectTrigger className='w-[150px] rounded-xl border-[var(--vf-surface-2)] bg-[var(--vf-surface)] text-[var(--vf-text)]'>
+                              <SelectTrigger className='h-[52px] w-[220px] rounded-xl border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
                                 <span>{agent.role === "admin" ? "Admin" : "Stats only"}</span>
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className='w-[220px]'>
                                 <SelectItem value='admin'>Admin</SelectItem>
                                 <SelectItem value='agent'>Stats only</SelectItem>
                               </SelectContent>
@@ -4289,7 +4513,10 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
           {tab === "leaderboardPosts" && (
             <div className='space-y-5'>
               {leaderboardPosts.cards.map((post) => (
-                <div key={post.key} className='py-2'>
+                <div
+                  key={post.key}
+                  className='py-2'
+                >
                   <div className='flex flex-wrap items-start justify-between gap-4'>
                     <div>
                       <div className='flex items-center gap-3'>
@@ -4341,15 +4568,20 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
         </div>
       </div>
 
-      <Dialog open={!!deleteAgentPending} onOpenChange={(open) => { if (!open) setDeleteAgentPending(null); }}>
+      <Dialog
+        open={!!deleteAgentPending}
+        onOpenChange={(open) => {
+          if (!open) setDeleteAgentPending(null);
+        }}
+      >
         <DialogContent className='max-w-sm border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)]'>
           <DialogHeader>
             <DialogTitle className='text-xl font-semibold'>Delete agent</DialogTitle>
           </DialogHeader>
           <p className='text-sm text-[var(--vf-muted)]'>
-            Are you sure you want to delete{' '}
-            <span className='font-medium text-[var(--vf-text)]'>"{deleteAgentPending?.name}"</span>?
-            This will permanently remove them and all associated data. This cannot be undone.
+            Are you sure you want to delete{" "}
+            <span className='font-medium text-[var(--vf-text)]'>"{deleteAgentPending?.name}"</span>? This will
+            permanently remove them and all associated data. This cannot be undone.
           </p>
           <div className='mt-2 flex justify-end gap-3'>
             <button
@@ -4644,12 +4876,19 @@ export function ProfilePage({
                 onFocus={() => setNameFocused(true)}
                 onKeyDown={async (e) => {
                   if (e.key === "Enter") e.currentTarget.blur();
-                  if (e.key === "Escape") { setNameValue(profile.name); setNameFocused(false); e.currentTarget.blur(); }
+                  if (e.key === "Escape") {
+                    setNameValue(profile.name);
+                    setNameFocused(false);
+                    e.currentTarget.blur();
+                  }
                 }}
                 onBlur={async () => {
                   setNameFocused(false);
                   const trimmed = nameValue.trim();
-                  if (!trimmed || trimmed === profile.name) { setNameValue(profile.name); return; }
+                  if (!trimmed || trimmed === profile.name) {
+                    setNameValue(profile.name);
+                    return;
+                  }
                   setSavingName(true);
                   try {
                     const res = await fetch("/api/profile", {
@@ -4657,28 +4896,39 @@ export function ProfilePage({
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ name: trimmed }),
                     });
-                    if (res.ok) { toast.success("Name updated"); router.refresh(); }
-                    else { toast.error("Failed to update name"); setNameValue(profile.name); }
-                  } finally { setSavingName(false); }
+                    if (res.ok) {
+                      toast.success("Name updated");
+                      router.refresh();
+                    } else {
+                      toast.error("Failed to update name");
+                      setNameValue(profile.name);
+                    }
+                  } finally {
+                    setSavingName(false);
+                  }
                 }}
                 disabled={savingName}
                 className={cn(
-                  'w-full bg-transparent py-1 pl-0 pr-16 text-xl text-[var(--vf-text)] outline-none transition-all duration-150',
+                  "w-full bg-transparent py-1 pl-0 pr-16 text-xl text-[var(--vf-text)] outline-none transition-all duration-150",
                   nameFocused
-                    ? 'rounded-xl border border-[var(--vf-accent)] bg-[var(--vf-surface)] pl-3'
-                    : 'border-b border-[var(--vf-border)]',
+                    ? "rounded-xl border border-[var(--vf-accent)] bg-[var(--vf-surface)] pl-3"
+                    : "border-b border-[var(--vf-border)]",
                 )}
               />
-              <Pencil className={cn(
-                'pointer-events-none absolute top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--vf-muted)] transition-all duration-150',
-                nameFocused ? 'right-10 opacity-0' : 'right-2 opacity-60',
-              )} />
-              <div className={cn(
-                'pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 flex items-center rounded border px-1.5 py-0.5 transition-all duration-150',
-                nameFocused
-                  ? 'border-[var(--vf-border)] bg-[var(--vf-surface-2)] opacity-100 translate-x-0'
-                  : 'opacity-0 translate-x-1',
-              )}>
+              <Pencil
+                className={cn(
+                  "pointer-events-none absolute top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--vf-muted)] transition-all duration-150",
+                  nameFocused ? "right-10 opacity-0" : "right-2 opacity-60",
+                )}
+              />
+              <div
+                className={cn(
+                  "pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 flex items-center rounded border px-1.5 py-0.5 transition-all duration-150",
+                  nameFocused
+                    ? "border-[var(--vf-border)] bg-[var(--vf-surface-2)] opacity-100 translate-x-0"
+                    : "opacity-0 translate-x-1",
+                )}
+              >
                 <span className='text-[10px] font-medium text-[var(--vf-muted)]'>enter</span>
               </div>
             </div>
@@ -4717,11 +4967,11 @@ export function ProfilePage({
                   </span>
                 </div>
                 <p className='mt-2 text-base text-[var(--vf-muted)] whitespace-nowrap'>
-                  Your Discord account is your identity on this platform. Sales data, rankings, and activity are all tied to it.
+                  Your Discord account is your identity on this platform. Sales data, rankings, and activity
+                  are all tied to it.
                 </p>
               </div>
             </div>
-
           </div>
         </div>
 
