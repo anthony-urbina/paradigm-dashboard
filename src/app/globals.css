@@ -49,61 +49,61 @@
 }
 
 :root {
-  /* #0A0A0A near-black base — dark scoreboard theme */
-  --background: oklch(0.07 0 0);
-  --foreground: oklch(0.94 0 0);
-  /* #1A1A1A dark surfaces */
-  --card: oklch(0.13 0 0);
-  --card-foreground: oklch(0.94 0 0);
-  --popover: oklch(0.11 0 0);
-  --popover-foreground: oklch(0.94 0 0);
-  /* #F15025 burnt orange — stays the energy color */
+  /* Discord palette — warm dark grays */
+  --background: oklch(0.26 0.006 264);   /* #313338 Discord main content */
+  --foreground: oklch(0.90 0.004 258);   /* #DBDEE1 Discord primary text */
+  --card: oklch(0.23 0.006 264);         /* #2B2D31 Discord sidebar/panel */
+  --card-foreground: oklch(0.90 0.004 258);
+  --popover: oklch(0.21 0.006 264);      /* #26282C slightly darker */
+  --popover-foreground: oklch(0.90 0.004 258);
+  /* #F15025 burnt orange — the brand energy color */
   --primary: oklch(0.63 0.21 35);
   --primary-foreground: oklch(1.0 0 0);
-  /* dark secondary */
-  --secondary: oklch(0.18 0 0);
-  --secondary-foreground: oklch(0.94 0 0);
-  --muted: oklch(0.15 0 0);
-  --muted-foreground: oklch(0.52 0 0);
+  --secondary: oklch(0.30 0.007 264);    /* #383A40 elevated surface */
+  --secondary-foreground: oklch(0.90 0.004 258);
+  --muted: oklch(0.28 0.006 264);
+  --muted-foreground: oklch(0.65 0.010 252); /* #949BA4 Discord muted text */
   --accent: oklch(0.63 0.21 35);
   --accent-foreground: oklch(1.0 0 0);
-  --destructive: oklch(0.55 0.22 25);
-  --border: oklch(0.22 0 0);
-  --input: oklch(0.15 0 0);
+  --destructive: oklch(0.58 0.22 25);
+  --border: oklch(0.32 0.007 264);       /* #3F4147 subtle border */
+  --input: oklch(0.30 0.007 264);
   --ring: oklch(0.63 0.21 35 / 0.5);
   /* chart palette */
   --chart-1: #F15025;
-  --chart-2: #F0F0F0;
-  --chart-3: #333333;
-  --chart-4: #c04018;
-  --chart-5: #666666;
+  --chart-2: #5865F2;
+  --chart-3: #23A55A;
+  --chart-4: #F0B232;
+  --chart-5: #949BA4;
   --radius: 0.5rem;
-  /* dark sidebar */
-  --sidebar: oklch(0.10 0 0);
-  --sidebar-foreground: oklch(0.94 0 0);
+  /* Discord sidebar — slightly darker than main content */
+  --sidebar: oklch(0.23 0.006 264);      /* #2B2D31 */
+  --sidebar-foreground: oklch(0.90 0.004 258);
   --sidebar-primary: oklch(0.63 0.21 35);
   --sidebar-primary-foreground: oklch(1.0 0 0);
-  --sidebar-accent: oklch(0.16 0 0);
-  --sidebar-accent-foreground: oklch(0.94 0 0);
-  --sidebar-border: oklch(0.18 0 0);
+  --sidebar-accent: oklch(0.28 0.006 264);
+  --sidebar-accent-foreground: oklch(0.90 0.004 258);
+  --sidebar-border: oklch(0.20 0.005 264);
   --sidebar-ring: oklch(0.63 0.21 35 / 0.5);
 
-  /* Paradigm design tokens — dark scoreboard */
-  --vf-bg: #0A0A0A;
-  --vf-panel: #141414;
-  --vf-surface: #1C1C1C;
-  --vf-surface-2: #252525;
-  --vf-border: rgba(255, 255, 255, 0.07);
-  --vf-muted: #777777;
-  --vf-text: #F0F0F0;
-  --vf-accent: #F15025;
-  --vf-accent-fg: #ffffff;
-  /* Gold — rank 1 / top performer */
-  --vf-gold: #F5A623;
-  --vf-gold-dim: rgba(245, 166, 35, 0.14);
-  /* Emerald — positive / success */
-  --vf-emerald: #22C55E;
-  --vf-emerald-dim: rgba(34, 197, 94, 0.12);
+  /* ── Paradigm design tokens ──────────────────────────────── */
+  --vf-bg:         #313338;   /* Discord main content area   */
+  --vf-panel:      #2B2D31;   /* Discord channel sidebar     */
+  --vf-surface:    #2B2D31;   /* Sidebar bg / card fills     */
+  --vf-surface-2:  #383A40;   /* Hover states / inputs       */
+  --vf-border:     rgba(255, 255, 255, 0.06);
+  --vf-muted:      #949BA4;   /* Discord muted text          */
+  --vf-text:       #DBDEE1;   /* Discord primary text        */
+  --vf-accent:     #F15025;   /* Brand orange                */
+  --vf-accent-fg:  #ffffff;
+
+  /* Secondary palette — Discord energy */
+  --vf-blurple:     #5865F2;               /* Discord blurple              */
+  --vf-blurple-dim: rgba(88, 101, 242, 0.15);
+  --vf-gold:        #F0B232;               /* Discord yellow / rank 1      */
+  --vf-gold-dim:    rgba(240, 178, 50, 0.14);
+  --vf-emerald:     #23A55A;               /* Discord green / success      */
+  --vf-emerald-dim: rgba(35, 165, 90, 0.15);
 }
 
 @layer base {

@@ -153,8 +153,8 @@ function LeaderboardList({
 }) {
   return (
     <Panel className="overflow-hidden p-0">
-      <div className="flex items-center gap-3 border-b border-[var(--vf-border)] bg-[linear-gradient(135deg,rgba(241,80,37,0.12),rgba(255,255,255,0.02))] px-5 py-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--vf-accent)] text-[var(--vf-accent-fg)] shadow-[0_0_16px_rgba(241,80,37,0.5)]">
+      <div className="flex items-center gap-3 border-b border-[var(--vf-border)] bg-[linear-gradient(135deg,rgba(88,101,242,0.1),rgba(241,80,37,0.06),transparent)] px-5 py-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--vf-blurple)] text-white shadow-[0_0_16px_var(--vf-blurple-dim)]">
           <Trophy className="h-5 w-5" />
         </div>
         <div>
@@ -420,7 +420,7 @@ function HeaderNav({ user, teamUnlocked, isAdmin }: { user: NavUser; teamUnlocke
   return (
     <>
       {/* Mobile header */}
-      <header className="sticky top-0 z-20 border-b border-[var(--vf-border)] bg-[rgba(10,10,10,0.92)] px-4 py-3 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-20 border-b border-[var(--vf-border)] bg-[rgba(43,45,49,0.96)] px-4 py-3 backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <button
             onClick={() => setMenuOpen(true)}
@@ -667,8 +667,8 @@ export function WelcomePage({ agentName, latestSale, salesGoal, teamGoal, weekly
         </Panel>
 
         <Panel className="overflow-hidden p-0">
-          <div className="flex items-center gap-3 border-b border-[var(--vf-border)] bg-[var(--vf-surface)] px-5 py-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--vf-accent)] text-[var(--vf-accent-fg)]">
+          <div className="flex items-center gap-3 border-b border-[var(--vf-border)] bg-[linear-gradient(135deg,rgba(88,101,242,0.1),transparent)] px-5 py-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--vf-blurple)] text-white shadow-[0_0_16px_var(--vf-blurple-dim)]">
               <Gauge className="h-5 w-5" />
             </div>
             <div>
