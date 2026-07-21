@@ -21,68 +21,70 @@ export default async function Image() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "#111214",
+          background: "#0e0f10",
           position: "relative",
+          overflow: "hidden",
         }}
       >
-        {/* Subtle radial glow behind logo */}
+        {/* Orange accent glow top-center */}
         <div
           style={{
             position: "absolute",
-            width: 600,
-            height: 600,
+            width: 700,
+            height: 500,
             borderRadius: "50%",
-            background:
-              "radial-gradient(circle, rgba(241,80,37,0.12) 0%, transparent 70%)",
-            top: "50%",
+            background: "radial-gradient(circle, rgba(241,80,37,0.18) 0%, transparent 65%)",
+            top: -120,
             left: "50%",
-            transform: "translate(-50%, -60%)",
+            transform: "translateX(-50%)",
           }}
         />
 
-        {/* Logo */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={logoSrc}
-          alt="Paradigm Financial"
-          style={{ width: 380, height: "auto", objectFit: "contain" }}
-        />
+        {/* Logo on a dark elevated card so white logo is visible */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#1a1b1e",
+            borderRadius: 32,
+            padding: "48px 64px",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(241,80,37,0.08)",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logoSrc}
+            alt="Paradigm Financial"
+            width={320}
+            height={279}
+          />
+        </div>
 
         {/* Bottom tagline */}
         <div
           style={{
             position: "absolute",
-            bottom: 48,
+            bottom: 44,
             display: "flex",
             alignItems: "center",
-            gap: 12,
+            gap: 16,
           }}
         >
-          <div
-            style={{
-              width: 40,
-              height: 1,
-              background: "rgba(255,255,255,0.2)",
-            }}
-          />
+          <div style={{ width: 48, height: 1, background: "rgba(255,255,255,0.15)" }} />
           <span
             style={{
-              fontSize: 14,
-              letterSpacing: "0.22em",
+              fontSize: 13,
+              letterSpacing: "0.24em",
               textTransform: "uppercase",
-              color: "#949BA4",
+              color: "#6b7280",
               fontFamily: "sans-serif",
             }}
           >
-            Agent Dashboard
+            Agent Portal
           </span>
-          <div
-            style={{
-              width: 40,
-              height: 1,
-              background: "rgba(255,255,255,0.2)",
-            }}
-          />
+          <div style={{ width: 48, height: 1, background: "rgba(255,255,255,0.15)" }} />
         </div>
       </div>
     ),

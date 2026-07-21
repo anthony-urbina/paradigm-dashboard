@@ -7,21 +7,21 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "Paradigm Financial",
+  title: "Paradigm Financial | Agent Portal",
   description: "Life insurance agent dashboard",
   icons: {
     icon: "/favicon-logo.png",
     apple: "/favicon-logo.png",
   },
   openGraph: {
-    title: "Paradigm Financial",
+    title: "Paradigm Financial | Agent Portal",
     description: "Life insurance agent dashboard",
     siteName: "Paradigm Financial",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Paradigm Financial",
+    title: "Paradigm Financial | Agent Portal",
     description: "Life insurance agent dashboard",
   },
 };
