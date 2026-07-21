@@ -3049,16 +3049,16 @@ function leaderboardPostSvg(post: LeaderboardPostCard) {
     const separatorY = y + rowH - 4;
     const mid = y + Math.round(rowH / 2) + 8;
     const leftSvg = lEntry ? `
-      <text x="86" y="${mid}" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="700">#${lEntry.rank}</text>
-      <text x="132" y="${mid}" fill="#DBDEE1" font-size="22" font-family="Arial, sans-serif">${escapeXml(lEntry.shortName)}</text>
-      <text x="370" y="${mid}" fill="#949BA4" font-size="15" font-family="Arial, sans-serif" text-anchor="end">${lEntry.salesCount} ${lEntry.salesCount === 1 ? "sale" : "sales"}</text>
-      <text x="516" y="${mid}" fill="#ffffff" font-size="22" font-family="Arial, sans-serif" font-weight="700" text-anchor="end">${fmtAp(lEntry.ap)}</text>
+      <text x="86" y="${mid}" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${lEntry.rank}</text>
+      <text x="132" y="${mid}" fill="#DBDEE1" font-size="22" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(lEntry.shortName)}</text>
+      <text x="370" y="${mid}" fill="#949BA4" font-size="15" font-family="Arial, sans-serif" font-style="italic" text-anchor="end">${lEntry.salesCount} ${lEntry.salesCount === 1 ? "sale" : "sales"}</text>
+      <text x="516" y="${mid}" fill="#ffffff" font-size="22" font-family="Arial, sans-serif" font-weight="900" font-style="italic" text-anchor="end">${fmtAp(lEntry.ap)}</text>
     ` : "";
     const rightSvg = rEntry ? `
-      <text x="558" y="${mid}" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="700">#${rEntry.rank}</text>
-      <text x="602" y="${mid}" fill="#DBDEE1" font-size="22" font-family="Arial, sans-serif">${escapeXml(rEntry.shortName)}</text>
-      <text x="840" y="${mid}" fill="#949BA4" font-size="15" font-family="Arial, sans-serif" text-anchor="end">${rEntry.salesCount} ${rEntry.salesCount === 1 ? "sale" : "sales"}</text>
-      <text x="988" y="${mid}" fill="#ffffff" font-size="22" font-family="Arial, sans-serif" font-weight="700" text-anchor="end">${fmtAp(rEntry.ap)}</text>
+      <text x="558" y="${mid}" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${rEntry.rank}</text>
+      <text x="602" y="${mid}" fill="#DBDEE1" font-size="22" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(rEntry.shortName)}</text>
+      <text x="840" y="${mid}" fill="#949BA4" font-size="15" font-family="Arial, sans-serif" font-style="italic" text-anchor="end">${rEntry.salesCount} ${rEntry.salesCount === 1 ? "sale" : "sales"}</text>
+      <text x="988" y="${mid}" fill="#ffffff" font-size="22" font-family="Arial, sans-serif" font-weight="900" font-style="italic" text-anchor="end">${fmtAp(rEntry.ap)}</text>
     ` : "";
     const sep = i < rowCount - 1 ? `<line x1="72" y1="${y + rowH - 1}" x2="1008" y2="${y + rowH - 1}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>` : "";
     return leftSvg + rightSvg + sep;
@@ -3078,12 +3078,17 @@ function leaderboardPostSvg(post: LeaderboardPostCard) {
   };
 
   // Name card helper — includes sales count so cards don't look empty
-  const nameCard = (x: number, y: number, w: number, h: number, name: string, ap: number, salesCount: number, borderColor: string, apColor: string) => `
+  const nameCard = (x: number, y: number, w: number, h: number, name: string, ap: number, salesCount: number, borderColor: string, apColor: string, isFirst = false) => `
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18" fill="#161819" stroke="${borderColor}" stroke-width="1.5"/>
-    <text x="${x + w / 2}" y="${y + 38}" text-anchor="middle" fill="#DBDEE1" font-size="24" font-family="Arial, sans-serif" font-weight="600">${escapeXml(name)}</text>
+    <text x="${x + w / 2}" y="${y + 38}" text-anchor="middle" fill="#DBDEE1" font-size="${isFirst ? 28 : 24}" font-family="Arial, sans-serif" font-weight="800" font-style="italic">${escapeXml(name)}</text>
     <text x="${x + w / 2}" y="${y + 64}" text-anchor="middle" fill="#949BA4" font-size="13" font-family="Arial, sans-serif" letter-spacing="3">TOTAL AP</text>
-    <text x="${x + w / 2}" y="${y + 100}" text-anchor="middle" fill="${apColor}" font-size="30" font-family="Arial, sans-serif" font-weight="700">${fmtAp(ap)}</text>
-    <text x="${x + w / 2}" y="${y + 126}" text-anchor="middle" fill="#949BA4" font-size="15" font-family="Arial, sans-serif">${salesCount} ${salesCount === 1 ? "sale" : "sales"}</text>
+    ${isFirst ? `
+      <text x="${x + w / 2}" y="${y + 108}" text-anchor="middle" fill="${apColor}" font-size="46" font-family="Arial, sans-serif" font-weight="900" font-style="italic"
+        filter="url(#apGlow)">${fmtAp(ap)}</text>
+    ` : `
+      <text x="${x + w / 2}" y="${y + 104}" text-anchor="middle" fill="${apColor}" font-size="30" font-family="Arial, sans-serif" font-weight="800" font-style="italic">${fmtAp(ap)}</text>
+    `}
+    <text x="${x + w / 2}" y="${y + 130}" text-anchor="middle" fill="#949BA4" font-size="15" font-family="Arial, sans-serif" font-style="italic">${salesCount} ${salesCount === 1 ? "sale" : "sales"}</text>
   `;
 
   const totalH = gridStartY + rowCount * rowH + 260; // footer 116 + tagline + bottom pad
@@ -3098,6 +3103,15 @@ function leaderboardPostSvg(post: LeaderboardPostCard) {
           <stop offset="0%" stop-color="#F15025" />
           <stop offset="100%" stop-color="#ff8a67" />
         </linearGradient>
+        <filter id="apGlow" x="-30%" y="-40%" width="160%" height="180%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur1"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="blur2"/>
+          <feMerge>
+            <feMergeNode in="blur2"/>
+            <feMergeNode in="blur1"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
       </defs>
 
       <!-- Background -->
@@ -3117,10 +3131,10 @@ function leaderboardPostSvg(post: LeaderboardPostCard) {
       </g>
 
       <!-- Company name -->
-      <text x="540" y="200" text-anchor="middle" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="700" letter-spacing="8">PARADIGM FINANCIAL</text>
+      <text x="540" y="200" text-anchor="middle" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="800" font-style="italic" letter-spacing="8">PARADIGM FINANCIAL</text>
 
       <!-- Main title -->
-      <text x="540" y="264" text-anchor="middle" fill="#ffffff" font-size="64" font-family="Arial, sans-serif" font-weight="900" font-style="italic">${escapeXml(post.title.replace(" post", "").toUpperCase())}</text>
+      <text x="540" y="264" text-anchor="middle" fill="#ffffff" font-size="68" font-family="Arial, sans-serif" font-weight="900" font-style="italic">${escapeXml(post.title.replace(" post", "").toUpperCase())}</text>
 
       <!-- Date range pill -->
       <rect x="390" y="280" width="300" height="40" rx="20" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
@@ -3136,7 +3150,7 @@ function leaderboardPostSvg(post: LeaderboardPostCard) {
 
       <!-- Name cards -->
       ${e2 ? nameCard(72, 610, 266, 152, e2.shortName, e2.ap, e2.salesCount, "rgba(255,255,255,0.12)", "#ffffff") : ""}
-      ${e1 ? nameCard(358, 594, 364, 172, e1.shortName, e1.ap, e1.salesCount, "#F15025", "#F15025") : ""}
+      ${e1 ? nameCard(358, 594, 364, 172, e1.shortName, e1.ap, e1.salesCount, "#F15025", "#F15025", true) : ""}
       ${e3 ? nameCard(742, 610, 266, 152, e3.shortName, e3.ap, e3.salesCount, "rgba(255,255,255,0.12)", "#ffffff") : ""}
 
       <!-- Grid section divider -->
