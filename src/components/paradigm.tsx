@@ -3103,9 +3103,9 @@ function leaderboardPostSvg(post: LeaderboardPostCard) {
           <stop offset="0%" stop-color="#F15025" />
           <stop offset="100%" stop-color="#ff8a67" />
         </linearGradient>
-        <filter id="apGlow" x="-30%" y="-40%" width="160%" height="180%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur1"/>
-          <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="blur2"/>
+        <filter id="apGlow" x="-20%" y="-30%" width="140%" height="160%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur1"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur2"/>
           <feMerge>
             <feMergeNode in="blur2"/>
             <feMergeNode in="blur1"/>
