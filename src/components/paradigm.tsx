@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { signOut } from "next-auth/react";
-import { ArrowLeft, ChevronDown, ChevronRight, CircleHelp, Gauge, Link2, Lock, LogOut, Menu, Pencil, Plus, Shield, ShieldCheck, Star, Swords, Trash2, Trophy, Unplug, UserCircle2 } from "lucide-react";
+import { ArrowLeft, Building2, ChevronDown, ChevronRight, CircleHelp, Gauge, Home, Link2, Lock, LogOut, Menu, Pencil, Plus, Shield, ShieldCheck, Star, Swords, Trash2, Trophy, Unplug, UserCircle2, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { DatePicker } from "@/components/ui/date-picker";
@@ -39,13 +39,13 @@ function fmt(n: number): string {
 }
 
 const navItems = [
-  { label: "Welcome", href: "/dashboard" },
-  { label: "Goals", href: "/dashboard/goals" },
-  { label: "My Team", href: "/dashboard/team", teamLocked: true },
-  { label: "Competitions", href: "/dashboard/competition" },
-  { label: "Agency", href: "/dashboard/agency" },
-  { label: "Admin", href: "/dashboard/admin", adminOnly: true },
-  { label: "Profile", href: "/dashboard/profile" },
+  { label: "Welcome",      href: "/dashboard",             icon: Home },
+  { label: "Goals",        href: "/dashboard/goals",       icon: Gauge },
+  { label: "My Team",      href: "/dashboard/team",        icon: Users,     teamLocked: true },
+  { label: "Competitions", href: "/dashboard/competition", icon: Trophy },
+  { label: "Agency",       href: "/dashboard/agency",      icon: Building2 },
+  { label: "Admin",        href: "/dashboard/admin",       icon: Shield,    adminOnly: true },
+  { label: "Profile",      href: "/dashboard/profile",     icon: UserCircle2 },
 ] as const;
 
 function initials(name: string) {
@@ -303,34 +303,39 @@ function GoalEditor({ title, label, value: initial, type }: { title: string; lab
 
 function NavLinks({ pathname, teamUnlocked, isAdmin, onNavigate }: { pathname: string; teamUnlocked: boolean; isAdmin: boolean; onNavigate?: () => void }) {
   return (
-    <nav className="mt-8 flex flex-col gap-0.5">
+    <nav className="mt-6 flex flex-col gap-0.5 px-2">
       {navItems.map((item) => {
-        const { label, href } = item;
+        const { label, href, icon: Icon } = item;
         const teamLocked = "teamLocked" in item && item.teamLocked;
         const adminOnly = "adminOnly" in item && item.adminOnly;
         if (adminOnly && !isAdmin) return null;
         const active = pathname === href;
         const locked = !!teamLocked && !teamUnlocked;
         const itemClassName = cn(
-          "rounded-none border-l-2 border-transparent px-4 py-3 text-base font-medium text-[#cccccc] transition-all hover:text-white",
-          active && "border-[var(--vf-accent)] text-[var(--vf-accent)]",
-          locked && "opacity-30"
+          "group flex w-full items-center gap-3 rounded-[8px] px-3 py-2.5 text-[15px] font-medium transition-all",
+          "text-[#949ba4] hover:bg-[rgba(255,255,255,0.06)] hover:text-[#dbdee1]",
+          active && "bg-[rgba(255,255,255,0.1)] text-white hover:bg-[rgba(255,255,255,0.1)] hover:text-white",
+          locked && "opacity-40"
+        );
+
+        const iconClass = cn(
+          "h-[18px] w-[18px] shrink-0 transition-colors",
+          active ? "text-[var(--vf-accent)]" : "text-[#686d73] group-hover:text-[#dbdee1]"
+        );
+
+        const inner = (
+          <>
+            <Icon className={iconClass} />
+            <span>{label}</span>
+            {locked && <Lock className="ml-auto h-3.5 w-3.5 opacity-60" />}
+          </>
         );
 
         if (locked) {
           return (
             <Popover key={href}>
-              <PopoverTrigger
-                render={
-                  <button
-                    type="button"
-                    className={cn(itemClassName, "flex w-full items-center justify-between text-left")}
-                    aria-label="My Team is locked until you get your first downline"
-                  />
-                }
-              >
-                <span>{label}</span>
-                <Lock className="h-4 w-4" />
+              <PopoverTrigger render={<button type="button" className={itemClassName} aria-label="My Team is locked until you get your first downline" />}>
+                {inner}
               </PopoverTrigger>
               <PopoverContent align="start" sideOffset={10} className="border border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)]">
                 <PopoverHeader>
@@ -343,13 +348,8 @@ function NavLinks({ pathname, teamUnlocked, isAdmin, onNavigate }: { pathname: s
         }
 
         return (
-          <Link
-            key={href}
-            href={href}
-            onClick={onNavigate}
-            className={itemClassName}
-          >
-            {label}
+          <Link key={href} href={href} onClick={onNavigate} className={itemClassName}>
+            {inner}
           </Link>
         );
       })}
@@ -2787,15 +2787,7 @@ export function ProfilePage({
           </div>
         </div>
 
-        <div className="grid gap-5 px-6 py-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
-          <div className="rounded-[24px] border border-[var(--vf-border)] bg-[var(--vf-bg)] p-5">
-            <div className="text-sm uppercase tracking-[0.16em] text-[var(--vf-muted)]">Why link it</div>
-            <div className="mt-3 space-y-3 text-[15px] leading-7 text-[var(--vf-text)]">
-              <p>Discord is the cleanest way to match bot activity and sales payloads to the right agent without guessing from names or email variations.</p>
-              <p>Once connected, we’ll use your Discord ID behind the scenes while keeping your profile experience simple.</p>
-            </div>
-          </div>
-
+        <div className="px-6 py-6">
           <div className="rounded-[24px] border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
             <div className="text-sm uppercase tracking-[0.16em] text-[var(--vf-muted)]">Linked account</div>
             <div className="mt-4 flex items-center gap-4">
