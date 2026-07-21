@@ -312,8 +312,8 @@ function NavLinks({ pathname, teamUnlocked, isAdmin, onNavigate }: { pathname: s
         const active = pathname === href;
         const locked = !!teamLocked && !teamUnlocked;
         const itemClassName = cn(
-          "rounded-xl px-4 py-2.5 text-sm font-medium text-[#888888] transition-all hover:bg-[rgba(255,255,255,0.05)] hover:text-[#eeeeee]",
-          active && "bg-[rgba(241,80,37,0.1)] text-[var(--vf-accent)] border-l-2 border-[var(--vf-accent)] rounded-l-none pl-[14px]",
+          "rounded-none border-l-2 border-transparent px-4 py-2 text-[15px] font-medium text-[#cccccc] transition-all hover:text-white",
+          active && "border-[var(--vf-accent)] text-[var(--vf-accent)]",
           locked && "opacity-30"
         );
 
