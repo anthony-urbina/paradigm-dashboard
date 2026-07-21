@@ -3092,7 +3092,7 @@ export function AgencyPage({
                                 }
                                 void updateCompGuide(row.id, nextValue);
                               }}
-                              className='w-[120px] rounded-xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] py-2 pl-3 pr-7 text-[var(--vf-text)] outline-none'
+                              className='h-[44px] w-[120px] rounded-xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] pl-3 pr-7 text-[var(--vf-text)] outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'
                             />
                             <span className='pointer-events-none absolute right-3 text-sm text-[var(--vf-muted)]'>
                               %
@@ -3534,6 +3534,8 @@ function CompetitionModal({
 
   const inputCls =
     "mt-2 w-full rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 py-3 text-base text-[var(--vf-text)] outline-none";
+  const modalControlCls =
+    "mt-2 min-h-[56px] w-full rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 text-base text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
   const tabBtnCls = (active: boolean) =>
     cn(
       "px-4 py-2 text-sm rounded-xl border",
@@ -3633,7 +3635,7 @@ function CompetitionModal({
                   value={form.startDate}
                   onChange={(v) => setForm((f) => ({ ...f, startDate: v }))}
                   placeholder='Start date'
-                  className='mt-2'
+                  className={modalControlCls}
                   disablePast
                 />
               </div>
@@ -3645,7 +3647,7 @@ function CompetitionModal({
                   value={form.endDate}
                   onChange={(v) => setForm((f) => ({ ...f, endDate: v }))}
                   placeholder='End date'
-                  className='mt-2'
+                  className={modalControlCls}
                   disablePast
                 />
               </div>
@@ -3656,19 +3658,40 @@ function CompetitionModal({
                     value={form.status}
                   >
                     <SelectTrigger
-                      className='mt-2 flex h-[56px] w-full items-center justify-between rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 text-left text-base text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'
+                      className={cn(
+                        modalControlCls,
+                        'flex h-[56px] items-center justify-between text-left',
+                      )}
                       onClick={(event) => event.stopPropagation()}
                     >
                       <span className='capitalize'>{form.status}</span>
                     </SelectTrigger>
-                    <SelectContent align="start" className='w-[var(--radix-select-trigger-width)]'>
-                      <SelectItem value='draft' onSelect={() => setForm((f) => ({ ...f, status: "draft" }))}>
+                    <SelectContent
+                      align="start"
+                      side="bottom"
+                      sideOffset={8}
+                      alignItemWithTrigger={false}
+                      className='w-[220px] p-2'
+                    >
+                      <SelectItem
+                        value='draft'
+                        className='rounded-lg px-3 py-2.5 text-base'
+                        onSelect={() => setForm((f) => ({ ...f, status: "draft" }))}
+                      >
                         Draft
                       </SelectItem>
-                      <SelectItem value='active' onSelect={() => setForm((f) => ({ ...f, status: "active" }))}>
+                      <SelectItem
+                        value='active'
+                        className='rounded-lg px-3 py-2.5 text-base'
+                        onSelect={() => setForm((f) => ({ ...f, status: "active" }))}
+                      >
                         Active
                       </SelectItem>
-                      <SelectItem value='ended' onSelect={() => setForm((f) => ({ ...f, status: "ended" }))}>
+                      <SelectItem
+                        value='ended'
+                        className='rounded-lg px-3 py-2.5 text-base'
+                        onSelect={() => setForm((f) => ({ ...f, status: "ended" }))}
+                      >
                         Ended
                       </SelectItem>
                     </SelectContent>
@@ -4392,7 +4415,14 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                           <td className='px-4 py-3 text-[var(--vf-text)]'>{agent.lifetimeAP}</td>
                           <td className='px-4 py-3 text-[var(--vf-text)]'>{agent.lifetimeSales}</td>
                           <td className='px-4 py-3 text-[var(--vf-text)]'>
-                            <div className='relative inline-flex items-center'>
+                            <div
+                              className={cn(
+                                'relative inline-flex h-[36px] w-[110px] items-center rounded-xl border bg-[var(--vf-surface)] px-3 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors',
+                                focusedAgentId === agent.id
+                                  ? 'border-[var(--vf-accent)]'
+                                  : 'border-[var(--vf-surface-2)]',
+                              )}
+                            >
                               <input
                                 type='number'
                                 min={0}
@@ -4416,7 +4446,7 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                                   }
                                   void updateAgent(agent.id, { compPercentage: nextValue });
                                 }}
-                                className='h-[52px] w-[220px] rounded-xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] pl-4 pr-16 text-[var(--vf-text)] outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors focus:border-[var(--vf-accent)]'
+                                className='h-full w-full bg-transparent pr-16 text-sm text-[var(--vf-text)] outline-none'
                               />
                               <span
                                 className={cn(
@@ -4449,9 +4479,15 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                               <SelectTrigger className='h-[52px] w-[220px] rounded-xl border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
                                 <span>{agent.role === "admin" ? "Admin" : "Stats only"}</span>
                               </SelectTrigger>
-                              <SelectContent className='w-[220px]'>
-                                <SelectItem value='admin'>Admin</SelectItem>
-                                <SelectItem value='agent'>Stats only</SelectItem>
+                              <SelectContent
+                                align="start"
+                                side="bottom"
+                                sideOffset={8}
+                                alignItemWithTrigger={false}
+                                className='w-[220px] p-2'
+                              >
+                                <SelectItem value='admin' className='rounded-lg px-3 py-2.5 text-base'>Admin</SelectItem>
+                                <SelectItem value='agent' className='rounded-lg px-3 py-2.5 text-base'>Stats only</SelectItem>
                               </SelectContent>
                             </Select>
                           </td>
