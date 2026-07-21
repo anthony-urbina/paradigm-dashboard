@@ -2128,11 +2128,20 @@ export function TeamPage({
               className='mt-2'
             >
               <div className='flex flex-wrap items-start justify-between gap-4'>
-                <div className='space-y-1'>
+                <div className='space-y-1.5'>
                   <div className='text-sm text-[var(--vf-muted)]'>
-                    {agentDetail.subject.name} is at {fmtPct(agentDetail.subject.compPercentage)} comp. Your
-                    override on this branch is {fmtPct(agentDetail.summary.overrideDelta)}.
+                    {agentDetail.subject.name} is at{" "}
+                    <span className='font-semibold text-[var(--vf-text)]'>{fmtPct(agentDetail.subject.compPercentage)}</span>{" "}
+                    comp. Your override on this branch is{" "}
+                    <span className='font-semibold text-[var(--vf-accent)]'>{fmtPct(agentDetail.summary.overrideDelta)}</span>.
                   </div>
+                  {!agentDetail.branchAgent.isSelf && (
+                    <div className='text-xs text-[var(--vf-muted)]'>
+                      Override flows through{" "}
+                      <span className='font-semibold text-[var(--vf-text)]'>{agentDetail.branchAgent.name}</span>
+                      {" "}({fmtPct(agentDetail.branchAgent.compPercentage)} comp) — your direct downline on this branch.
+                    </div>
+                  )}
                 </div>
                 <TabsList
                   variant='line'

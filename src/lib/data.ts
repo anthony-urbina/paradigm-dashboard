@@ -139,6 +139,7 @@ export type CompensationLineItem = {
 export type TeamAgentCompensationDetail = {
   subject: { id: string; name: string; compPercentage: number };
   viewer: { id: string; name: string; compPercentage: number };
+  branchAgent: { id: string; name: string; compPercentage: number; isSelf: boolean };
   summary: {
     ownSalesCount: number;
     ownApTotal: number;
@@ -1121,6 +1122,12 @@ export async function getTeamAgentCompensation(
       id: viewer.id,
       name: viewer.name,
       compPercentage: viewerComp,
+    },
+    branchAgent: {
+      id: branchAgent.id,
+      name: branchAgent.name,
+      compPercentage: branchComp,
+      isSelf: branchAgent.id === subjectAgentId,
     },
     summary: {
       ownSalesCount: commissionRows.length,
