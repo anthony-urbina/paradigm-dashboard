@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import type { JWT } from "next-auth/jwt";
-import Google from "next-auth/providers/google";
+import Discord from "next-auth/providers/discord";
 
 import { createServiceClient } from "@/lib/supabase";
 
@@ -86,15 +86,25 @@ async function resolveAgentByEmail(email?: string | null): Promise<AgentRecord |
   return exactMatch;
 }
 
-async function activateInvitedAgent(agent: AgentRecord, user: { name?: string | null; image?: string | null }) {
-  if (agent.name.trim().length > 0 && !user.image) return agent;
+async function activateInvitedAgent(
+  agent: AgentRecord,
+  user: { name?: string | null; image?: string | null },
+  discord?: { userId: string; username?: string | null; globalName?: string | null },
+) {
+  const update: Record<string, unknown> = {};
 
-  const update: { name?: string; profile_image_url?: string | null } = {};
   if (agent.name.trim().length === 0 && user.name?.trim()) {
     update.name = user.name.trim();
   }
   if (user.image) {
     update.profile_image_url = user.image;
+  }
+  if (discord) {
+    update.discord_user_id = discord.userId;
+    update.discord_username = discord.username ?? null;
+    update.discord_global_name = discord.globalName ?? null;
+    update.discord_avatar_url = user.image ?? null;
+    update.discord_connected_at = new Date().toISOString();
   }
 
   if (Object.keys(update).length === 0) return agent;
@@ -136,31 +146,64 @@ async function resolveAgentFromToken(token: JWT): Promise<AgentRecord | null> {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [Google],
+  providers: [
+    Discord({
+      clientId: process.env.AUTH_DISCORD_CLIENT_ID!,
+      clientSecret: process.env.AUTH_DISCORD_CLIENT_SECRET!,
+      authorization: { params: { scope: "identify email guilds" } },
+    }),
+  ],
   pages: {
     signIn: "/login",
     error: "/auth/error",
   },
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, account, profile }) {
       console.log("[auth] signIn start", {
         email: user.email ?? null,
         name: user.name ?? null,
       });
 
-      const agent = await resolveAgentByEmail(user.email);
-      if (!agent) {
-        console.error("[auth] signIn denied", { email: user.email ?? null });
-        return false;
+      // Guild membership check
+      if (account?.provider === "discord" && account.access_token) {
+        const guildsRes = await fetch("https://discord.com/api/users/@me/guilds", {
+          headers: { Authorization: `Bearer ${account.access_token}` },
+        });
+        if (guildsRes.ok) {
+          const guilds = (await guildsRes.json()) as { id: string }[];
+          const inGuild = guilds.some((g) => g.id === "1336793736671137863");
+          if (!inGuild) {
+            console.error("[auth] signIn denied — not in guild", { email: user.email ?? null });
+            return "/login?error=not_in_server";
+          }
+        } else {
+          console.error("[auth] signIn — could not fetch guilds", { status: guildsRes.status });
+          return "/login?error=guild_check_failed";
+        }
       }
 
-      console.log("[auth] signIn allowed", {
-        email: user.email ?? null,
-        agentId: agent.id,
-        role: agent.role,
-      });
+      // const agent = await resolveAgentByEmail(user.email);
+      // if (!agent) {
+      //   console.error("[auth] signIn denied", { email: user.email ?? null });
+      //   return "/login?error=not_registered";
+      // }
 
-      await activateInvitedAgent(agent, user);
+      // console.log("[auth] signIn allowed", {
+      //   email: user.email ?? null,
+      //   agentId: agent.id,
+      //   role: agent.role,
+      // });
+
+      // const discord =
+      //   account?.provider === "discord" && account.providerAccountId
+      //     ? {
+      //         userId: account.providerAccountId,
+      //         username: (profile as { username?: string } | undefined)?.username ?? null,
+      //         globalName: (profile as { global_name?: string } | undefined)?.global_name ?? null,
+      //       }
+      //     : undefined;
+
+      // await activateInvitedAgent(agent, user, discord);
       return true;
     },
     async jwt({ token, user, trigger }) {

@@ -2,6 +2,17 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Hide native number input spinners globally */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -49,25 +60,24 @@
 }
 
 :root {
-  /* Discord palette — warm dark grays */
-  --background: oklch(0.19 0.006 264);   /* #1E1F22 darkest bg */
-  --foreground: oklch(0.90 0.004 258);   /* #DBDEE1 Discord primary text */
-  --card: oklch(0.23 0.006 264);         /* #2B2D31 panels — lighter than bg */
-  --card-foreground: oklch(0.90 0.004 258);
-  --popover: oklch(0.21 0.006 264);      /* #26282C slightly darker */
-  --popover-foreground: oklch(0.90 0.004 258);
-  /* #F15025 burnt orange — the brand energy color */
-  --primary: oklch(0.63 0.21 35);
+  /* Discord darker palette */
+  --background: oklch(0.12 0.005 264);   /* #111214 near-black page bg */
+  --foreground: oklch(0.93 0.004 258);   /* #DBDEE1 → brighter for contrast */
+  --card: oklch(0.17 0.006 264);         /* #1a1b1e panels — pop above bg */
+  --card-foreground: oklch(0.93 0.004 258);
+  --popover: oklch(0.27 0.006 264);      /* #36393e Discord mid-gray */
+  --popover-foreground: oklch(0.93 0.004 258);
+  --primary: oklch(0.63 0.21 35);        /* #F15025 brand orange */
   --primary-foreground: oklch(1.0 0 0);
-  --secondary: oklch(0.30 0.007 264);    /* #383A40 elevated surface */
-  --secondary-foreground: oklch(0.90 0.004 258);
-  --muted: oklch(0.28 0.006 264);
-  --muted-foreground: oklch(0.65 0.010 252); /* #949BA4 Discord muted text */
+  --secondary: oklch(0.22 0.007 264);    /* #26292D elevated surface */
+  --secondary-foreground: oklch(0.93 0.004 258);
+  --muted: oklch(0.19 0.006 264);        /* #1E2124 */
+  --muted-foreground: oklch(0.60 0.010 252); /* #949BA4 muted text */
   --accent: oklch(0.63 0.21 35);
   --accent-foreground: oklch(1.0 0 0);
   --destructive: oklch(0.58 0.22 25);
-  --border: oklch(0.32 0.007 264);       /* #3F4147 subtle border */
-  --input: oklch(0.30 0.007 264);
+  --border: oklch(0.26 0.007 264);       /* crisper, more visible border */
+  --input: oklch(0.20 0.007 264);
   --ring: oklch(0.63 0.21 35 / 0.5);
   /* chart palette */
   --chart-1: #F15025;
@@ -75,34 +85,34 @@
   --chart-3: #23A55A;
   --chart-4: #F0B232;
   --chart-5: #949BA4;
-  --radius: 0.5rem;
-  /* Discord sidebar — slightly darker than main content */
-  --sidebar: oklch(0.23 0.006 264);      /* #2B2D31 */
-  --sidebar-foreground: oklch(0.90 0.004 258);
+  --radius: 0.375rem;                    /* slightly tighter radius */
+  /* Sidebar — one step lighter than bg to give depth */
+  --sidebar: oklch(0.15 0.006 264);      /* #161719 */
+  --sidebar-foreground: oklch(0.93 0.004 258);
   --sidebar-primary: oklch(0.63 0.21 35);
   --sidebar-primary-foreground: oklch(1.0 0 0);
-  --sidebar-accent: oklch(0.28 0.006 264);
-  --sidebar-accent-foreground: oklch(0.90 0.004 258);
-  --sidebar-border: oklch(0.20 0.005 264);
+  --sidebar-accent: oklch(0.20 0.006 264);
+  --sidebar-accent-foreground: oklch(0.93 0.004 258);
+  --sidebar-border: oklch(0.22 0.006 264);
   --sidebar-ring: oklch(0.63 0.21 35 / 0.5);
 
   /* ── Paradigm design tokens ──────────────────────────────── */
-  --vf-bg:         #1E1F22;   /* Darkest — page background   */
-  --vf-panel:      #2B2D31;   /* Cards / panels — pop fwd    */
-  --vf-surface:    #2B2D31;   /* Sidebar bg                  */
-  --vf-surface-2:  #383A40;   /* Inputs / hover / elevated   */
-  --vf-border:     rgba(255, 255, 255, 0.09);
+  --vf-bg:         #111214;   /* Darkest — page background   */
+  --vf-panel:      #1a1b1e;   /* Cards / panels              */
+  --vf-surface:    #161719;   /* Sidebar bg                  */
+  --vf-surface-2:  #26292D;   /* Inputs / hover / elevated   */
+  --vf-border:     rgba(255, 255, 255, 0.12);
   --vf-muted:      #949BA4;   /* Discord muted text          */
   --vf-text:       #DBDEE1;   /* Discord primary text        */
   --vf-accent:     #F15025;   /* Brand orange                */
   --vf-accent-fg:  #ffffff;
 
   /* Secondary palette — Discord energy */
-  --vf-blurple:     #5865F2;               /* Discord blurple              */
+  --vf-blurple:     #5865F2;
   --vf-blurple-dim: rgba(88, 101, 242, 0.15);
-  --vf-gold:        #F0B232;               /* Discord yellow / rank 1      */
+  --vf-gold:        #F0B232;
   --vf-gold-dim:    rgba(240, 178, 50, 0.14);
-  --vf-emerald:     #23A55A;               /* Discord green / success      */
+  --vf-emerald:     #23A55A;
   --vf-emerald-dim: rgba(35, 165, 90, 0.15);
 }
 

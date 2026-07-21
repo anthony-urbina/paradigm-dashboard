@@ -18,7 +18,7 @@ export async function getCurrentAgent(session: Session | null): Promise<CurrentA
   const supabase = createServiceClient();
   let query = supabase
     .from("agents")
-    .select("id, name, email, role");
+    .select("id, name, email, role, profile_image_url");
 
   if (sessionAgentId) {
     query = query.eq("id", sessionAgentId);
@@ -31,7 +31,7 @@ export async function getCurrentAgent(session: Session | null): Promise<CurrentA
   if ((error || !data) && sessionAgentId && email) {
     const fallback = await supabase
       .from("agents")
-      .select("id, name, email, role")
+      .select("id, name, email, role, profile_image_url")
       .ilike("email", email)
       .maybeSingle();
 
@@ -41,7 +41,7 @@ export async function getCurrentAgent(session: Session | null): Promise<CurrentA
         name: fallback.data.name,
         email: fallback.data.email,
         role: fallback.data.role,
-        profileImageUrl: null,
+        profileImageUrl: fallback.data.profile_image_url ?? null,
       };
     }
   }
@@ -60,6 +60,6 @@ export async function getCurrentAgent(session: Session | null): Promise<CurrentA
     name: data.name,
     email: data.email,
     role: data.role,
-    profileImageUrl: null,
+    profileImageUrl: data.profile_image_url ?? null,
   };
 }

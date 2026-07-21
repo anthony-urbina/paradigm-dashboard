@@ -1,3 +1,5 @@
+import { format, startOfDay, startOfMonth, startOfWeek } from "date-fns";
+
 import { createServiceClient } from "./supabase";
 
 // ─── Shared types ────────────────────────────────────────────
@@ -152,6 +154,31 @@ export type TeamAgentCompensationDetail = {
   overrides: CompensationLineItem[];
 };
 
+export type LeaderboardPostEntry = {
+  rank: number;
+  name: string;
+  shortName: string;
+  initials: string;
+  ap: number;
+  salesCount: number;
+};
+
+export type LeaderboardPostCard = {
+  key: "daily" | "weekly" | "monthly";
+  title: string;
+  periodLabel: string;
+  shareLabel: string;
+  entries: LeaderboardPostEntry[];
+  totalAp: number;
+  writingAgents: number;
+  ready: boolean;
+  emptyMessage?: string;
+};
+
+export type LeaderboardPostsData = {
+  cards: LeaderboardPostCard[];
+};
+
 // ─── Helpers ─────────────────────────────────────────────────
 function fmt(n: number): string {
   return "$" + Math.round(n).toLocaleString("en-US");
@@ -258,6 +285,54 @@ function getMonthsInRange(range: TimeRange) {
   }
 
   return months;
+}
+
+function initialsForName(name: string) {
+  return name
+    .split(" ")
+    .map((part) => part[0] ?? "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function shortNameForLeaderboard(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return name;
+  return `${parts[0]} ${parts[parts.length - 1][0] ?? ""}.`;
+}
+
+function toLeaderboardPostEntries(sales: SalesRow[], agentNameById: Map<string, string>, limit?: number): LeaderboardPostEntry[] {
+  const byAgent = new Map<string, { ap: number; salesCount: number }>();
+
+  for (const sale of sales) {
+    const current = byAgent.get(sale.agent_id) ?? { ap: 0, salesCount: 0 };
+    current.ap += Number(sale.ap);
+    current.salesCount += 1;
+    byAgent.set(sale.agent_id, current);
+  }
+
+  const ranked = Array.from(byAgent.entries())
+    .map(([agentId, totals]) => {
+      const name = agentNameById.get(agentId) ?? "Unknown agent";
+      return {
+        name,
+        ap: totals.ap,
+        salesCount: totals.salesCount,
+      };
+    })
+    .sort((a, b) => b.ap - a.ap);
+
+  const sliced = typeof limit === "number" ? ranked.slice(0, limit) : ranked;
+
+  return sliced.map((entry, index) => ({
+    rank: index + 1,
+    name: entry.name,
+    shortName: shortNameForLeaderboard(entry.name),
+    initials: initialsForName(entry.name),
+    ap: roundCurrency(entry.ap),
+    salesCount: entry.salesCount,
+  }));
 }
 
 // ─── Weekly leaders ──────────────────────────────────────────
@@ -678,15 +753,17 @@ export async function getAgencyData(range: TimeRange = "30d", currentAgentId?: s
 // ─── Admin page ──────────────────────────────────────────────
 export async function getAdminData() {
   const supabase = createServiceClient();
-  const [{ data, error }, { data: agentOptions }] = await Promise.all([
+  const [{ data, error }, { data: agentOptions }, leaderboardPosts] = await Promise.all([
     supabase.rpc("get_admin_agents"),
     supabase.from("agents").select("id, name, upline_id").order("name"),
+    getLeaderboardPostsData(),
   ]);
   if (error || !data) {
     return {
       metrics: { totalAP: 0, totalSales: 0, activeAgents: 0 },
       agents: [] as AdminAgentRecord[],
       uplineOptions: [],
+      leaderboardPosts: { cards: [] } as LeaderboardPostsData,
     };
   }
 
@@ -729,7 +806,84 @@ export async function getAdminData() {
 
   const uplineOptions = ((agentOptions ?? []) as { id: string; name: string }[]).filter((agent) => agent.name.trim().length > 0);
 
-  return { metrics: { totalAP, totalSales, activeAgents }, agents, uplineOptions };
+  return { metrics: { totalAP, totalSales, activeAgents }, agents, uplineOptions, leaderboardPosts };
+}
+
+export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
+  const supabase = createServiceClient();
+  const now = new Date();
+  const dayStart = startOfDay(now);
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const monthStart = startOfMonth(now);
+  const earliestStart = new Date(Math.min(dayStart.getTime(), weekStart.getTime(), monthStart.getTime()));
+
+  const [{ data: salesData, error: salesError }, { data: agentsData, error: agentsError }] = await Promise.all([
+    supabase
+      .from("sales")
+      .select("agent_id, ap, sold_at")
+      .gte("sold_at", earliestStart.toISOString())
+      .order("sold_at", { ascending: false }),
+    supabase.from("agents").select("id, name"),
+  ]);
+
+  if (salesError || agentsError) {
+    return { cards: [] };
+  }
+
+  const agentNameById = new Map(((agentsData ?? []) as { id: string; name: string }[]).map((agent) => [agent.id, agent.name]));
+  const sales = (salesData ?? []) as SalesRow[];
+
+  const dailySales = sales.filter((sale) => new Date(sale.sold_at) >= dayStart);
+  const weeklySales = sales.filter((sale) => new Date(sale.sold_at) >= weekStart);
+  const monthlySales = sales.filter((sale) => new Date(sale.sold_at) >= monthStart);
+
+  const buildCard = (
+    key: LeaderboardPostCard["key"],
+    title: string,
+    periodLabel: string,
+    sourceSales: SalesRow[],
+    emptyMessage: string,
+    limit?: number,
+  ): LeaderboardPostCard => ({
+    key,
+    title,
+    periodLabel,
+    shareLabel: "ready to share on Instagram (1080×1350)",
+    entries: toLeaderboardPostEntries(sourceSales, agentNameById, limit),
+    totalAp: roundCurrency(sourceSales.reduce((sum, sale) => sum + Number(sale.ap), 0)),
+    writingAgents: new Set(sourceSales.map((sale) => sale.agent_id)).size,
+    ready: sourceSales.length > 0,
+    emptyMessage,
+  });
+
+  return {
+    cards: [
+      buildCard(
+        "daily",
+        "Daily leaderboard post",
+        format(now, "MMMM d, yyyy"),
+        dailySales,
+        "No sales have been submitted in this daily window yet. The post will appear here once the first sale comes in.",
+        12,
+      ),
+      buildCard(
+        "weekly",
+        "Weekly leaderboard post",
+        `${format(weekStart, "MMM d")} – ${format(now, "MMM d, yyyy")}`,
+        weeklySales,
+        "No sales have been submitted in this weekly window yet.",
+        12,
+      ),
+      buildCard(
+        "monthly",
+        "Monthly leaderboard post",
+        format(now, "MMMM yyyy"),
+        monthlySales,
+        "No sales have been submitted in this monthly window yet.",
+        20,
+      ),
+    ],
+  };
 }
 
 export async function getCompGuideData(): Promise<CompGuideRecord[]> {

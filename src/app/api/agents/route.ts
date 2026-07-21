@@ -99,6 +99,30 @@ export async function POST(req: Request) {
   });
 }
 
+export async function DELETE(req: Request) {
+  const session = await auth();
+  const agent = await getCurrentAgent(session);
+
+  if (!agent || agent.role !== "admin") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  const { id } = (await req.json()) as { id?: string };
+  if (!id) return NextResponse.json({ error: "Agent id required" }, { status: 400 });
+
+  // Prevent self-deletion
+  if (id === agent.id) {
+    return NextResponse.json({ error: "You cannot delete your own account" }, { status: 400 });
+  }
+
+  const supabase = createServiceClient();
+  const { error } = await supabase.from("agents").delete().eq("id", id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ ok: true });
+}
+
 export async function PATCH(req: Request) {
   const session = await auth();
   const agent = await getCurrentAgent(session);
