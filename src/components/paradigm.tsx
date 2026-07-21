@@ -4417,7 +4417,7 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                           <td className='px-4 py-3 text-[var(--vf-text)]'>
                             <div
                               className={cn(
-                                'relative inline-flex h-[36px] w-[110px] items-center rounded-xl border bg-[var(--vf-surface)] px-3 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors',
+                                'relative inline-flex h-[36px] w-[130px] items-center rounded-xl border bg-[var(--vf-surface)] px-3 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors',
                                 focusedAgentId === agent.id
                                   ? 'border-[var(--vf-accent)]'
                                   : 'border-[var(--vf-surface-2)]',
