@@ -3415,7 +3415,7 @@ function UplineSelect({
   uplineName: string | null;
   uplineOptions: { id: string; name: string }[];
   disabled: boolean;
-  onChange: (value: string) => void;
+  onChange: (value: string | null) => void;
 }) {
   const [search, setSearch] = useState("");
   const filtered = uplineOptions
@@ -3425,7 +3425,7 @@ function UplineSelect({
   return (
     <Select
       value={uplineId ?? "unassigned"}
-      onValueChange={(v) => { setSearch(""); onChange(v); }}
+      onValueChange={(v) => { setSearch(""); onChange(v === "unassigned" ? null : v); }}
       disabled={disabled}
     >
       <SelectTrigger className='w-[220px] rounded-xl border-[var(--vf-surface-2)] bg-[var(--vf-surface)] text-[var(--vf-text)]'>
@@ -3862,7 +3862,7 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                               uplineName={agent.uplineName}
                               uplineOptions={uplineOptions}
                               disabled={savingAgentId === agent.id}
-                              onChange={(value) => updateAgent(agent.id, { uplineId: value === "unassigned" ? null : value })}
+                              onChange={(value) => updateAgent(agent.id, { uplineId: value })}
                             />
                           </td>
                           <td className='px-4 py-3' />
