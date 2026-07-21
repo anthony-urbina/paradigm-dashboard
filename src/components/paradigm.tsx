@@ -54,7 +54,7 @@ function initials(name: string) {
 
 function Panel({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <section className={cn("rounded-[28px] border border-[var(--vf-border)] bg-[var(--vf-panel)] shadow-[0_4px_20px_rgba(0,0,0,0.07)]", className)}>
+    <section className={cn("rounded-[28px] border border-[var(--vf-border)] bg-[var(--vf-panel)] shadow-[0_4px_40px_rgba(0,0,0,0.5)]", className)}>
       {children}
     </section>
   );
@@ -84,16 +84,18 @@ function DiscordIcon({ className }: { className?: string }) {
 
 function ProgressRing({ value, label, sublabel, size = 170 }: { value: number; label: string; sublabel: string; size?: number }) {
   const labelSize = size <= 130 ? "text-3xl" : "text-5xl";
+  const clamp = Math.max(0, Math.min(100, value));
   return (
     <div className="relative mx-auto shrink-0" style={{ width: size, height: size }}>
       <div
         className="h-full w-full rounded-full"
         style={{
-          background: `conic-gradient(#F15025 0 ${value}%, #CED0CE ${value}% 100%)`,
+          background: `conic-gradient(#F15025 0 ${clamp}%, rgba(255,255,255,0.07) ${clamp}% 100%)`,
+          filter: clamp > 0 ? "drop-shadow(0 0 10px rgba(241,80,37,0.45))" : undefined,
         }}
       />
-      <div className="absolute inset-[14px] flex flex-col items-center justify-center rounded-full bg-[var(--vf-panel)]">
-        <div className={`${labelSize} font-semibold text-[var(--vf-text)]`}>{label}</div>
+      <div className="absolute inset-[14px] flex flex-col items-center justify-center rounded-full bg-[var(--vf-surface)]">
+        <div className={`${labelSize} font-semibold text-[var(--vf-accent)]`}>{label}</div>
         <div className="mt-1 text-xs text-[var(--vf-muted)]">{sublabel}</div>
       </div>
     </div>
@@ -151,8 +153,8 @@ function LeaderboardList({
 }) {
   return (
     <Panel className="overflow-hidden p-0">
-      <div className="flex items-center gap-3 border-b border-[var(--vf-border)] bg-[var(--vf-surface)] px-5 py-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--vf-accent)] text-[var(--vf-accent-fg)]">
+      <div className="flex items-center gap-3 border-b border-[var(--vf-border)] bg-[linear-gradient(135deg,rgba(241,80,37,0.12),rgba(255,255,255,0.02))] px-5 py-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--vf-accent)] text-[var(--vf-accent-fg)] shadow-[0_0_16px_rgba(241,80,37,0.5)]">
           <Trophy className="h-5 w-5" />
         </div>
         <div>
@@ -165,14 +167,17 @@ function LeaderboardList({
           <div
             key={`${title}-${entry.rank}-${entry.name}`}
             className={cn(
-              "rounded-[24px] border border-[var(--vf-border)] bg-[var(--vf-bg)] p-3",
-              entry.tone === "gold" && "bg-[linear-gradient(90deg,rgba(241,80,37,0.08),rgba(255,255,255,0.98))]",
-              entry.tone === "accent" && "bg-[linear-gradient(90deg,rgba(241,80,37,0.05),rgba(255,255,255,0.98))]"
+              "rounded-[24px] border border-[var(--vf-border)] bg-[var(--vf-surface)] p-3 transition-colors",
+              entry.tone === "gold" && "border-[rgba(245,166,35,0.25)] bg-[linear-gradient(90deg,rgba(245,166,35,0.1),transparent)] shadow-[0_0_20px_rgba(245,166,35,0.08)]",
+              entry.tone === "accent" && "border-[rgba(241,80,37,0.2)] bg-[linear-gradient(90deg,rgba(241,80,37,0.08),transparent)]"
             )}
           >
             <div className="flex items-center gap-2 sm:gap-4">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--vf-surface)] text-sm font-semibold text-[var(--vf-muted)] sm:h-12 sm:w-12 sm:text-base">
-                {entry.rank <= 3 ? <Trophy className={cn("h-4 w-4 sm:h-5 sm:w-5", entry.rank === 1 && "text-[var(--vf-accent)]", entry.rank === 2 && "text-[#9a9a9a]", entry.rank === 3 && "text-[#c04018]")} /> : entry.rank}
+              <div className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--vf-surface-2)] text-sm font-semibold sm:h-12 sm:w-12 sm:text-base",
+                entry.rank === 1 ? "text-[var(--vf-gold)]" : "text-[var(--vf-muted)]"
+              )}>
+                {entry.rank <= 3 ? <Trophy className={cn("h-4 w-4 sm:h-5 sm:w-5", entry.rank === 1 && "text-[var(--vf-gold)] drop-shadow-[0_0_6px_rgba(245,166,35,0.8)]", entry.rank === 2 && "text-[#888]", entry.rank === 3 && "text-[#a05030]")} /> : entry.rank}
               </div>
               <Avatar name={entry.name} small ring={entry.rank <= 3} />
               <div className="min-w-0 flex-1">
@@ -183,15 +188,21 @@ function LeaderboardList({
                 <div className="mt-0.5 text-sm text-[var(--vf-muted)] sm:mt-1 sm:text-lg">{entry.subtitle}</div>
                 {showProgress && entry.progressLabel && entry.progressValue !== undefined ? (
                   <div className="mt-2 max-w-xs sm:mt-3">
-                    <div className="h-2 rounded-full bg-[var(--vf-surface-2)]">
-                      <div className="h-full rounded-full bg-[var(--vf-accent)]" style={{ width: `${entry.progressValue}%` }} />
+                    <div className="h-1.5 rounded-full bg-[var(--vf-surface-2)]">
+                      <div className="h-full rounded-full bg-[var(--vf-accent)] shadow-[0_0_8px_rgba(241,80,37,0.6)]" style={{ width: `${entry.progressValue}%` }} />
                     </div>
                     <div className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--vf-muted)]">{entry.progressLabel}</div>
                   </div>
                 ) : null}
               </div>
-              <div className="shrink-0 rounded-[20px] bg-[var(--vf-surface)] px-3 py-3 text-right sm:px-5 sm:py-4">
-                <div className="text-xl font-semibold text-[var(--vf-accent)] sm:text-4xl">{entry.value}</div>
+              <div className={cn(
+                "shrink-0 rounded-[20px] bg-[var(--vf-surface-2)] px-3 py-3 text-right sm:px-5 sm:py-4",
+                entry.rank === 1 && "shadow-[0_0_16px_rgba(245,166,35,0.15)]"
+              )}>
+                <div className={cn(
+                  "text-xl font-semibold sm:text-4xl",
+                  entry.rank === 1 ? "text-[var(--vf-gold)]" : "text-[var(--vf-accent)]"
+                )}>{entry.value}</div>
                 <div className="mt-1 text-xs uppercase tracking-[0.18em] text-[var(--vf-muted)]">AP</div>
               </div>
             </div>
@@ -228,10 +239,10 @@ function MetricCard({
   emphasis?: boolean;
 }) {
   return (
-    <Panel className="p-5">
+    <Panel className={cn("p-5", emphasis && "border-[rgba(241,80,37,0.2)] shadow-[0_4px_40px_rgba(241,80,37,0.08)]")}>
       <div className="text-sm uppercase tracking-[0.16em] text-[var(--vf-muted)]">{title}</div>
       <div className={cn("mt-7 text-3xl font-semibold sm:text-5xl", emphasis ? "text-[var(--vf-accent)]" : "text-[var(--vf-text)]")}>{value}</div>
-      {delta ? <div className="mt-3 inline-flex rounded-full bg-[#d4edda] px-3 py-1 text-sm text-[#2d7a3a]">{delta}</div> : null}
+      {delta ? <div className="mt-3 inline-flex rounded-full bg-[var(--vf-emerald-dim)] px-3 py-1 text-sm text-[var(--vf-emerald)]">{delta}</div> : null}
       <div className="mt-4 text-sm text-[var(--vf-muted)]">{helper}</div>
     </Panel>
   );
@@ -301,9 +312,9 @@ function NavLinks({ pathname, teamUnlocked, isAdmin, onNavigate }: { pathname: s
         const active = pathname === href;
         const locked = !!teamLocked && !teamUnlocked;
         const itemClassName = cn(
-          "rounded-2xl px-4 py-3 text-base text-[var(--vf-text)] transition hover:bg-[rgba(241,80,37,0.12)] hover:text-[var(--vf-text)]",
-          active && "bg-[var(--vf-surface-2)] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)]",
-          locked && "text-[var(--vf-muted)]"
+          "rounded-2xl px-4 py-3 text-base text-[var(--vf-muted)] transition hover:bg-[rgba(241,80,37,0.1)] hover:text-[var(--vf-text)]",
+          active && "bg-[rgba(241,80,37,0.12)] text-[var(--vf-accent)] shadow-[inset_0_0_0_1px_rgba(241,80,37,0.18)]",
+          locked && "text-[var(--vf-muted)] opacity-50"
         );
 
         if (locked) {
@@ -409,7 +420,7 @@ function HeaderNav({ user, teamUnlocked, isAdmin }: { user: NavUser; teamUnlocke
   return (
     <>
       {/* Mobile header */}
-      <header className="sticky top-0 z-20 border-b border-[var(--vf-border)] bg-[rgba(230,232,230,0.96)] px-4 py-3 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-20 border-b border-[var(--vf-border)] bg-[rgba(10,10,10,0.92)] px-4 py-3 backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <button
             onClick={() => setMenuOpen(true)}
@@ -633,12 +644,13 @@ export function WelcomePage({ agentName, latestSale, salesGoal, teamGoal, weekly
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-semibold tracking-tight text-[var(--vf-text)] sm:text-6xl">Welcome, {firstName}</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--vf-accent)]">Paradigm Financial</p>
+          <h1 className="mt-1 text-4xl font-semibold tracking-tight text-[var(--vf-text)] sm:text-6xl">Welcome, {firstName}</h1>
           <p className="mt-2 text-base text-[var(--vf-muted)] sm:text-xl">Here&apos;s your team&apos;s momentum for today.</p>
         </div>
         <button
           onClick={() => setLogSaleOpen(true)}
-          className="flex items-center gap-2 rounded-2xl bg-[var(--vf-accent)] px-5 py-3 text-base font-semibold text-[var(--vf-accent-fg)]"
+          className="flex items-center gap-2 rounded-2xl bg-[var(--vf-accent)] px-5 py-3 text-base font-semibold text-[var(--vf-accent-fg)] shadow-[0_0_24px_rgba(241,80,37,0.4)] transition hover:shadow-[0_0_32px_rgba(241,80,37,0.55)]"
         >
           <Plus className="h-4 w-4" />
           Log sale
@@ -646,11 +658,12 @@ export function WelcomePage({ agentName, latestSale, salesGoal, teamGoal, weekly
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
-        <Panel className="min-h-[260px] p-6">
-          <div className="text-4xl text-[var(--vf-accent)]">&quot;</div>
-          <div className="mt-12 max-w-md text-xl font-medium leading-tight text-[var(--vf-text)] sm:text-[2rem]">Treat today like the day that changes everything, and one day it will.</div>
-          <div className="mt-4 text-sm uppercase tracking-[0.18em] text-[var(--vf-muted)]">Daily motivation</div>
-          <button className="mt-4 rounded-xl bg-[var(--vf-accent)] px-4 py-2 text-sm font-semibold text-[var(--vf-accent-fg)]">Hype me up</button>
+        <Panel className="relative min-h-[260px] overflow-hidden p-6">
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(241,80,37,0.07),transparent_60%)] pointer-events-none" />
+          <div className="text-5xl font-bold text-[var(--vf-accent)] opacity-60">&ldquo;</div>
+          <div className="mt-8 max-w-md text-xl font-medium leading-snug text-[var(--vf-text)] sm:text-[2rem]">Treat today like the day that changes everything, and one day it will.</div>
+          <div className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--vf-muted)]">Daily motivation</div>
+          <button className="mt-4 rounded-xl bg-[var(--vf-accent)] px-4 py-2 text-sm font-semibold text-[var(--vf-accent-fg)] shadow-[0_0_16px_rgba(241,80,37,0.35)] transition hover:shadow-[0_0_24px_rgba(241,80,37,0.5)]">Hype me up</button>
         </Panel>
 
         <Panel className="overflow-hidden p-0">
@@ -1299,7 +1312,7 @@ function CompetitionCard({
   const statusLabel: Record<string, string> = { draft: "Draft", active: "Live", ended: "Ended" };
   const statusColor: Record<string, string> = {
     draft: "bg-[var(--vf-surface)] text-[var(--vf-muted)]",
-    active: "bg-[#d4edda] text-[#2d7a3a]",
+    active: "bg-[var(--vf-emerald-dim)] text-[var(--vf-emerald)]",
     ended: "bg-[var(--vf-surface)] text-[var(--vf-muted)]",
   };
 
@@ -1336,7 +1349,7 @@ function CompetitionCard({
                 <Star className="h-3 w-3" />{comp.pinned ? "Featured" : "Feature"}
               </button>
               {comp.status === "draft" && (
-                <button onClick={() => onSetStatus?.(comp.id, "active")} className="rounded-xl border border-[#2d7a3a] px-3 py-1.5 text-xs font-medium text-[#2d7a3a]">Activate</button>
+                <button onClick={() => onSetStatus?.(comp.id, "active")} className="rounded-xl border border-[var(--vf-emerald)] px-3 py-1.5 text-xs font-medium text-[var(--vf-emerald)]">Activate</button>
               )}
               {comp.status === "active" && (
                 <button onClick={() => onSetStatus?.(comp.id, "ended")} className="rounded-xl border border-[var(--vf-border)] px-3 py-1.5 text-xs font-medium text-[var(--vf-muted)]">End</button>
