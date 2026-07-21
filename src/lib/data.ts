@@ -652,6 +652,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
     },
     growthBars,
     goalBarHeight,
+    teamGoalTarget,
     teamAgents,
     rangeLabel: getRangeLabel(range),
   };

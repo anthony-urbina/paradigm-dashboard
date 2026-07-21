@@ -1571,6 +1571,7 @@ type TeamProps = {
   };
   growthBars: [string, string, number][];
   goalBarHeight: number | null;
+  teamGoalTarget: number | null;
   teamAgents: TeamAgentRecord[];
   teamUnlocked: boolean;
   selectedRange: TimeRange;
@@ -1722,6 +1723,7 @@ export function TeamPage({
   metrics,
   growthBars,
   goalBarHeight,
+  teamGoalTarget,
   teamAgents,
   teamUnlocked,
   selectedRange,
@@ -1925,9 +1927,13 @@ export function TeamPage({
                     {/* Goal shadow bar */}
                     {goalBarHeight && (
                       <div
-                        className='absolute bottom-0 left-0 w-full rounded-t-xl border border-[var(--vf-accent)] border-opacity-30 bg-[var(--vf-accent)] opacity-10'
+                        className='group/goal absolute bottom-0 left-0 w-full cursor-default rounded-t-xl border border-[var(--vf-accent)] border-opacity-30 bg-[var(--vf-accent)] opacity-10 hover:opacity-20 transition-opacity duration-150'
                         style={{ height: `${goalBarHeight}%` }}
-                      />
+                      >
+                        <div className='pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-[var(--vf-border)] bg-[var(--vf-panel)] px-2 py-1 text-xs font-medium text-[var(--vf-text)] opacity-0 shadow-lg transition-opacity duration-150 group-hover/goal:opacity-100'>
+                          Goal: {fmt(teamGoalTarget!)}
+                        </div>
+                      </div>
                     )}
                     {/* Actual bar */}
                     <div
