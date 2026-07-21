@@ -1570,6 +1570,7 @@ type TeamProps = {
     totalOverrides: number;
   };
   growthBars: [string, string, number][];
+  goalBarHeight: number | null;
   teamAgents: TeamAgentRecord[];
   teamUnlocked: boolean;
   selectedRange: TimeRange;
@@ -1720,6 +1721,7 @@ function CompensationTable({
 export function TeamPage({
   metrics,
   growthBars,
+  goalBarHeight,
   teamAgents,
   teamUnlocked,
   selectedRange,
@@ -1906,17 +1908,31 @@ export function TeamPage({
                 </p>
               </div>
             </div>
-            <div className='mt-8 grid grid-cols-4 gap-4 md:grid-cols-8'>
+            {goalBarHeight && (
+              <div className='mt-4 flex items-center gap-2 text-xs text-[var(--vf-muted)]'>
+                <div className='h-2 w-4 rounded-sm bg-[var(--vf-surface-2)] ring-1 ring-[var(--vf-accent)] ring-opacity-40' />
+                <span>Team AP goal</span>
+              </div>
+            )}
+            <div className='mt-4 grid grid-cols-4 gap-4 md:grid-cols-8'>
               {growthBars.map(([month, amount, height], index) => (
                 <div
                   key={`${month}-${index}`}
                   className='flex flex-col items-center gap-2'
                 >
                   <div className='text-xs text-[var(--vf-muted)]'>{amount}</div>
-                  <div className='flex h-44 items-end'>
+                  <div className='relative flex h-44 w-10 items-end'>
+                    {/* Goal shadow bar */}
+                    {goalBarHeight && (
+                      <div
+                        className='absolute bottom-0 left-0 w-full rounded-t-xl border border-[var(--vf-accent)] border-opacity-30 bg-[var(--vf-accent)] opacity-10'
+                        style={{ height: `${goalBarHeight}%` }}
+                      />
+                    )}
+                    {/* Actual bar */}
                     <div
                       className={cn(
-                        "w-10 rounded-t-xl",
+                        "relative w-full rounded-t-xl",
                         index === growthBars.length - 1
                           ? "bg-[var(--vf-accent)]"
                           : "bg-[var(--vf-surface-2)]",

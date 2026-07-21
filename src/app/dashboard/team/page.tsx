@@ -24,6 +24,7 @@ export default async function DashboardTeamPage({
         Promise.resolve({
           metrics: { totalTeam: 0, directAgents: 0, teamAP: 0, activeWriters: 0, totalOverrides: 0 },
           growthBars: [],
+          goalBarHeight: null,
           teamAgents: [],
           rangeLabel: "Last 30 days",
         }),

@@ -507,7 +507,8 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
   const descendantIds = descendants.map((agent) => agent.id);
   const idsForGrowth = Array.from(new Set([agentId, ...descendantIds]));
 
-  const [salesRes, activityRes, compGuide] = await Promise.all([
+  const today = new Date().toISOString().slice(0, 10);
+  const [salesRes, activityRes, compGuide, teamGoalRes] = await Promise.all([
     descendantIds.length > 0
       ? supabase
           .from("sales")
@@ -523,7 +524,16 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
           .gte("date", rangeStart.slice(0, 10))
       : Promise.resolve({ data: [] as ActivityRow[], error: null }),
     getCompGuideData(),
+    supabase
+      .from("goals")
+      .select("target")
+      .eq("agent_id", agentId)
+      .eq("type", "team_ap")
+      .lte("period_start", today)
+      .gte("period_end", today)
+      .maybeSingle(),
   ]);
+  const teamGoalTarget = teamGoalRes.data ? Number(teamGoalRes.data.target) : null;
   const sales = (salesRes.data ?? []) as SalesRow[];
   const activity = (activityRes.data ?? []) as ActivityRow[];
 
@@ -599,7 +609,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
     const key = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
     return apByMonth.get(key) ?? 0;
   });
-  const maxMonth = Math.max(...monthValues, 1);
+  const maxMonth = Math.max(...monthValues, teamGoalTarget ?? 0, 1);
   const growthBars = months.map((month, index) => {
     const amount = monthValues[index];
     return [
@@ -608,6 +618,9 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
       Math.round((amount / maxMonth) * 85 + 5),
     ] as [string, string, number];
   });
+  const goalBarHeight = teamGoalTarget
+    ? Math.min(Math.round((teamGoalTarget / maxMonth) * 85 + 5), 95)
+    : null;
 
   const totalTeam = descendants.length;
   const teamAP = sales.reduce((sum, sale) => sum + Number(sale.ap), 0);
@@ -638,6 +651,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
       totalOverrides,
     },
     growthBars,
+    goalBarHeight,
     teamAgents,
     rangeLabel: getRangeLabel(range),
   };
