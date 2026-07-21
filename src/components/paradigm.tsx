@@ -303,7 +303,7 @@ function GoalEditor({ title, label, value: initial, type }: { title: string; lab
 
 function NavLinks({ pathname, teamUnlocked, isAdmin, onNavigate }: { pathname: string; teamUnlocked: boolean; isAdmin: boolean; onNavigate?: () => void }) {
   return (
-    <nav className="mt-10 flex flex-col gap-2">
+    <nav className="mt-8 flex flex-col gap-0.5">
       {navItems.map((item) => {
         const { label, href } = item;
         const teamLocked = "teamLocked" in item && item.teamLocked;
@@ -312,9 +312,9 @@ function NavLinks({ pathname, teamUnlocked, isAdmin, onNavigate }: { pathname: s
         const active = pathname === href;
         const locked = !!teamLocked && !teamUnlocked;
         const itemClassName = cn(
-          "rounded-2xl px-4 py-3 text-base text-[var(--vf-muted)] transition hover:bg-[rgba(241,80,37,0.1)] hover:text-[var(--vf-text)]",
-          active && "bg-[rgba(241,80,37,0.12)] text-[var(--vf-accent)] shadow-[inset_0_0_0_1px_rgba(241,80,37,0.18)]",
-          locked && "text-[var(--vf-muted)] opacity-50"
+          "rounded-xl px-4 py-2.5 text-sm font-medium text-[#888888] transition-all hover:bg-[rgba(255,255,255,0.05)] hover:text-[#eeeeee]",
+          active && "bg-[rgba(241,80,37,0.1)] text-[var(--vf-accent)] border-l-2 border-[var(--vf-accent)] rounded-l-none pl-[14px]",
+          locked && "opacity-30"
         );
 
         if (locked) {
@@ -2827,37 +2827,6 @@ export function ProfilePage({
             </div>
           </div>
         </div>
-      </Panel>
-
-      <Panel className="p-6">
-        <h2 className="text-3xl font-semibold text-[var(--vf-text)]">Your carrier comp</h2>
-        <p className="mt-2 max-w-4xl text-base text-[var(--vf-muted)]">
-          Commission percentages vary by agent. Enter your own comp per carrier so the tracker calculates your commissions accurately. Some carriers have extra tiers that pay a different rate. This is the only input needed here — everything else comes from your submitted sales.
-        </p>
-        <a
-          href="https://www.fflinspireagents.com/_files/ugd/91be5c_cf5df174aba8487ca2231daa586fb2d9.pdf"
-          className="mt-4 inline-flex text-sm text-[var(--vf-accent)] underline-offset-4 hover:underline"
-        >
-          Not sure of your comp? View the comp guide
-        </a>
-
-        <div className="mt-8 space-y-6">
-          {carriers.map(([carrier, rates]) => (
-            <div key={carrier} className="rounded-[24px] border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
-              <div className="text-2xl font-semibold text-[var(--vf-text)]">{carrier}</div>
-              <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {rates.map(([label, value]) => (
-                  <div key={label}>
-                    <div className="text-sm uppercase tracking-[0.14em] text-[var(--vf-muted)]">{label}</div>
-                    <div className="mt-2 rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-panel)] px-4 py-3 text-lg text-[var(--vf-text)]">{value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <button className="mt-6 rounded-2xl bg-[var(--vf-accent)] px-6 py-3 text-lg font-semibold text-[var(--vf-accent-fg)]">Save comp rates</button>
       </Panel>
     </div>
   );
