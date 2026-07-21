@@ -5,6 +5,8 @@ import { auth } from "@/auth";
 import { getCurrentAgent } from "@/lib/current-agent";
 import { createServiceClient } from "@/lib/supabase";
 
+const SCHEMA_REPAIR_MIGRATION = "supabase/migrations/0007_schema_repair.sql";
+
 const createAgentSchema = z.object({
   email: z.string().trim().email().optional(),
   emails: z.array(z.string().trim().email()).min(1).optional(),
@@ -123,6 +125,12 @@ export async function PATCH(req: Request) {
   const { error } = await supabase.from("agents").update(update).eq("id", parsed.data.id);
 
   if (error) {
+    if (error.message.includes("comp_percentage")) {
+      return NextResponse.json({
+        error: `Your database is missing the agents comp column. Run ${SCHEMA_REPAIR_MIGRATION} against Supabase, then retry.`,
+      }, { status: 500 });
+    }
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

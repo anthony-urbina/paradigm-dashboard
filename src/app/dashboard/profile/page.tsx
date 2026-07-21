@@ -15,6 +15,13 @@ export default async function DashboardProfilePage() {
         email: profile?.email ?? agent?.email ?? session?.user?.email ?? "",
         phone: profile?.phone ?? null,
         image: profile?.profileImageUrl ?? agent?.profileImageUrl ?? session?.user?.image ?? null,
+        discord: {
+          userId: profile?.discordUserId ?? null,
+          username: profile?.discordUsername ?? null,
+          displayName: profile?.discordGlobalName ?? null,
+          avatarUrl: profile?.discordAvatarUrl ?? null,
+          connectedAt: profile?.discordConnectedAt ?? null,
+        },
       }}
     />
   );

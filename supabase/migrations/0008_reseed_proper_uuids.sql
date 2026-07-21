@@ -1,11 +1,45 @@
 -- ============================================================
--- Seed: mock data matching paradigm-data.ts figures
--- Current month: July 2026
+-- Migration: Replace fake UUIDs with proper RFC 4122 v4 UUIDs
+-- Reason: Old UUIDs (11111111-...) fail Zod v4 strict validation
+--         (4th group must start with 8, 9, a, or b)
 -- ============================================================
 
 DO $$
 DECLARE
-  -- Core agents
+  -- Old agent UUIDs (fake, non-RFC-4122)
+  old_dom  uuid := '11111111-1111-1111-1111-111111111101';
+  old_trey uuid := '11111111-1111-1111-1111-111111111102';
+  old_aj   uuid := '11111111-1111-1111-1111-111111111103';
+  old_nick uuid := '11111111-1111-1111-1111-111111111104';
+  old_bren uuid := '11111111-1111-1111-1111-111111111105';
+  old_kobe uuid := '11111111-1111-1111-1111-111111111106';
+  old_vern uuid := '11111111-1111-1111-1111-111111111107';
+  old_dan  uuid := '11111111-1111-1111-1111-111111111108';
+  old_tom  uuid := '11111111-1111-1111-1111-111111111109';
+  old_dg   uuid := '11111111-1111-1111-1111-111111111110';
+  old_marc uuid := '11111111-1111-1111-1111-111111111111';
+  old_tay  uuid := '11111111-1111-1111-1111-111111111112';
+  old_gar  uuid := '11111111-1111-1111-1111-111111111113';
+  old_jw   uuid := '11111111-1111-1111-1111-111111111114';
+  old_dp   uuid := '11111111-1111-1111-1111-111111111115';
+  old_cr   uuid := '11111111-1111-1111-1111-111111111116';
+  old_rt   uuid := '11111111-1111-1111-1111-111111111117';
+  old_mc   uuid := '11111111-1111-1111-1111-111111111118';
+  old_sj   uuid := '11111111-1111-1111-1111-111111111119';
+  old_jw2  uuid := '11111111-1111-1111-1111-111111111120';
+
+  -- Old competition/team UUIDs (fake)
+  old_comp1 uuid := '22222222-2222-2222-2222-222222222201';
+  old_comp2 uuid := '22222222-2222-2222-2222-222222222202';
+  old_comp3 uuid := '22222222-2222-2222-2222-222222222203';
+  old_t1a   uuid := '33333333-3333-3333-3333-333333333301';
+  old_t1b   uuid := '33333333-3333-3333-3333-333333333302';
+  old_t2a   uuid := '33333333-3333-3333-3333-333333333303';
+  old_t2b   uuid := '33333333-3333-3333-3333-333333333304';
+  old_t3a   uuid := '33333333-3333-3333-3333-333333333305';
+  old_t3b   uuid := '33333333-3333-3333-3333-333333333306';
+
+  -- New agent UUIDs (proper RFC 4122 v4)
   v_dom  uuid := 'aaaa0001-0000-4000-8000-000000000001'; -- Dominick Scalice (admin)
   v_trey uuid := 'aaaa0001-0000-4000-8000-000000000002'; -- Trey Tyree
   v_aj   uuid := 'aaaa0001-0000-4000-8000-000000000003'; -- AJ Standish
@@ -19,7 +53,6 @@ DECLARE
   v_marc uuid := 'aaaa0001-0000-4000-8000-000000000011'; -- Marcus Turo
   v_tay  uuid := 'aaaa0001-0000-4000-8000-000000000012'; -- Taylor Scalice
   v_gar  uuid := 'aaaa0001-0000-4000-8000-000000000013'; -- Garrett Gittelman
-  -- Sub-agents (contribute to team totals)
   v_jw   uuid := 'aaaa0001-0000-4000-8000-000000000014'; -- Jason Wright (under Trey)
   v_dp   uuid := 'aaaa0001-0000-4000-8000-000000000015'; -- David Park (under Trey)
   v_cr   uuid := 'aaaa0001-0000-4000-8000-000000000016'; -- Carlos Ruiz (under Nick)
@@ -27,55 +60,120 @@ DECLARE
   v_mc   uuid := 'aaaa0001-0000-4000-8000-000000000018'; -- Mike Chen (under AJ)
   v_sj   uuid := 'aaaa0001-0000-4000-8000-000000000019'; -- Sarah Johnson (under AJ)
   v_jw2  uuid := 'aaaa0001-0000-4000-8000-000000000020'; -- James Wilson (under AJ)
-  -- Competitions
+
+  -- New competition/team UUIDs (proper RFC 4122 v4)
   v_comp1 uuid := 'cccc0001-0000-4000-8000-000000000001'; -- July Blitz (active)
   v_comp2 uuid := 'cccc0001-0000-4000-8000-000000000002'; -- Q3 Championship (draft)
   v_comp3 uuid := 'cccc0001-0000-4000-8000-000000000003'; -- June Showdown (ended)
-  -- Teams
-  v_t1a uuid := 'bbbb0001-0000-4000-8000-000000000001'; -- July Blitz team 1
-  v_t1b uuid := 'bbbb0001-0000-4000-8000-000000000002'; -- July Blitz team 2
-  v_t2a uuid := 'bbbb0001-0000-4000-8000-000000000003'; -- Q3 Champ team 1
-  v_t2b uuid := 'bbbb0001-0000-4000-8000-000000000004'; -- Q3 Champ team 2
-  v_t3a uuid := 'bbbb0001-0000-4000-8000-000000000005'; -- June Showdown team 1
-  v_t3b uuid := 'bbbb0001-0000-4000-8000-000000000006'; -- June Showdown team 2
+  v_t1a   uuid := 'bbbb0001-0000-4000-8000-000000000001'; -- July Blitz team 1
+  v_t1b   uuid := 'bbbb0001-0000-4000-8000-000000000002'; -- July Blitz team 2
+  v_t2a   uuid := 'bbbb0001-0000-4000-8000-000000000003'; -- Q3 Champ team 1
+  v_t2b   uuid := 'bbbb0001-0000-4000-8000-000000000004'; -- Q3 Champ team 2
+  v_t3a   uuid := 'bbbb0001-0000-4000-8000-000000000005'; -- June Showdown team 1
+  v_t3b   uuid := 'bbbb0001-0000-4000-8000-000000000006'; -- June Showdown team 2
+
 BEGIN
 
 -- ============================================================
--- AGENTS
--- upline_id NULLs inserted first, then agents with uplines
+-- STEP 1: Delete all competition data (FK order)
 -- ============================================================
-INSERT INTO agents (id, name, email, phone, upline_id, role, paradigm) VALUES
-  (v_dom,  'Dominick Scalice',   'domscalice@gmail.com',          '3156572606', NULL,    'admin',  true),
-  (v_aj,   'AJ Standish',        'ajstandish@gmail.com',          NULL,         NULL,    'agent',  true),
-  (v_gar,  'Garrett Gittelman',  'garrettgittelman@gmail.com',    NULL,         NULL,    'agent',  false);
+DELETE FROM competition_results
+  WHERE competition_id IN (old_comp1, old_comp2, old_comp3);
 
-INSERT INTO agents (id, name, email, phone, upline_id, role, paradigm) VALUES
-  (v_trey, 'Trey Tyree',         'treytyree@gmail.com',           NULL,         v_dom,   'agent',  true),
-  (v_nick, 'Nick Dambruoso',     'nicholasd1441@gmail.com',       NULL,         v_dom,   'agent',  true),
-  (v_vern, 'Vernon Baker',       'vernonbakerffl@gmail.com',      NULL,         v_dom,   'agent',  true),
-  (v_tom,  'Thomas Hayes',       'tommyalva123@gmail.com',        NULL,         v_dom,   'agent',  true),
-  (v_marc, 'Marcus Turo',        'mturo.life@gmail.com',          NULL,         v_dom,   'agent',  false),
-  (v_tay,  'Taylor Scalice',     'taylorscalice@gmail.com',       NULL,         v_dom,   'agent',  true),
-  (v_mc,   'Mike Chen',          'mikechen@gmail.com',            NULL,         v_aj,    'agent',  true),
-  (v_sj,   'Sarah Johnson',      'sarahjohnson@gmail.com',        NULL,         v_aj,    'agent',  true),
-  (v_jw2,  'James Wilson',       'jameswilson@gmail.com',         NULL,         v_aj,    'agent',  true);
+DELETE FROM competition_members
+  WHERE team_id IN (old_t1a, old_t1b, old_t2a, old_t2b, old_t3a, old_t3b);
 
-INSERT INTO agents (id, name, email, phone, upline_id, role, paradigm) VALUES
-  (v_bren, 'Brendan Horsman',    'brendanhorsman4@gmail.com',     NULL,         v_aj,    'agent',  true),
-  (v_dg,   'Dominique Green',    'dominiquegreen@gmail.com',      NULL,         v_trey,  'agent',  true),
-  (v_jw,   'Jason Wright',       'jasonwright@gmail.com',         NULL,         v_trey,  'agent',  true),
-  (v_dp,   'David Park',         'davidpark@gmail.com',           NULL,         v_trey,  'agent',  false),
-  (v_cr,   'Carlos Ruiz',        'carlosruiz@gmail.com',          NULL,         v_nick,  'agent',  true),
-  (v_rt,   'Rachel Thompson',    'rachelthompson@gmail.com',      NULL,         v_bren,  'agent',  true),
-  (v_dan,  'Daniel Gvili',       'daniel.gvili.02@gmail.com',     NULL,         v_bren,  'agent',  false);
+DELETE FROM competition_teams
+  WHERE id IN (old_t1a, old_t1b, old_t2a, old_t2b, old_t3a, old_t3b);
 
-INSERT INTO agents (id, name, email, phone, upline_id, role, paradigm) VALUES
-  (v_kobe, 'Kobe Saintfort',     'saintfortkobe@gmail.com',       NULL,         v_nick,  'agent',  true);
+DELETE FROM competitions
+  WHERE id IN (old_comp1, old_comp2, old_comp3);
 
 -- ============================================================
--- SALES — July 2026
--- Week = Jul 13–19 (current), Earlier = Jul 1–12
--- All amounts verified to match monthly/weekly totals in mock data
+-- STEP 2: Delete activity, goals, sales for old agent UUIDs
+-- ============================================================
+DELETE FROM activity
+  WHERE agent_id IN (
+    old_dom, old_trey, old_aj, old_nick, old_bren, old_kobe, old_vern,
+    old_dan, old_tom, old_dg, old_marc, old_tay, old_gar, old_jw, old_dp,
+    old_cr, old_rt, old_mc, old_sj, old_jw2
+  );
+
+DELETE FROM goals
+  WHERE agent_id IN (
+    old_dom, old_trey, old_aj, old_nick, old_bren, old_kobe, old_vern,
+    old_dan, old_tom, old_dg, old_marc, old_tay, old_gar, old_jw, old_dp,
+    old_cr, old_rt, old_mc, old_sj, old_jw2
+  );
+
+DELETE FROM sales
+  WHERE agent_id IN (
+    old_dom, old_trey, old_aj, old_nick, old_bren, old_kobe, old_vern,
+    old_dan, old_tom, old_dg, old_marc, old_tay, old_gar, old_jw, old_dp,
+    old_cr, old_rt, old_mc, old_sj, old_jw2
+  );
+
+-- ============================================================
+-- STEP 3: Clear FKs that point back to agents before updating PKs
+-- ============================================================
+-- Clear self-referential upline_id
+UPDATE agents SET upline_id = NULL
+  WHERE id IN (
+    old_dom, old_trey, old_aj, old_nick, old_bren, old_kobe, old_vern,
+    old_dan, old_tom, old_dg, old_marc, old_tay, old_gar, old_jw, old_dp,
+    old_cr, old_rt, old_mc, old_sj, old_jw2
+  );
+
+-- Clear competitions.created_by (nullable FK) so agent PKs can be updated
+UPDATE competitions SET created_by = NULL
+  WHERE created_by IN (
+    old_dom, old_trey, old_aj, old_nick, old_bren, old_kobe, old_vern,
+    old_dan, old_tom, old_dg, old_marc, old_tay, old_gar, old_jw, old_dp,
+    old_cr, old_rt, old_mc, old_sj, old_jw2
+  );
+
+-- ============================================================
+-- STEP 4: Update each agent's PK to the new UUID
+-- ============================================================
+UPDATE agents SET id = v_dom  WHERE id = old_dom;
+UPDATE agents SET id = v_trey WHERE id = old_trey;
+UPDATE agents SET id = v_aj   WHERE id = old_aj;
+UPDATE agents SET id = v_nick WHERE id = old_nick;
+UPDATE agents SET id = v_bren WHERE id = old_bren;
+UPDATE agents SET id = v_kobe WHERE id = old_kobe;
+UPDATE agents SET id = v_vern WHERE id = old_vern;
+UPDATE agents SET id = v_dan  WHERE id = old_dan;
+UPDATE agents SET id = v_tom  WHERE id = old_tom;
+UPDATE agents SET id = v_dg   WHERE id = old_dg;
+UPDATE agents SET id = v_marc WHERE id = old_marc;
+UPDATE agents SET id = v_tay  WHERE id = old_tay;
+UPDATE agents SET id = v_gar  WHERE id = old_gar;
+UPDATE agents SET id = v_jw   WHERE id = old_jw;
+UPDATE agents SET id = v_dp   WHERE id = old_dp;
+UPDATE agents SET id = v_cr   WHERE id = old_cr;
+UPDATE agents SET id = v_rt   WHERE id = old_rt;
+UPDATE agents SET id = v_mc   WHERE id = old_mc;
+UPDATE agents SET id = v_sj   WHERE id = old_sj;
+UPDATE agents SET id = v_jw2  WHERE id = old_jw2;
+
+-- ============================================================
+-- STEP 5: Re-set upline relationships with new UUIDs
+-- ============================================================
+-- dom's direct reports: trey, nick, vern, tom, marc, tay (and dom himself has no upline)
+UPDATE agents SET upline_id = v_dom  WHERE id IN (v_trey, v_nick, v_vern, v_tom, v_marc, v_tay);
+-- aj's direct reports: bren, mc, sj, jw2
+UPDATE agents SET upline_id = v_aj   WHERE id IN (v_bren, v_mc, v_sj, v_jw2);
+-- trey's direct reports: dg, jw, dp
+UPDATE agents SET upline_id = v_trey WHERE id IN (v_dg, v_jw, v_dp);
+-- nick's direct reports: cr, kobe
+UPDATE agents SET upline_id = v_nick WHERE id IN (v_cr, v_kobe);
+-- bren's direct report: rt
+UPDATE agents SET upline_id = v_bren WHERE id = v_rt;
+-- dan is under bren per original seed (agent insert order)
+UPDATE agents SET upline_id = v_bren WHERE id = v_dan;
+
+-- ============================================================
+-- STEP 6: Re-insert sales data (exact copy from 0002_seed.sql)
 -- ============================================================
 
 -- Dominick Scalice  monthly $35,577 (16 sales) | weekly $19,178 (9 sales)
@@ -340,9 +438,7 @@ INSERT INTO sales (agent_id, carrier, product, ap, sold_at) VALUES
   (v_jw2, 'Corebridge', 'Whole Life', 1700, '2026-07-19 10:00:00-04');
 
 -- ============================================================
--- ACTIVITY  (Jul 1–19, main agents only)
--- Totals from teamRows: Dominick 581/35/14/25, etc.
--- Distributed ~evenly with variation across 19 days
+-- STEP 7: Re-insert activity data
 -- ============================================================
 
 -- Dominick Scalice (581 dials, 35 convos, 14 appts, 25 pres)
@@ -400,7 +496,7 @@ SELECT v_marc, d::date,
 FROM generate_series('2026-07-01'::date, '2026-07-19'::date, '1 day') d;
 
 -- ============================================================
--- GOALS  (Dominick — July 2026)
+-- STEP 8: Re-insert goals
 -- ============================================================
 INSERT INTO goals (agent_id, type, target, period_start, period_end) VALUES
   (v_dom, 'sales_ap', 60000, '2026-07-01', '2026-07-31'),
@@ -416,7 +512,7 @@ INSERT INTO goals (agent_id, type, target, period_start, period_end) VALUES
   (v_marc, 'sales_ap', 34000, '2026-07-01', '2026-07-31');
 
 -- ============================================================
--- COMPETITIONS
+-- STEP 9: Re-insert competitions with new UUIDs
 -- ============================================================
 
 -- 1. July Blitz — ACTIVE
@@ -427,14 +523,6 @@ INSERT INTO competitions (id, name, description, prize, start_date, end_date, st
    'Weekend trip to Miami + $500 cash per person on the winning team',
    '2026-07-01', '2026-07-31', 'active', true, v_dom);
 
-INSERT INTO competition_teams (id, competition_id, name, color) VALUES
-  (v_t1a, v_comp1, 'Dominick''s Crew', '#e2bb52'),
-  (v_t1b, v_comp1, 'Trey''s Titans',   '#e05c3a');
-
-INSERT INTO competition_members (team_id, agent_id) VALUES
-  (v_t1a, v_dom),  (v_t1a, v_tom),  (v_t1a, v_vern), (v_t1a, v_marc),
-  (v_t1b, v_trey), (v_t1b, v_dg),   (v_t1b, v_kobe), (v_t1b, v_nick);
-
 -- 2. Q3 Championship — DRAFT
 INSERT INTO competitions (id, name, description, prize, start_date, end_date, status, pinned, created_by) VALUES
   (v_comp2,
@@ -442,14 +530,6 @@ INSERT INTO competitions (id, name, description, prize, start_date, end_date, st
    'The biggest competition of the quarter. Teams are being drafted — stay tuned for the announcement.',
    '$1,000 cash to every agent on the winning team',
    '2026-08-01', '2026-08-31', 'draft', false, v_dom);
-
-INSERT INTO competition_teams (id, competition_id, name, color) VALUES
-  (v_t2a, v_comp2, 'Team Alpha', '#e2bb52'),
-  (v_t2b, v_comp2, 'Team Beta',  '#4a90e2');
-
-INSERT INTO competition_members (team_id, agent_id) VALUES
-  (v_t2a, v_dom),  (v_t2a, v_trey), (v_t2a, v_nick),
-  (v_t2b, v_bren), (v_t2b, v_vern), (v_t2b, v_kobe);
 
 -- 3. June Showdown — ENDED
 INSERT INTO competitions (id, name, description, prize, start_date, end_date, status, pinned, created_by) VALUES
@@ -459,14 +539,39 @@ INSERT INTO competitions (id, name, description, prize, start_date, end_date, st
    '$300 cash per person on the winning team',
    '2026-06-01', '2026-06-30', 'ended', false, v_dom);
 
+-- ============================================================
+-- STEP 10: Re-insert competition_teams with new UUIDs
+-- ============================================================
+INSERT INTO competition_teams (id, competition_id, name, color) VALUES
+  (v_t1a, v_comp1, 'Dominick''s Crew', '#e2bb52'),
+  (v_t1b, v_comp1, 'Trey''s Titans',   '#e05c3a');
+
+INSERT INTO competition_teams (id, competition_id, name, color) VALUES
+  (v_t2a, v_comp2, 'Team Alpha', '#e2bb52'),
+  (v_t2b, v_comp2, 'Team Beta',  '#4a90e2');
+
 INSERT INTO competition_teams (id, competition_id, name, color) VALUES
   (v_t3a, v_comp3, 'Fire Squad', '#e05c3a'),
   (v_t3b, v_comp3, 'Ice Pack',   '#4a90e2');
+
+-- ============================================================
+-- STEP 11: Re-insert competition_members with new UUIDs
+-- ============================================================
+INSERT INTO competition_members (team_id, agent_id) VALUES
+  (v_t1a, v_dom),  (v_t1a, v_tom),  (v_t1a, v_vern), (v_t1a, v_marc),
+  (v_t1b, v_trey), (v_t1b, v_dg),   (v_t1b, v_kobe), (v_t1b, v_nick);
+
+INSERT INTO competition_members (team_id, agent_id) VALUES
+  (v_t2a, v_dom),  (v_t2a, v_trey), (v_t2a, v_nick),
+  (v_t2b, v_bren), (v_t2b, v_vern), (v_t2b, v_kobe);
 
 INSERT INTO competition_members (team_id, agent_id) VALUES
   (v_t3a, v_dom),  (v_t3a, v_trey), (v_t3a, v_vern),
   (v_t3b, v_nick), (v_t3b, v_bren), (v_t3b, v_kobe);
 
+-- ============================================================
+-- STEP 12: Re-insert competition_results (comp3 / t3a won)
+-- ============================================================
 INSERT INTO competition_results (competition_id, winning_team_id) VALUES
   (v_comp3, v_t3a);
 

@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
-import { getCurrentAgent } from "@/lib/current-agent";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "*",
 };
+
+const SALES_INGEST_API_KEY = process.env.SALES_INGEST_API_KEY;
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -17,11 +16,14 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  const agent = await getCurrentAgent(session);
+  const apiKey = req.headers.get("x-api-key");
 
-  if (!agent) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+  if (!SALES_INGEST_API_KEY) {
+    return NextResponse.json({ error: "Sales ingest API key is not configured" }, { status: 500, headers: corsHeaders });
+  }
+
+  if (apiKey !== SALES_INGEST_API_KEY) {
+    return NextResponse.json({ error: "Invalid API key" }, { status: 401, headers: corsHeaders });
   }
 
   let payload: unknown;
@@ -33,14 +35,18 @@ export async function POST(req: Request) {
   }
 
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return NextResponse.json({ error: "Expected a JSON object" }, { status: 400, headers: corsHeaders });
+    return NextResponse.json({ error: "Expected a JSON object body" }, { status: 400, headers: corsHeaders });
+  }
+
+  const body = payload as { data?: unknown };
+
+  if (!body.data || typeof body.data !== "object" || Array.isArray(body.data)) {
+    return NextResponse.json({ error: "Expected a `data` object in the request body" }, { status: 400, headers: corsHeaders });
   }
 
   console.log("[sales-ingest] received payload", {
-    agentId: agent.id,
-    agentEmail: agent.email,
     receivedAt: new Date().toISOString(),
-    data: payload,
+    data: body.data,
   });
 
   return NextResponse.json({

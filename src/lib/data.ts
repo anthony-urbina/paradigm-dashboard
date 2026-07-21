@@ -45,6 +45,11 @@ export type ProfileData = {
   email: string;
   phone: string | null;
   profileImageUrl: string | null;
+  discordUserId: string | null;
+  discordUsername: string | null;
+  discordGlobalName: string | null;
+  discordAvatarUrl: string | null;
+  discordConnectedAt: string | null;
 };
 
 export type TeamAccessData = {
@@ -221,6 +226,23 @@ function isDescendant(descendantId: string, ancestorId: string, agentsById: Map<
     cursor = agentsById.get(cursor.upline_id);
   }
   return false;
+}
+
+function getDirectBranchChild(descendantId: string, ancestorId: string, agentsById: Map<string, AgentNode>) {
+  let cursor = agentsById.get(descendantId);
+  let directChild: AgentNode | null = null;
+
+  while (cursor?.upline_id) {
+    const parent = agentsById.get(cursor.upline_id);
+    if (!parent) return null;
+    if (parent.id === ancestorId) {
+      return directChild ?? cursor;
+    }
+    directChild = parent;
+    cursor = parent;
+  }
+
+  return null;
 }
 
 function getMonthsInRange(range: TimeRange) {
@@ -728,21 +750,71 @@ export async function getCompGuideData(): Promise<CompGuideRecord[]> {
   }));
 }
 
-export async function getTeamAgentCompensation(viewerId: string, subjectAgentId: string, range: TimeRange = "30d"): Promise<TeamAgentCompensationDetail | null> {
+export async function getTeamAgentCompensation(
+  viewerId: string,
+  subjectAgentId: string,
+  range: TimeRange = "30d",
+  options?: { canViewAny?: boolean }
+): Promise<TeamAgentCompensationDetail | null> {
   const supabase = createServiceClient();
   const rangeStart = getRangeStart(range);
 
-  const [{ data: agentsData }, compGuide] = await Promise.all([
+  const [{ data: agentsData, error: agentsError }, compGuide] = await Promise.all([
     supabase.from("agents").select("id, name, upline_id, comp_percentage"),
     getCompGuideData(),
   ]);
 
-  const agents = (agentsData ?? []) as AgentNode[];
+  let normalizedAgentsData = agentsData;
+  if (agentsError) {
+    console.warn("[team-comp] agents query fallback", {
+      viewerId,
+      subjectAgentId,
+      error: agentsError.message,
+    });
+
+    const fallbackAgents = await supabase
+      .from("agents")
+      .select("id, name, upline_id");
+
+    if (fallbackAgents.error) {
+      console.error("[team-comp] agents fallback query failed", {
+        viewerId,
+        subjectAgentId,
+        error: fallbackAgents.error.message,
+      });
+      return null;
+    }
+
+    normalizedAgentsData = (fallbackAgents.data ?? []).map((agent) => ({
+      ...agent,
+      comp_percentage: 80,
+    }));
+  }
+
+  const agents = (normalizedAgentsData ?? []) as AgentNode[];
   const agentsById = buildAgentMap(agents);
   const viewer = agentsById.get(viewerId);
   const subject = agentsById.get(subjectAgentId);
+  const canViewAny = options?.canViewAny ?? false;
 
-  if (!viewer || !subject || !isDescendant(subjectAgentId, viewerId, agentsById)) {
+  if (!viewer || !subject) {
+    console.error("[team-comp] missing agent", {
+      viewerId,
+      subjectAgentId,
+      hasViewer: Boolean(viewer),
+      hasSubject: Boolean(subject),
+      canViewAny,
+      loadedAgentCount: agents.length,
+    });
+    return null;
+  }
+
+  if (!canViewAny && !isDescendant(subjectAgentId, viewerId, agentsById)) {
+    console.error("[team-comp] subject outside viewer downline", {
+      viewerId,
+      subjectAgentId,
+      canViewAny,
+    });
     return null;
   }
 
@@ -758,13 +830,76 @@ export async function getTeamAgentCompensation(viewerId: string, subjectAgentId:
     .gte("sold_at", rangeStart)
     .order("sold_at", { ascending: false });
 
-  if (salesError) return null;
+  let normalizedSalesData = salesData;
+  if (salesError) {
+    console.warn("[team-comp] sales query fallback", {
+      viewerId,
+      subjectAgentId,
+      range,
+      error: salesError.message,
+    });
+
+    const fallbackSales = await supabase
+      .from("sales")
+      .select("id, agent_id, carrier, product, ap, sold_at")
+      .in("agent_id", subjectSubtreeIds)
+      .gte("sold_at", rangeStart)
+      .order("sold_at", { ascending: false });
+
+    if (fallbackSales.error) {
+      console.error("[team-comp] sales query failed", {
+        viewerId,
+        subjectAgentId,
+        range,
+        rangeStart,
+        subjectSubtreeIds,
+        error: fallbackSales.error.message,
+      });
+      return null;
+    }
+
+    normalizedSalesData = (fallbackSales.data ?? []).map((sale) => ({
+      ...sale,
+      client_name: null,
+    }));
+  }
+
+  if (!normalizedSalesData) {
+    console.error("[team-comp] sales query failed", {
+      viewerId,
+      subjectAgentId,
+      range,
+      rangeStart,
+      subjectSubtreeIds,
+      error: "No sales data returned",
+    });
+    return null;
+  }
 
   const guideByKey = new Map(compGuide.map((row) => [normalizeCompRate(row.carrier, row.product), row.baseRate]));
   const subjectComp = Number(subject.comp_percentage ?? 80);
   const viewerComp = Number(viewer.comp_percentage ?? 80);
-  const overrideDelta = Math.max(viewerComp - subjectComp, 0);
-  const sales = (salesData ?? []) as SalesRow[];
+  const branchAgent =
+    subject.upline_id && isDescendant(subjectAgentId, viewerId, agentsById)
+      ? getDirectBranchChild(subjectAgentId, viewerId, agentsById) ?? subject
+      : subject;
+  const branchComp = Number(branchAgent.comp_percentage ?? subjectComp);
+  const overrideDelta = Math.max(viewerComp - branchComp, 0);
+  const sales = (normalizedSalesData ?? []) as SalesRow[];
+
+  console.log("[team-comp] resolved", {
+    viewerId,
+    subjectAgentId,
+    range,
+    canViewAny,
+    subjectSubtreeIds,
+    subjectComp,
+    viewerComp,
+    branchAgentId: branchAgent.id,
+    branchComp,
+    overrideDelta,
+    salesCount: sales.length,
+  });
 
   const toLineItem = (sale: SalesRow, compPercentage: number, saleAgentName: string): CompensationLineItem => {
     const baseRate = guideByKey.get(normalizeCompRate(sale.carrier ?? "", sale.product ?? "")) ?? 100;
@@ -894,16 +1029,46 @@ export async function getProfileData(agentId: string): Promise<ProfileData | nul
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("agents")
-    .select("name, email, phone, profile_image_url")
+    .select("name, email, phone, profile_image_url, discord_user_id, discord_username, discord_global_name, discord_avatar_url, discord_connected_at")
     .eq("id", agentId)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (!error && data) {
+    return {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      profileImageUrl: data.profile_image_url,
+      discordUserId: data.discord_user_id,
+      discordUsername: data.discord_username,
+      discordGlobalName: data.discord_global_name,
+      discordAvatarUrl: data.discord_avatar_url,
+      discordConnectedAt: data.discord_connected_at,
+    };
+  }
+
+  console.warn("[profile] falling back to base agent fields", {
+    agentId,
+    error: error?.message ?? "Unknown profile query error",
+  });
+
+  const fallback = await supabase
+    .from("agents")
+    .select("name, email, phone")
+    .eq("id", agentId)
+    .maybeSingle();
+
+  if (fallback.error || !fallback.data) return null;
 
   return {
-    name: data.name,
-    email: data.email,
-    phone: data.phone,
-    profileImageUrl: data.profile_image_url,
+    name: fallback.data.name,
+    email: fallback.data.email,
+    phone: fallback.data.phone,
+    profileImageUrl: null,
+    discordUserId: null,
+    discordUsername: null,
+    discordGlobalName: null,
+    discordAvatarUrl: null,
+    discordConnectedAt: null,
   };
 }

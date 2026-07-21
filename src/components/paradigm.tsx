@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { signOut } from "next-auth/react";
-import { ArrowLeft, ChevronDown, ChevronRight, CircleHelp, Gauge, Lock, LogOut, Menu, Pencil, Plus, Star, Swords, Trash2, Trophy, UserCircle2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, CircleHelp, Gauge, Link2, Lock, LogOut, Menu, Pencil, Plus, Shield, ShieldCheck, Star, Swords, Trash2, Trophy, Unplug, UserCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { DatePicker } from "@/components/ui/date-picker";
@@ -71,6 +71,14 @@ function Avatar({ name, small = false, ring = false }: { name: string; small?: b
     >
       {initials(name)}
     </div>
+  );
+}
+
+function DiscordIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+      <path d="M20.32 4.37A19.8 19.8 0 0 0 15.4 3a13.86 13.86 0 0 0-.63 1.3 18.4 18.4 0 0 0-5.54 0A13.92 13.92 0 0 0 8.6 3a19.76 19.76 0 0 0-4.93 1.37C.56 9.09-.28 13.7.14 18.25A19.92 19.92 0 0 0 6.19 21c.49-.66.93-1.36 1.3-2.09-.72-.28-1.41-.62-2.06-1.01.17-.12.34-.25.5-.38 3.97 1.82 8.27 1.82 12.19 0 .17.14.34.27.5.39-.65.39-1.34.73-2.06 1 .38.73.81 1.43 1.31 2.09a19.88 19.88 0 0 0 6.04-2.75c.5-5.28-.86-9.84-3.59-13.88ZM8.01 15.5c-1.18 0-2.15-1.1-2.15-2.45 0-1.36.95-2.46 2.15-2.46 1.21 0 2.17 1.1 2.15 2.46 0 1.35-.95 2.45-2.15 2.45Zm7.98 0c-1.18 0-2.15-1.1-2.15-2.45 0-1.36.95-2.46 2.15-2.46 1.21 0 2.17 1.1 2.15 2.46 0 1.35-.94 2.45-2.15 2.45Z" />
+    </svg>
   );
 }
 
@@ -371,15 +379,31 @@ function HeaderNav({ user, teamUnlocked, isAdmin }: { user: NavUser; teamUnlocke
   const [menuOpen, setMenuOpen] = useState(false);
 
   const brand = !logoBroken ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/peak-logo.png"
-      alt="Paradigm Financial logo"
-      className="h-16 w-auto max-w-[180px] object-contain sm:max-w-[220px]"
-      onError={() => setLogoBroken(true)}
-    />
+    <div className="relative inline-flex">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/peak-logo.png"
+        alt="Paradigm Financial logo"
+        className="h-16 w-auto max-w-[180px] object-contain sm:max-w-[220px]"
+        onError={() => setLogoBroken(true)}
+      />
+      {isAdmin ? (
+        <div className="absolute -right-2 -top-2 inline-flex items-center gap-1 rounded-full border border-[rgba(227,187,82,0.55)] bg-[linear-gradient(135deg,#1f1a12,#3a2d17)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#efd58a] shadow-[0_10px_22px_rgba(31,26,18,0.22)]">
+          <Shield className="h-3 w-3" />
+          Admin
+        </div>
+      ) : null}
+    </div>
   ) : (
-    <div className="text-[1.05rem] font-semibold uppercase tracking-[0.38em] text-[var(--vf-text)]">Paradigm Financial</div>
+    <div className="relative inline-flex">
+      <div className="text-[1.05rem] font-semibold uppercase tracking-[0.38em] text-[var(--vf-text)]">Paradigm Financial</div>
+      {isAdmin ? (
+        <div className="absolute -right-3 -top-3 inline-flex items-center gap-1 rounded-full border border-[rgba(227,187,82,0.55)] bg-[linear-gradient(135deg,#1f1a12,#3a2d17)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#efd58a] shadow-[0_10px_22px_rgba(31,26,18,0.22)]">
+          <Shield className="h-3 w-3" />
+          Admin
+        </div>
+      ) : null}
+    </div>
   );
 
   return (
@@ -1660,8 +1684,7 @@ export function AgencyPage({ metrics, agentLeaderboard, teamLeaderboard, selecte
 
   const overview = (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageTitle title="Agency overview" description={`Agency-wide totals for ${rangeLabel.toLowerCase()} and the top agents and teams by AP.`} />
+      <div className="flex justify-end">
         <TimeRangeFilters selectedRange={selectedRange} />
       </div>
       <div className="grid gap-4 md:grid-cols-3">
@@ -2547,11 +2570,26 @@ export function AdminPage({ metrics, agents, uplineOptions }: AdminProps) {
 export function ProfilePage({
   profile,
 }: {
-  profile: { name: string; email: string; phone: string | null; image?: string | null };
+  profile: {
+    name: string;
+    email: string;
+    phone: string | null;
+    image?: string | null;
+    discord: {
+      userId: string | null;
+      username: string | null;
+      displayName: string | null;
+      avatarUrl: string | null;
+      connectedAt: string | null;
+    };
+  };
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [disconnectingDiscord, setDisconnectingDiscord] = useState(false);
   const carriers = [
     ["Americo", [["WL", "125"], ["Term", "115"], ["IUL", "115"]]],
     ["Mutual of Omaha", [["WL", "115"], ["Term", "125"], ["Graded", "50"], ["IUL", "105"]]],
@@ -2567,6 +2605,33 @@ export function ProfilePage({
     ["Instabrain", [["Level default", "70"], ["Guaranteed default", "70"]]],
     ["Other", [["WL", "70"]]],
   ] as const;
+
+  useEffect(() => {
+    const status = searchParams.get("discord");
+    if (!status) return;
+
+    if (status === "connected") {
+      toast.success("Discord connected successfully");
+    } else if (status === "disconnected") {
+      toast.success("Discord disconnected");
+    } else if (status === "cancelled") {
+      toast.error("Discord connection was cancelled");
+    } else if (status === "error_taken") {
+      toast.error("That Discord account is already linked to another user");
+    } else if (status === "error_config") {
+      toast.error("Discord is not configured yet");
+    } else {
+      toast.error("We couldn't finish connecting Discord");
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("discord");
+    router.replace(params.size ? `${pathname}?${params.toString()}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  const discordLabel = profile.discord.displayName || profile.discord.username || "Discord not connected";
+  const discordHandle = profile.discord.username ? `@${profile.discord.username}` : null;
+  const connectedDate = profile.discord.connectedAt ? profile.discord.connectedAt.slice(0, 10) : null;
 
   return (
     <div className="space-y-8">
@@ -2641,6 +2706,112 @@ export function ProfilePage({
           <div>
             <div className="text-sm uppercase tracking-[0.16em] text-[var(--vf-muted)]">Email</div>
             <div className="mt-2 text-xl text-[var(--vf-text)]">{profile.email}</div>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel className="overflow-hidden p-0">
+        <div className="border-b border-[var(--vf-border)] bg-[linear-gradient(135deg,rgba(88,101,242,0.16),rgba(241,80,37,0.08))] px-6 py-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#5865F2] text-white shadow-[0_12px_24px_rgba(88,101,242,0.25)]">
+                <DiscordIcon className="h-7 w-7" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="text-3xl font-semibold text-[var(--vf-text)]">Connect Discord</h2>
+                  <span className={cn(
+                    "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em]",
+                    profile.discord.userId
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-[var(--vf-border)] bg-[var(--vf-surface)] text-[var(--vf-muted)]"
+                  )}>
+                    {profile.discord.userId ? <ShieldCheck className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
+                    {profile.discord.userId ? "Connected" : "Not connected"}
+                  </span>
+                </div>
+                <p className="mt-2 max-w-3xl text-base text-[var(--vf-muted)]">
+                  Link your Discord once so incoming sales data can reliably map back to your profile.
+                </p>
+              </div>
+            </div>
+
+            {profile.discord.userId ? (
+              <button
+                onClick={async () => {
+                  setDisconnectingDiscord(true);
+                  try {
+                    const response = await fetch("/api/discord/disconnect", { method: "POST" });
+                    const result = (await response.json().catch(() => ({}))) as { error?: string };
+                    if (!response.ok) {
+                      toast.error(result.error ?? "Failed to disconnect Discord");
+                      return;
+                    }
+
+                    toast.success("Discord disconnected");
+                    router.refresh();
+                  } finally {
+                    setDisconnectingDiscord(false);
+                  }
+                }}
+                disabled={disconnectingDiscord}
+                className="cursor-pointer rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-panel)] px-5 py-3 text-sm font-semibold text-[var(--vf-text)] transition hover:bg-[var(--vf-surface)] disabled:opacity-60"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Unplug className="h-4 w-4" />
+                  {disconnectingDiscord ? "Disconnecting..." : "Disconnect"}
+                </span>
+              </button>
+            ) : (
+              <a
+                href="/api/discord/connect"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-[#5865F2] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(88,101,242,0.24)] transition hover:translate-y-[-1px] hover:bg-[#4d59da]"
+              >
+                <DiscordIcon className="h-4 w-4" />
+                Connect Discord
+              </a>
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-5 px-6 py-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
+          <div className="rounded-[24px] border border-[var(--vf-border)] bg-[var(--vf-bg)] p-5">
+            <div className="text-sm uppercase tracking-[0.16em] text-[var(--vf-muted)]">Why link it</div>
+            <div className="mt-3 space-y-3 text-[15px] leading-7 text-[var(--vf-text)]">
+              <p>Discord is the cleanest way to match bot activity and sales payloads to the right agent without guessing from names or email variations.</p>
+              <p>Once connected, we’ll use your Discord ID behind the scenes while keeping your profile experience simple.</p>
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
+            <div className="text-sm uppercase tracking-[0.16em] text-[var(--vf-muted)]">Linked account</div>
+            <div className="mt-4 flex items-center gap-4">
+              {profile.discord.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profile.discord.avatarUrl} alt={discordLabel} className="h-14 w-14 rounded-2xl object-cover ring-1 ring-[var(--vf-border)]" />
+              ) : (
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#5865F2] text-white">
+                  <DiscordIcon className="h-7 w-7" />
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="truncate text-2xl font-semibold text-[var(--vf-text)]">{discordLabel}</div>
+                <div className="mt-1 truncate text-sm text-[var(--vf-muted)]">
+                  {discordHandle ?? "No Discord account linked yet"}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-panel)] px-4 py-4">
+                <div className="text-xs uppercase tracking-[0.14em] text-[var(--vf-muted)]">Discord ID</div>
+                <div className="mt-2 break-all text-sm text-[var(--vf-text)]">{profile.discord.userId ?? "Waiting for connection"}</div>
+              </div>
+              <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-panel)] px-4 py-4">
+                <div className="text-xs uppercase tracking-[0.14em] text-[var(--vf-muted)]">Connected on</div>
+                <div className="mt-2 text-sm text-[var(--vf-text)]">{connectedDate ?? "Not connected yet"}</div>
+              </div>
+            </div>
           </div>
         </div>
       </Panel>

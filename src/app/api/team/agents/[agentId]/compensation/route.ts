@@ -21,9 +21,23 @@ export async function GET(
   const { agentId } = await params;
   const url = new URL(req.url);
   const range = normalizeRange(url.searchParams.get("range"));
-  const detail = await getTeamAgentCompensation(agent.id, agentId, range);
+  console.log("[team-comp] request", {
+    viewerId: agent.id,
+    viewerRole: agent.role,
+    subjectAgentId: agentId,
+    range,
+  });
+  const detail = await getTeamAgentCompensation(agent.id, agentId, range, {
+    canViewAny: agent.role === "admin",
+  });
 
   if (!detail) {
+    console.error("[team-comp] detail not found", {
+      viewerId: agent.id,
+      viewerRole: agent.role,
+      subjectAgentId: agentId,
+      range,
+    });
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

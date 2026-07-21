@@ -6,7 +6,6 @@ export default async function LoginPage() {
   const session = await auth();
   const agent = await getCurrentAgent(session);
   if (agent) redirect("/dashboard");
-  if (session?.user?.email) redirect("/auth/error?error=AccessDenied");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--vf-bg)] px-4">
