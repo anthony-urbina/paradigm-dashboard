@@ -109,6 +109,12 @@ function fmtCompactCurrency(n: number): string {
   }).format(n);
 }
 
+function parseFormattedNumber(value: string): number {
+  const normalized = value.replace(/[^0-9.-]/g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 const DAILY_MOTIVATION_QUOTES = [
   "Treat today like the day that changes everything, and one day it will.",
   "Consistency wins long after motivation gets quiet.",
@@ -3033,27 +3039,28 @@ function leaderboardPostSvg(post: LeaderboardPostCard) {
   const rightCol = gridEntries.filter((_, i) => i % 2 === 1);
   const rowCount = Math.max(leftCol.length, rightCol.length);
 
-  const gridStartY = 800;
-  const rowH = 52;
+  const gridStartY = 810;
+  const rowH = 54;
 
   const gridRows = Array.from({ length: rowCount }, (_, i) => {
     const y = gridStartY + i * rowH;
     const lEntry = leftCol[i];
     const rEntry = rightCol[i];
     const separatorY = y + rowH - 4;
+    const mid = y + Math.round(rowH / 2) + 8;
     const leftSvg = lEntry ? `
-      <text x="86" y="${y + 30}" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="700">#${lEntry.rank}</text>
-      <text x="130" y="${y + 30}" fill="#DBDEE1" font-size="22" font-family="Arial, sans-serif">${escapeXml(lEntry.shortName)}</text>
-      <text x="360" y="${y + 22}" fill="#949BA4" font-size="16" font-family="Arial, sans-serif" text-anchor="end">${lEntry.salesCount} ${lEntry.salesCount === 1 ? "sale" : "sales"}</text>
-      <text x="516" y="${y + 30}" fill="#ffffff" font-size="22" font-family="Arial, sans-serif" font-weight="700" text-anchor="end">${fmtAp(lEntry.ap)}</text>
+      <text x="86" y="${mid}" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="700">#${lEntry.rank}</text>
+      <text x="132" y="${mid}" fill="#DBDEE1" font-size="22" font-family="Arial, sans-serif">${escapeXml(lEntry.shortName)}</text>
+      <text x="370" y="${mid}" fill="#949BA4" font-size="15" font-family="Arial, sans-serif" text-anchor="end">${lEntry.salesCount} ${lEntry.salesCount === 1 ? "sale" : "sales"}</text>
+      <text x="516" y="${mid}" fill="#ffffff" font-size="22" font-family="Arial, sans-serif" font-weight="700" text-anchor="end">${fmtAp(lEntry.ap)}</text>
     ` : "";
     const rightSvg = rEntry ? `
-      <text x="558" y="${y + 30}" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="700">#${rEntry.rank}</text>
-      <text x="602" y="${y + 30}" fill="#DBDEE1" font-size="22" font-family="Arial, sans-serif">${escapeXml(rEntry.shortName)}</text>
-      <text x="830" y="${y + 22}" fill="#949BA4" font-size="16" font-family="Arial, sans-serif" text-anchor="end">${rEntry.salesCount} ${rEntry.salesCount === 1 ? "sale" : "sales"}</text>
-      <text x="988" y="${y + 30}" fill="#ffffff" font-size="22" font-family="Arial, sans-serif" font-weight="700" text-anchor="end">${fmtAp(rEntry.ap)}</text>
+      <text x="558" y="${mid}" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="700">#${rEntry.rank}</text>
+      <text x="602" y="${mid}" fill="#DBDEE1" font-size="22" font-family="Arial, sans-serif">${escapeXml(rEntry.shortName)}</text>
+      <text x="840" y="${mid}" fill="#949BA4" font-size="15" font-family="Arial, sans-serif" text-anchor="end">${rEntry.salesCount} ${rEntry.salesCount === 1 ? "sale" : "sales"}</text>
+      <text x="988" y="${mid}" fill="#ffffff" font-size="22" font-family="Arial, sans-serif" font-weight="700" text-anchor="end">${fmtAp(rEntry.ap)}</text>
     ` : "";
-    const sep = i < rowCount - 1 ? `<line x1="72" y1="${separatorY}" x2="1008" y2="${separatorY}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>` : "";
+    const sep = i < rowCount - 1 ? `<line x1="72" y1="${y + rowH - 1}" x2="1008" y2="${y + rowH - 1}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>` : "";
     return leftSvg + rightSvg + sep;
   }).join("");
 
@@ -3070,16 +3077,18 @@ function leaderboardPostSvg(post: LeaderboardPostCard) {
     `;
   };
 
-  // Name card helper
-  const nameCard = (x: number, y: number, w: number, h: number, name: string, ap: number, borderColor: string, apColor: string) => `
+  // Name card helper — includes sales count so cards don't look empty
+  const nameCard = (x: number, y: number, w: number, h: number, name: string, ap: number, salesCount: number, borderColor: string, apColor: string) => `
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18" fill="#161819" stroke="${borderColor}" stroke-width="1.5"/>
-    <text x="${x + w / 2}" y="${y + 36}" text-anchor="middle" fill="#DBDEE1" font-size="24" font-family="Arial, sans-serif" font-weight="600">${escapeXml(name)}</text>
-    <text x="${x + w / 2}" y="${y + 60}" text-anchor="middle" fill="#949BA4" font-size="14" font-family="Arial, sans-serif" letter-spacing="3">TOTAL AP</text>
-    <text x="${x + w / 2}" y="${y + 94}" text-anchor="middle" fill="${apColor}" font-size="30" font-family="Arial, sans-serif" font-weight="700">${fmtAp(ap)}</text>
+    <text x="${x + w / 2}" y="${y + 38}" text-anchor="middle" fill="#DBDEE1" font-size="24" font-family="Arial, sans-serif" font-weight="600">${escapeXml(name)}</text>
+    <text x="${x + w / 2}" y="${y + 64}" text-anchor="middle" fill="#949BA4" font-size="13" font-family="Arial, sans-serif" letter-spacing="3">TOTAL AP</text>
+    <text x="${x + w / 2}" y="${y + 100}" text-anchor="middle" fill="${apColor}" font-size="30" font-family="Arial, sans-serif" font-weight="700">${fmtAp(ap)}</text>
+    <text x="${x + w / 2}" y="${y + 126}" text-anchor="middle" fill="#949BA4" font-size="15" font-family="Arial, sans-serif">${salesCount} ${salesCount === 1 ? "sale" : "sales"}</text>
   `;
 
+  const totalH = gridStartY + rowCount * rowH + 260; // footer 116 + tagline + bottom pad
   return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+    <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="${totalH}" viewBox="0 0 1080 ${totalH}">
       <defs>
         <linearGradient id="bg" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stop-color="#0d0f11" />
@@ -3092,7 +3101,7 @@ function leaderboardPostSvg(post: LeaderboardPostCard) {
       </defs>
 
       <!-- Background -->
-      <rect width="1080" height="1350" fill="url(#bg)" />
+      <rect width="1080" height="${totalH}" fill="url(#bg)" />
 
       <!-- Top orange accent bar -->
       <rect x="0" y="0" width="1080" height="6" fill="url(#accentGrad)" />
@@ -3126,28 +3135,28 @@ function leaderboardPostSvg(post: LeaderboardPostCard) {
       ${e3 ? avatar(875, 516, 68, e3.initials, "rgba(205,127,79,0.8)", 3) : ""}
 
       <!-- Name cards -->
-      ${e2 ? nameCard(72, 610, 266, 148, e2.shortName, e2.ap, "rgba(255,255,255,0.12)", "#ffffff") : ""}
-      ${e1 ? nameCard(362, 596, 356, 168, e1.shortName, e1.ap, "#F15025", "#F15025") : ""}
-      ${e3 ? nameCard(742, 610, 266, 148, e3.shortName, e3.ap, "rgba(255,255,255,0.12)", "#ffffff") : ""}
+      ${e2 ? nameCard(72, 610, 266, 152, e2.shortName, e2.ap, e2.salesCount, "rgba(255,255,255,0.12)", "#ffffff") : ""}
+      ${e1 ? nameCard(358, 594, 364, 172, e1.shortName, e1.ap, e1.salesCount, "#F15025", "#F15025") : ""}
+      ${e3 ? nameCard(742, 610, 266, 152, e3.shortName, e3.ap, e3.salesCount, "rgba(255,255,255,0.12)", "#ffffff") : ""}
 
       <!-- Grid section divider -->
-      <line x1="72" y1="790" x2="1008" y2="790" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+      <line x1="72" y1="796" x2="1008" y2="796" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
       <!-- Vertical column divider -->
-      <line x1="532" y1="800" x2="532" y2="${gridStartY + rowCount * rowH - 8}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+      <line x1="532" y1="${gridStartY}" x2="532" y2="${gridStartY + rowCount * rowH - 4}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
 
       <!-- Grid rows -->
       ${gridRows}
 
-      <!-- Footer stats bar -->
-      <rect x="72" y="1080" width="936" height="112" rx="22" fill="#1a1b1e" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
-      <line x1="540" y1="1092" x2="540" y2="1180" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
-      <text x="306" y="1120" text-anchor="middle" fill="#949BA4" font-size="16" font-family="Arial, sans-serif" letter-spacing="4">TEAM TOTAL AP</text>
-      <text x="306" y="1164" text-anchor="middle" fill="#F15025" font-size="38" font-family="Arial, sans-serif" font-weight="700">${fmtAp(post.totalAp)}</text>
-      <text x="774" y="1120" text-anchor="middle" fill="#949BA4" font-size="16" font-family="Arial, sans-serif" letter-spacing="4">WRITING AGENTS</text>
-      <text x="774" y="1164" text-anchor="middle" fill="#ffffff" font-size="38" font-family="Arial, sans-serif" font-weight="700">${post.writingAgents}</text>
+      <!-- Footer stats bar — positioned dynamically so no orphan gap -->
+      <rect x="72" y="${gridStartY + rowCount * rowH + 32}" width="936" height="116" rx="22" fill="#1a1b1e" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+      <line x1="540" y1="${gridStartY + rowCount * rowH + 44}" x2="540" y2="${gridStartY + rowCount * rowH + 136}" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+      <text x="306" y="${gridStartY + rowCount * rowH + 76}" text-anchor="middle" fill="#949BA4" font-size="16" font-family="Arial, sans-serif" letter-spacing="4">TEAM TOTAL AP</text>
+      <text x="306" y="${gridStartY + rowCount * rowH + 118}" text-anchor="middle" fill="#F15025" font-size="38" font-family="Arial, sans-serif" font-weight="700">${fmtAp(post.totalAp)}</text>
+      <text x="774" y="${gridStartY + rowCount * rowH + 76}" text-anchor="middle" fill="#949BA4" font-size="16" font-family="Arial, sans-serif" letter-spacing="4">WRITING AGENTS</text>
+      <text x="774" y="${gridStartY + rowCount * rowH + 118}" text-anchor="middle" fill="#ffffff" font-size="38" font-family="Arial, sans-serif" font-weight="700">${post.writingAgents}</text>
 
       <!-- Tagline -->
-      <text x="540" y="1260" text-anchor="middle" fill="#F15025" font-size="18" font-family="Arial, sans-serif" letter-spacing="3">&#9670; PROTECT FAMILIES &#183; CHANGE LIVES &#183; BUILD LEGACY &#9670;</text>
+      <text x="540" y="${gridStartY + rowCount * rowH + 210}" text-anchor="middle" fill="#F15025" font-size="18" font-family="Arial, sans-serif" letter-spacing="3">&#9670; PROTECT FAMILIES &#183; CHANGE LIVES &#183; BUILD LEGACY &#9670;</text>
     </svg>
   `.trim();
 }
@@ -3168,8 +3177,8 @@ async function leaderboardPostPngBlob(post: LeaderboardPostCard) {
     await loaded;
 
     const canvas = document.createElement("canvas");
-    canvas.width = 1080;
-    canvas.height = 1350;
+    canvas.width = image.naturalWidth || 1080;
+    canvas.height = image.naturalHeight || 1350;
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Canvas is not available");
     context.drawImage(image, 0, 0);
@@ -3958,15 +3967,15 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
     if (!sort) return 0;
     const left =
       sort.key === "lifetimeAP"
-        ? Number(a.lifetimeAP)
+        ? parseFormattedNumber(a.lifetimeAP)
         : sort.key === "lifetimeSales"
-          ? Number(a.lifetimeSales)
+          ? parseFormattedNumber(a.lifetimeSales)
           : a.compPercentage;
     const right =
       sort.key === "lifetimeAP"
-        ? Number(b.lifetimeAP)
+        ? parseFormattedNumber(b.lifetimeAP)
         : sort.key === "lifetimeSales"
-          ? Number(b.lifetimeSales)
+          ? parseFormattedNumber(b.lifetimeSales)
           : b.compPercentage;
     const result = left - right;
     return sort.direction === "asc" ? result : -result;
