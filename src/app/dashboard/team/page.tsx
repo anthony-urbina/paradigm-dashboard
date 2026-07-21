@@ -22,7 +22,7 @@ export default async function DashboardTeamPage({
     ? await Promise.all([getTeamData(agentId, range), getTeamAccessData(agentId)])
     : await Promise.all([
         Promise.resolve({
-          metrics: { totalTeam: 0, directAgents: 0, teamAP: 0, activeWriters: 0 },
+          metrics: { totalTeam: 0, directAgents: 0, teamAP: 0, activeWriters: 0, totalOverrides: 0 },
           growthBars: [],
           teamAgents: [],
           rangeLabel: "Last 30 days",

@@ -65,6 +65,8 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", class
               button_next: "text-[var(--vf-muted)] hover:text-[var(--vf-text)] hover:bg-[var(--vf-surface)]",
               weekday: "flex-1 text-center text-[var(--vf-muted)] text-xs font-medium",
               day: "text-[var(--vf-text)]",
+              day_button:
+                "rounded-lg text-[var(--vf-text)] transition-colors enabled:hover:bg-[var(--vf-surface-2)] enabled:hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--vf-accent)] data-[selected-single=true]:bg-[var(--vf-accent)] data-[selected-single=true]:font-semibold data-[selected-single=true]:text-white data-[selected-single=true]:shadow-[0_0_0_3px_rgba(241,80,37,0.22)]",
               today: "rounded-lg bg-[var(--vf-surface)] font-semibold text-[var(--vf-text)]",
               outside: "text-[var(--vf-muted)] opacity-30",
               disabled: "text-[var(--vf-muted)] opacity-20",

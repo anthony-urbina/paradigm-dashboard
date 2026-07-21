@@ -497,7 +497,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
 
   const { data: agentsData } = await supabase
     .from("agents")
-    .select("id, name, upline_id");
+    .select("id, name, upline_id, comp_percentage");
 
   const agents = (agentsData ?? []) as AgentNode[];
   const childrenByUpline = buildChildrenMap(agents);
@@ -506,11 +506,11 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
   const descendantIds = descendants.map((agent) => agent.id);
   const idsForGrowth = Array.from(new Set([agentId, ...descendantIds]));
 
-  const [salesRes, activityRes] = await Promise.all([
+  const [salesRes, activityRes, compGuide] = await Promise.all([
     descendantIds.length > 0
       ? supabase
           .from("sales")
-          .select("agent_id, ap, sold_at")
+          .select("agent_id, carrier, product, ap, sold_at")
           .in("agent_id", descendantIds)
           .gte("sold_at", rangeStart)
       : Promise.resolve({ data: [] as SalesRow[], error: null }),
@@ -521,6 +521,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
           .in("agent_id", descendantIds)
           .gte("date", rangeStart.slice(0, 10))
       : Promise.resolve({ data: [] as ActivityRow[], error: null }),
+    getCompGuideData(),
   ]);
   const sales = (salesRes.data ?? []) as SalesRow[];
   const activity = (activityRes.data ?? []) as ActivityRow[];
@@ -610,6 +611,22 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
   const totalTeam = descendants.length;
   const teamAP = sales.reduce((sum, sale) => sum + Number(sale.ap), 0);
   const activeWriters = new Set(sales.map((sale) => sale.agent_id)).size;
+  const agentsById = buildAgentMap(agents);
+  const viewerComp = Number(agentsById.get(agentId)?.comp_percentage ?? 80);
+  const guideByKey = new Map(compGuide.map((row) => [normalizeCompRate(row.carrier, row.product), row.baseRate]));
+  const totalOverrides = roundCurrency(
+    sales.reduce((sum, sale) => {
+      const branchAgent = getDirectBranchChild(sale.agent_id, agentId, agentsById);
+      if (!branchAgent) return sum;
+
+      const branchComp = Number(branchAgent.comp_percentage ?? 80);
+      const overrideDelta = Math.max(viewerComp - branchComp, 0);
+      if (overrideDelta <= 0) return sum;
+
+      const baseRate = guideByKey.get(normalizeCompRate(sale.carrier ?? "", sale.product ?? "")) ?? 100;
+      return sum + Number(sale.ap) * pct(baseRate) * pct(overrideDelta);
+    }, 0)
+  );
 
   return {
     metrics: {
@@ -617,6 +634,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
       directAgents,
       teamAP,
       activeWriters,
+      totalOverrides,
     },
     growthBars,
     teamAgents,
