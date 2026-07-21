@@ -13,6 +13,17 @@ export const metadata: Metadata = {
     icon: "/favicon-logo.png",
     apple: "/favicon-logo.png",
   },
+  openGraph: {
+    title: "Paradigm Financial",
+    description: "Life insurance agent dashboard",
+    siteName: "Paradigm Financial",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Paradigm Financial",
+    description: "Life insurance agent dashboard",
+  },
 };
 
 export default function RootLayout({
