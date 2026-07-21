@@ -49,73 +49,53 @@
 }
 
 :root {
-  /* Paradigm Financial: black #000000, white #ffffff, gray #898989 */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0 0 0);
-  --primary: oklch(0 0 0);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.96 0 0);
-  --secondary-foreground: oklch(0 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.567 0 0); /* #898989 */
-  --accent: oklch(0.96 0 0);
-  --accent-foreground: oklch(0 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0 0);
-  --input: oklch(0.9 0 0);
-  --ring: oklch(0.567 0 0);
-  --chart-1: oklch(0 0 0);
-  --chart-2: oklch(0.567 0 0);
-  --chart-3: oklch(0.75 0 0);
-  --chart-4: oklch(0.87 0 0);
-  --chart-5: oklch(0.96 0 0);
+  /* #FFFFFF white base — light mode */
+  --background: oklch(1.0 0 0);
+  --foreground: oklch(0.17 0 0);
+  /* #E6E8E6 light gray surfaces */
+  --card: oklch(0.93 0.003 145);
+  --card-foreground: oklch(0.17 0 0);
+  --popover: oklch(1.0 0 0);
+  --popover-foreground: oklch(0.17 0 0);
+  /* #F15025 burnt orange */
+  --primary: oklch(0.63 0.21 35);
+  --primary-foreground: oklch(1.0 0 0);
+  /* #CED0CE medium gray */
+  --secondary: oklch(0.84 0.003 145);
+  --secondary-foreground: oklch(0.17 0 0);
+  --muted: oklch(0.93 0.003 145);
+  --muted-foreground: oklch(0.48 0 0);
+  --accent: oklch(0.63 0.21 35);
+  --accent-foreground: oklch(1.0 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --border: oklch(0.84 0.003 145);
+  --input: oklch(0.93 0.003 145);
+  --ring: oklch(0.63 0.21 35 / 0.5);
+  /* chart palette */
+  --chart-1: #F15025;
+  --chart-2: #191919;
+  --chart-3: #CED0CE;
+  --chart-4: #c04018;
+  --chart-5: #888888;
   --radius: 0.5rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0 0 0);
-  --sidebar-primary: oklch(0 0 0);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.94 0 0);
-  --sidebar-accent-foreground: oklch(0 0 0);
-  --sidebar-border: oklch(0.9 0 0);
-  --sidebar-ring: oklch(0.567 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* #E6E8E6 sidebar */
+  --sidebar: oklch(0.93 0.003 145);
+  --sidebar-foreground: oklch(0.17 0 0);
+  --sidebar-primary: oklch(0.63 0.21 35);
+  --sidebar-primary-foreground: oklch(1.0 0 0);
+  --sidebar-accent: oklch(0.84 0.003 145);
+  --sidebar-accent-foreground: oklch(0.17 0 0);
+  --sidebar-border: oklch(0.84 0.003 145);
+  --sidebar-ring: oklch(0.63 0.21 35 / 0.5);
+  --vf-bg: #ffffff;
+  --vf-panel: #ffffff;
+  --vf-surface: #E6E8E6;
+  --vf-surface-2: #CED0CE;
+  --vf-border: rgba(206, 208, 206, 0.9);
+  --vf-muted: #888888;
+  --vf-text: #191919;
+  --vf-accent: #F15025;
+  --vf-accent-fg: #ffffff;
 }
 
 @layer base {
@@ -127,5 +107,22 @@
   }
   html {
     @apply font-sans;
+  }
+  a[href],
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="color"]:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+  button:disabled,
+  input:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
   }
 }
