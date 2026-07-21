@@ -50,9 +50,9 @@
 
 :root {
   /* Discord palette — warm dark grays */
-  --background: oklch(0.26 0.006 264);   /* #313338 Discord main content */
+  --background: oklch(0.19 0.006 264);   /* #1E1F22 darkest bg */
   --foreground: oklch(0.90 0.004 258);   /* #DBDEE1 Discord primary text */
-  --card: oklch(0.23 0.006 264);         /* #2B2D31 Discord sidebar/panel */
+  --card: oklch(0.23 0.006 264);         /* #2B2D31 panels — lighter than bg */
   --card-foreground: oklch(0.90 0.004 258);
   --popover: oklch(0.21 0.006 264);      /* #26282C slightly darker */
   --popover-foreground: oklch(0.90 0.004 258);
@@ -87,11 +87,11 @@
   --sidebar-ring: oklch(0.63 0.21 35 / 0.5);
 
   /* ── Paradigm design tokens ──────────────────────────────── */
-  --vf-bg:         #313338;   /* Discord main content area   */
-  --vf-panel:      #2B2D31;   /* Discord channel sidebar     */
-  --vf-surface:    #2B2D31;   /* Sidebar bg / card fills     */
-  --vf-surface-2:  #383A40;   /* Hover states / inputs       */
-  --vf-border:     rgba(255, 255, 255, 0.06);
+  --vf-bg:         #1E1F22;   /* Darkest — page background   */
+  --vf-panel:      #2B2D31;   /* Cards / panels — pop fwd    */
+  --vf-surface:    #2B2D31;   /* Sidebar bg                  */
+  --vf-surface-2:  #383A40;   /* Inputs / hover / elevated   */
+  --vf-border:     rgba(255, 255, 255, 0.09);
   --vf-muted:      #949BA4;   /* Discord muted text          */
   --vf-text:       #DBDEE1;   /* Discord primary text        */
   --vf-accent:     #F15025;   /* Brand orange                */

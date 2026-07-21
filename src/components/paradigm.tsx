@@ -54,7 +54,7 @@ function initials(name: string) {
 
 function Panel({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <section className={cn("rounded-[28px] border border-[var(--vf-border)] bg-[var(--vf-panel)] shadow-[0_4px_40px_rgba(0,0,0,0.5)]", className)}>
+    <section className={cn("rounded-[28px] border border-[var(--vf-border)] bg-[var(--vf-panel)] shadow-[0_2px_12px_rgba(0,0,0,0.4)]", className)}>
       {children}
     </section>
   );
@@ -66,7 +66,7 @@ function Avatar({ name, small = false, ring = false }: { name: string; small?: b
       className={cn(
         "flex items-center justify-center rounded-full bg-[var(--vf-surface)] font-semibold text-[var(--vf-text)]",
         small ? "h-10 w-10 text-sm" : "h-14 w-14 text-lg",
-        ring && "ring-4 ring-[var(--vf-accent)]"
+        ring && "ring-2 ring-[var(--vf-blurple)]"
       )}
     >
       {initials(name)}
@@ -201,7 +201,7 @@ function LeaderboardList({
               )}>
                 <div className={cn(
                   "text-xl font-semibold sm:text-4xl",
-                  entry.rank === 1 ? "text-[var(--vf-gold)]" : "text-[var(--vf-accent)]"
+                  entry.rank === 1 ? "text-[var(--vf-gold)]" : "text-[var(--vf-text)]"
                 )}>{entry.value}</div>
                 <div className="mt-1 text-xs uppercase tracking-[0.18em] text-[var(--vf-muted)]">AP</div>
               </div>
@@ -216,7 +216,7 @@ function LeaderboardList({
 function PageTitle({ title, description, icon }: { title: string; description: string; icon?: React.ReactNode }) {
   return (
     <div className="mb-8 flex items-start gap-4">
-      {icon ? <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--vf-surface)] text-[var(--vf-accent)]">{icon}</div> : null}
+      {icon ? <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--vf-surface)] text-[var(--vf-blurple)]">{icon}</div> : null}
       <div>
         <h1 className="text-3xl font-semibold tracking-tight text-[var(--vf-text)] sm:text-5xl">{title}</h1>
         <p className="mt-2 max-w-3xl text-base text-[var(--vf-muted)] sm:text-lg">{description}</p>
@@ -320,7 +320,7 @@ function NavLinks({ pathname, teamUnlocked, isAdmin, onNavigate }: { pathname: s
 
         const iconClass = cn(
           "h-[18px] w-[18px] shrink-0 transition-colors",
-          active ? "text-[var(--vf-accent)]" : "text-[#686d73] group-hover:text-[#dbdee1]"
+          active ? "text-[var(--vf-blurple)]" : "text-[#686d73] group-hover:text-[#dbdee1]"
         );
 
         const inner = (
@@ -389,31 +389,28 @@ function HeaderNav({ user, teamUnlocked, isAdmin }: { user: NavUser; teamUnlocke
   const [logoBroken, setLogoBroken] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const adminBadge = isAdmin ? (
+    <div className="absolute -right-1 -top-1 inline-flex translate-x-1/3 -translate-y-1/3 items-center gap-0.5 rounded-full border border-[rgba(88,101,242,0.4)] bg-[#5865F2] px-1.5 py-0.5 text-[6px] font-semibold uppercase tracking-[0.16em] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]">
+      <Shield className="h-2 w-2" />
+      Admin
+    </div>
+  ) : null;
+
   const brand = !logoBroken ? (
     <div className="relative inline-flex">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/peak-logo.png"
         alt="Paradigm Financial logo"
-        className="h-16 w-auto max-w-[180px] object-contain sm:max-w-[220px]"
+        className="h-12 w-auto max-w-[135px] object-contain sm:max-w-[165px]"
         onError={() => setLogoBroken(true)}
       />
-      {isAdmin ? (
-        <div className="absolute -right-2 -top-2 inline-flex items-center gap-1 rounded-full border border-[rgba(227,187,82,0.55)] bg-[linear-gradient(135deg,#1f1a12,#3a2d17)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#efd58a] shadow-[0_10px_22px_rgba(31,26,18,0.22)]">
-          <Shield className="h-3 w-3" />
-          Admin
-        </div>
-      ) : null}
+      {adminBadge}
     </div>
   ) : (
     <div className="relative inline-flex">
       <div className="text-[1.05rem] font-semibold uppercase tracking-[0.38em] text-[var(--vf-text)]">Paradigm Financial</div>
-      {isAdmin ? (
-        <div className="absolute -right-3 -top-3 inline-flex items-center gap-1 rounded-full border border-[rgba(227,187,82,0.55)] bg-[linear-gradient(135deg,#1f1a12,#3a2d17)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#efd58a] shadow-[0_10px_22px_rgba(31,26,18,0.22)]">
-          <Shield className="h-3 w-3" />
-          Admin
-        </div>
-      ) : null}
+      {adminBadge}
     </div>
   );
 
@@ -456,7 +453,7 @@ function HeaderNav({ user, teamUnlocked, isAdmin }: { user: NavUser; teamUnlocke
           <NavLinks pathname={pathname} teamUnlocked={teamUnlocked} isAdmin={isAdmin} onNavigate={() => setMenuOpen(false)} />
           <div className="mt-auto space-y-4 pt-8">
             <button className="flex items-center gap-2 text-sm text-[var(--vf-text)]">
-              <CircleHelp className="h-4 w-4 text-[var(--vf-accent)]" />
+              <CircleHelp className="h-4 w-4 text-[var(--vf-blurple)]" />
               Guide
             </button>
             <UserCard user={user} onClick={() => setMenuOpen(false)} />
@@ -473,13 +470,13 @@ function HeaderNav({ user, teamUnlocked, isAdmin }: { user: NavUser; teamUnlocke
 
       {/* Desktop sidebar */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:w-[280px] lg:flex-col lg:border-r lg:border-[var(--vf-border)] lg:bg-[var(--vf-surface)] lg:px-5 lg:py-6">
-        <Link href="/dashboard" className="flex items-center gap-3">
+        <Link href="/dashboard" className="flex items-center justify-center gap-3">
           {brand}
         </Link>
         <NavLinks pathname={pathname} teamUnlocked={teamUnlocked} isAdmin={isAdmin} />
         <div className="mt-auto space-y-4">
           <button className="flex items-center gap-2 text-sm text-[var(--vf-text)]">
-            <CircleHelp className="h-4 w-4 text-[var(--vf-accent)]" />
+            <CircleHelp className="h-4 w-4 text-[var(--vf-blurple)]" />
             Guide
           </button>
           <UserCard user={user} />
@@ -644,7 +641,7 @@ export function WelcomePage({ agentName, latestSale, salesGoal, teamGoal, weekly
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--vf-accent)]">Paradigm Financial</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--vf-muted)]">Paradigm Financial</p>
           <h1 className="mt-1 text-4xl font-semibold tracking-tight text-[var(--vf-text)] sm:text-6xl">Welcome, {firstName}</h1>
           <p className="mt-2 text-base text-[var(--vf-muted)] sm:text-xl">Here&apos;s your team&apos;s momentum for today.</p>
         </div>
@@ -660,10 +657,10 @@ export function WelcomePage({ agentName, latestSale, salesGoal, teamGoal, weekly
       <div className="grid gap-5 xl:grid-cols-2">
         <Panel className="relative min-h-[260px] overflow-hidden p-6">
           <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(241,80,37,0.07),transparent_60%)] pointer-events-none" />
-          <div className="text-5xl font-bold text-[var(--vf-accent)] opacity-60">&ldquo;</div>
+          <div className="text-5xl font-bold text-[var(--vf-blurple)] opacity-80">&ldquo;</div>
           <div className="mt-8 max-w-md text-xl font-medium leading-snug text-[var(--vf-text)] sm:text-[2rem]">Treat today like the day that changes everything, and one day it will.</div>
           <div className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--vf-muted)]">Daily motivation</div>
-          <button className="mt-4 rounded-xl bg-[var(--vf-accent)] px-4 py-2 text-sm font-semibold text-[var(--vf-accent-fg)] shadow-[0_0_16px_rgba(241,80,37,0.35)] transition hover:shadow-[0_0_24px_rgba(241,80,37,0.5)]">Hype me up</button>
+          <button className="mt-4 rounded-xl bg-[var(--vf-blurple)] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_16px_var(--vf-blurple-dim)] transition hover:opacity-90">Hype me up</button>
         </Panel>
 
         <Panel className="overflow-hidden p-0">
@@ -719,7 +716,7 @@ export function WelcomePage({ agentName, latestSale, salesGoal, teamGoal, weekly
       {featuredComp && (
         <div>
           <div className="mb-3 flex items-center gap-2">
-            <Star className="h-4 w-4 fill-[var(--vf-accent)] text-[var(--vf-accent)]" />
+            <Star className="h-4 w-4 fill-[var(--vf-gold)] text-[var(--vf-gold)]" />
             <span className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--vf-muted)]">Featured competition</span>
           </div>
           <CompetitionCard
@@ -1329,14 +1326,14 @@ function CompetitionCard({
             <span className={cn("rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]", statusColor[comp.status] ?? statusColor.draft)}>
               {statusLabel[comp.status] ?? comp.status}
             </span>
-            {comp.pinned && <Star className="h-4 w-4 fill-[var(--vf-accent)] text-[var(--vf-accent)]" />}
+            {comp.pinned && <Star className="h-4 w-4 fill-[var(--vf-gold)] text-[var(--vf-gold)]" />}
           </div>
           {comp.description && <p className="mt-1 text-sm text-[var(--vf-muted)]">{comp.description}</p>}
         </SummaryTag>
         <div className="flex flex-wrap items-center gap-3">
           <div className="text-right text-sm text-[var(--vf-muted)]">
             <div>{new Date(comp.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – {new Date(comp.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
-            {comp.prize && <div className="mt-1 text-[var(--vf-accent)]">🏆 {comp.prize}</div>}
+            {comp.prize && <div className="mt-1 text-[var(--vf-gold)]">🏆 {comp.prize}</div>}
           </div>
           {/* Admin controls */}
           {isAdmin && (
@@ -1344,7 +1341,7 @@ function CompetitionCard({
               <button
                 onClick={onToggleFeatured}
                 title={comp.pinned ? "Remove from welcome page" : "Feature on welcome page"}
-                className={cn("flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-medium", comp.pinned ? "border-[var(--vf-accent)] text-[var(--vf-accent)]" : "border-[var(--vf-border)] text-[var(--vf-muted)]")}
+                className={cn("flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-medium", comp.pinned ? "border-[var(--vf-gold)] text-[var(--vf-gold)]" : "border-[var(--vf-border)] text-[var(--vf-muted)]")}
               >
                 <Star className="h-3 w-3" />{comp.pinned ? "Featured" : "Feature"}
               </button>
