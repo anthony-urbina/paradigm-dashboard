@@ -312,7 +312,7 @@ function NavLinks({ pathname, teamUnlocked, isAdmin, onNavigate }: { pathname: s
         const active = pathname === href;
         const locked = !!teamLocked && !teamUnlocked;
         const itemClassName = cn(
-          "rounded-none border-l-2 border-transparent px-4 py-2 text-[15px] font-medium text-[#cccccc] transition-all hover:text-white",
+          "rounded-none border-l-2 border-transparent px-4 py-3 text-base font-medium text-[#cccccc] transition-all hover:text-white",
           active && "border-[var(--vf-accent)] text-[var(--vf-accent)]",
           locked && "opacity-30"
         );
