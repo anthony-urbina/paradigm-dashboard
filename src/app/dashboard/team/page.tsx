@@ -32,5 +32,5 @@ export default async function DashboardTeamPage({
         Promise.resolve({ teamUnlocked: false, directAgents: 0 }),
       ]);
 
-  return <TeamPage {...data} teamUnlocked={teamAccess.teamUnlocked} selectedRange={range} />;
+  return <TeamPage {...data} teamUnlocked={teamAccess.teamUnlocked} selectedRange={range} selfId={agentId} />;
 }

@@ -10,4 +10,5 @@ alter table sales
 alter table sales
   add column if not exists discord_user_id text,
   add column if not exists state            text,
-  add column if not exists product_type     text;
+  add column if not exists product_type     text,
+  add column if not exists client_age       integer;

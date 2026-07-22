@@ -117,6 +117,7 @@ export type TeamAgentRecord = {
 export type CompGuideRecord = {
   carrier: string;
   product: string;
+  category: "Whole Life" | "Term" | "IUL / Annuity";
   /** Map of ffl_level → rate (% of AP) for every available schedule level */
   rates: Partial<Record<number, number>>;
 };
@@ -545,22 +546,21 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
   const descendants = collectDescendants(agentId, childrenByUpline);
   const directAgents = (childrenByUpline.get(agentId) ?? []).length;
   const descendantIds = descendants.map((agent) => agent.id);
-  const idsForGrowth = Array.from(new Set([agentId, ...descendantIds]));
+  const allTeamIds = [agentId, ...descendantIds];
+  const idsForGrowth = allTeamIds;
 
   const today = new Date().toISOString().slice(0, 10);
   const [salesRes, activityRes, fflRates, teamGoalRes] = await Promise.all([
-    descendantIds.length > 0
-      ? supabase
-          .from("sales")
-          .select("agent_id, carrier, product, ap, sold_at")
-          .in("agent_id", descendantIds)
-          .gte("sold_at", rangeStart)
-      : Promise.resolve({ data: [] as SalesRow[], error: null }),
-    descendantIds.length > 0
+    supabase
+        .from("sales")
+        .select("agent_id, carrier, product, ap, sold_at")
+        .in("agent_id", allTeamIds)
+        .gte("sold_at", rangeStart),
+    allTeamIds.length > 0
       ? supabase
           .from("activity")
           .select("agent_id, dials, conversations, appointments, presentations")
-          .in("agent_id", descendantIds)
+          .in("agent_id", allTeamIds)
           .gte("date", rangeStart.slice(0, 10))
       : Promise.resolve({ data: [] as ActivityRow[], error: null }),
     getFflRateSchedules(),
@@ -608,25 +608,30 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
   }
 
   const agentNameById = new Map(agents.map((agent) => [agent.id, agent.name]));
-  const teamAgents = descendants
-    .map((agent) => {
-      const own = ownSalesByAgent.get(agent.id) ?? { ap: 0, salesCount: 0 };
-      const kpis = activityByAgent.get(agent.id) ?? { dials: 0, conversations: 0, appointments: 0, presentations: 0 };
-      return {
-        id: agent.id,
-        name: agent.name,
-        uplineName: agent.upline_id === agentId ? "You" : (agentNameById.get(agent.upline_id ?? "") ?? "—"),
-        directCount: (childrenByUpline.get(agent.id) ?? []).length,
-        teamAP: computeSubtreeAp(agent.id),
-        ownAP: own.ap,
-        salesCount: own.salesCount,
-        dials: kpis.dials,
-        conversations: kpis.conversations,
-        appointments: kpis.appointments,
-        presentations: kpis.presentations,
-      } satisfies TeamAgentRecord;
-    })
-    .sort((a, b) => b.ownAP - a.ownAP);
+  const selfNode = agents.find((a) => a.id === agentId);
+
+  function buildRecord(agent: AgentNode, isSelf = false): TeamAgentRecord {
+    const own = ownSalesByAgent.get(agent.id) ?? { ap: 0, salesCount: 0 };
+    const kpis = activityByAgent.get(agent.id) ?? { dials: 0, conversations: 0, appointments: 0, presentations: 0 };
+    return {
+      id: agent.id,
+      name: agent.name,
+      uplineName: isSelf ? "—" : agent.upline_id === agentId ? "You" : (agentNameById.get(agent.upline_id ?? "") ?? "—"),
+      directCount: (childrenByUpline.get(agent.id) ?? []).length,
+      teamAP: computeSubtreeAp(agent.id),
+      ownAP: own.ap,
+      salesCount: own.salesCount,
+      dials: kpis.dials,
+      conversations: kpis.conversations,
+      appointments: kpis.appointments,
+      presentations: kpis.presentations,
+    };
+  }
+
+  const teamAgents = [
+    ...(selfNode ? [buildRecord(selfNode, true)] : []),
+    ...descendants.map((agent) => buildRecord(agent)).sort((a, b) => b.ownAP - a.ownAP),
+  ];
 
   const months = getMonthsInRange(range);
   const apByMonth = new Map<string, number>();
@@ -664,7 +669,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
 
   const totalTeam = descendants.length;
   const teamAP = sales.reduce((sum, sale) => sum + Number(sale.ap), 0);
-  const activeWriters = new Set(sales.map((sale) => sale.agent_id)).size;
+  const activeWriters = new Set(sales.filter((sale) => sale.agent_id !== agentId).map((sale) => sale.agent_id)).size;
   const agentsById = buildAgentMap(agents);
   const viewerComp = Number(agentsById.get(agentId)?.comp_percentage ?? 80);
   const totalOverrides = roundCurrency(
@@ -959,6 +964,45 @@ export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
   };
 }
 
+const TERM_KEYS = new Set([
+  "americo::hms 125",
+  "mutual of omaha::tle (express)", "mutual of omaha::tla (answers)",
+  "american amicable::ez term", "american amicable::home protector",
+  "american amicable::oba (group level term)", "american amicable::term made simple",
+  "instabrain::term w/ lb (10yr)", "instabrain::term w/ lb (15yr)",
+  "instabrain::term w/ lb (20yr)", "instabrain::term w/ lb (30yr)",
+  "instabrain::pure term (10yr)", "instabrain::pure term (15yr)",
+  "instabrain::pure term (20yr)", "instabrain::pure term (30yr)",
+  "instabrain::rd senior life term",
+  "united home life::term", "royal neighbors::term",
+  "foresters::strong foundation",
+  "ethos::lga prime", "ethos::trustage sitl",
+  "ethos::ameritas si term", "ethos::jh rop",
+  "nlg::10/15 yr term", "nlg::20/30 yr term",
+]);
+
+const IUL_KEYS = new Set([
+  "americo::instant decision",
+  "nlg::flex life iul", "nlg::summit life iul",
+  "f&g::pathsetter (juvenile)", "f&g::pathsetter",
+  "f&g::everlast (juvenile)", "f&g::everlast",
+  "mutual of omaha::ul", "mutual of omaha::iule",
+  "transamerica::iul",
+  "american amicable::secure life", "american amicable::xul",
+  "ethos::ameritas iul",
+  "united home life::fx", "united home life::giwl",
+  "united home life::wl", "united home life::accidental",
+  "royal neighbors::secure life iul",
+  "global atlantic::iul",
+]);
+
+function classifyProduct(carrier: string, product: string): CompGuideRecord["category"] {
+  const key = `${carrier.toLowerCase()}::${product.toLowerCase()}`;
+  if (IUL_KEYS.has(key)) return "IUL / Annuity";
+  if (TERM_KEYS.has(key)) return "Term";
+  return "Whole Life";
+}
+
 export async function getCompGuideData(): Promise<CompGuideRecord[]> {
   const supabase = createServiceClient();
   const { data } = await supabase
@@ -976,11 +1020,17 @@ export async function getCompGuideData(): Promise<CompGuideRecord[]> {
     if (/ \((50-69|70-79|80\+)\)$/.test(row.product)) continue;
     const key = `${row.carrier}::${row.product}`;
     if (!grouped.has(key)) {
-      grouped.set(key, { carrier: row.carrier, product: row.product, rates: {} });
+      grouped.set(key, {
+        carrier: row.carrier,
+        product: row.product,
+        category: classifyProduct(row.carrier, row.product),
+        rates: {},
+      });
     }
     grouped.get(key)!.rates[Number(row.ffl_level)] = Number(row.rate);
   }
-  return Array.from(grouped.values());
+  const ORDER: Record<CompGuideRecord["category"], number> = { "Whole Life": 0, "Term": 1, "IUL / Annuity": 2 };
+  return Array.from(grouped.values()).sort((a, b) => ORDER[a.category] - ORDER[b.category]);
 }
 
 async function getFflRateSchedules(): Promise<Map<string, number>> {

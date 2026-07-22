@@ -1123,8 +1123,8 @@ export function WelcomePage({
           <div className='mt-8 max-w-md min-h-[7.5rem] overflow-hidden sm:min-h-[9rem]'>
             <div
               className={cn(
-                'text-xl font-medium leading-snug text-[var(--vf-text)] transition duration-150 sm:text-[2rem]',
-                rollingQuote && 'translate-y-0.5 opacity-80',
+                "text-xl font-medium leading-snug text-[var(--vf-text)] transition duration-150 sm:text-[2rem]",
+                rollingQuote && "translate-y-0.5 opacity-80",
               )}
             >
               {dailyMotivationQuote}
@@ -1278,7 +1278,10 @@ function TeamGrowthEditor({
       toast.error("Enter a valid target");
       return;
     }
-    if (Number(target) === Number(teamGrowth?.target ?? "") && (deadline || "") === (teamGrowth?.deadline ?? "")) {
+    if (
+      Number(target) === Number(teamGrowth?.target ?? "") &&
+      (deadline || "") === (teamGrowth?.deadline ?? "")
+    ) {
       setFocused(false);
       return;
     }
@@ -1435,9 +1438,6 @@ export function GoalsPage({ salesGoal, teamGoal, teamGrowth, teamUnlocked }: Goa
                 <div className='mt-2 text-base text-[var(--vf-muted)] sm:text-lg'>
                   {fmt(salesGoal.target - salesGoal.ap)} to go to reach your {fmt(salesGoal.target)} goal.
                 </div>
-                <button className='mt-4 w-fit rounded-xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 py-2 text-sm text-[var(--vf-accent)]'>
-                  Pinned to welcome page
-                </button>
               </div>
             </Panel>
           )}
@@ -1478,9 +1478,6 @@ export function GoalsPage({ salesGoal, teamGoal, teamGrowth, teamUnlocked }: Goa
                 <div className='mt-2 text-base text-[var(--vf-muted)] sm:text-lg'>
                   {fmt(teamGoal.target - teamGoal.ap)} to go to reach your {fmt(teamGoal.target)} team goal.
                 </div>
-                <button className='mt-4 w-fit rounded-xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 py-2 text-sm text-[var(--vf-accent)]'>
-                  Pinned to welcome page
-                </button>
               </div>
             </Panel>
           )}
@@ -1578,6 +1575,7 @@ type TeamProps = {
   teamUnlocked: boolean;
   selectedRange: TimeRange;
   rangeLabel: string;
+  selfId?: string;
 };
 
 type FlatNode = {
@@ -1730,6 +1728,7 @@ export function TeamPage({
   teamUnlocked,
   selectedRange,
   rangeLabel,
+  selfId,
 }: TeamProps) {
   const [view, setView] = useState<"ranked" | "hierarchy">("ranked");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -1893,12 +1892,6 @@ export function TeamPage({
                     {fmt(metrics.totalOverrides * 0.75)}
                   </div>
                 </div>
-                <div className='rounded-xl border border-[rgba(88,101,242,0.25)] bg-[rgba(88,101,242,0.1)] px-4 py-3 text-center sm:text-right'>
-                  <div className='text-xs uppercase tracking-[0.14em] text-[var(--vf-muted)]'>
-                    Downline agents
-                  </div>
-                  <div className='mt-1 text-xl font-semibold text-[var(--vf-text)]'>{metrics.totalTeam}</div>
-                </div>
               </div>
             </div>
           </Panel>
@@ -1913,9 +1906,15 @@ export function TeamPage({
               </div>
             </div>
             {goalBarHeight && (
-              <div className='mt-4 flex items-center gap-2 text-xs text-[var(--vf-muted)]'>
-                <div className='h-2 w-4 rounded-sm bg-[var(--vf-surface-2)] ring-1 ring-[var(--vf-accent)] ring-opacity-40' />
-                <span>Team AP goal</span>
+              <div className='mt-4 flex items-center gap-4 text-xs text-[var(--vf-muted)]'>
+                <div className='flex items-center gap-2'>
+                  <div className='h-3 w-4 rounded-sm bg-[var(--vf-accent)]' />
+                  <span>Team AP</span>
+                </div>
+                <div className='flex items-center gap-2'>
+                  <div className='h-3 w-4 rounded-sm bg-[var(--vf-accent)] opacity-30' />
+                  <span>Team AP goal</span>
+                </div>
               </div>
             )}
             <div className='mt-4 grid grid-cols-4 gap-4 md:grid-cols-8'>
@@ -2024,7 +2023,14 @@ export function TeamPage({
                               name={agent.name}
                               small
                             />
-                            <div className='font-medium text-[var(--vf-text)]'>{agent.name}</div>
+                            <div className='flex items-center gap-2'>
+                              <span className='font-medium text-[var(--vf-text)]'>{agent.name}</span>
+                              {agent.id === selfId && (
+                                <span className='rounded-full bg-[var(--vf-accent)] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-[var(--vf-accent-fg)]'>
+                                  you
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className='px-3 py-4 text-[var(--vf-text)]'>{agent.uplineName}</td>
@@ -2108,7 +2114,14 @@ export function TeamPage({
                                 name={name}
                                 small
                               />
-                              <div className='ml-3 font-medium text-[var(--vf-text)]'>{name}</div>
+                              <div className='ml-3 flex items-center gap-2'>
+                                <span className='font-medium text-[var(--vf-text)]'>{name}</span>
+                                {agent.id === selfId && (
+                                  <span className='rounded-full bg-[var(--vf-accent)] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-[var(--vf-accent-fg)]'>
+                                    you
+                                  </span>
+                                )}
+                              </div>
                               {hasChildren && isCollapsed && (
                                 <span className='ml-2 rounded-full bg-[var(--vf-surface-2)] px-2 py-0.5 text-xs text-[var(--vf-muted)]'>
                                   +{agent.directCount}
@@ -2214,48 +2227,59 @@ export function TeamPage({
               defaultValue='commissions'
               className='mt-2'
             >
-              <div className='flex flex-wrap items-start justify-between gap-4'>
-                <div className='space-y-1.5'>
-                  <div className='text-sm text-[var(--vf-muted)]'>
-                    {agentDetail.subject.name} is at{" "}
-                    <span className='font-semibold text-[var(--vf-text)]'>
-                      {fmtPct(agentDetail.subject.compPercentage)}
-                    </span>{" "}
-                    comp. Your override on this leg is{" "}
-                    <span className='font-semibold text-[var(--vf-accent)]'>
-                      {fmtPct(agentDetail.summary.overrideDelta)}
-                    </span>
-                    .
-                  </div>
-                  {!agentDetail.branchAgent.isSelf && (
-                    <div className='text-xs text-[var(--vf-muted)]'>
-                      Override flows through{" "}
-                      <span className='font-semibold text-[var(--vf-text)]'>
-                        {agentDetail.branchAgent.name}
-                      </span>{" "}
-                      ({fmtPct(agentDetail.branchAgent.compPercentage)} comp) - your direct downline on this
-                      leg.
+              {(() => {
+                const viewingSelf = selectedAgent?.id === selfId;
+                return (
+                  <div className='flex flex-wrap items-start justify-between gap-4'>
+                    <div className='space-y-1.5'>
+                      {!viewingSelf && (
+                        <>
+                          <div className='text-sm text-[var(--vf-muted)]'>
+                            {agentDetail.subject.name} is at{" "}
+                            <span className='font-semibold text-[var(--vf-text)]'>
+                              {fmtPct(agentDetail.subject.compPercentage)}
+                            </span>{" "}
+                            comp. Your override on this leg is{" "}
+                            <span className='font-semibold text-[var(--vf-accent)]'>
+                              {fmtPct(agentDetail.summary.overrideDelta)}
+                            </span>
+                            .
+                          </div>
+                          {!agentDetail.branchAgent.isSelf && (
+                            <div className='text-xs text-[var(--vf-muted)]'>
+                              Override flows through{" "}
+                              <span className='font-semibold text-[var(--vf-text)]'>
+                                {agentDetail.branchAgent.name}
+                              </span>{" "}
+                              ({fmtPct(agentDetail.branchAgent.compPercentage)} comp) - your direct downline
+                              on this leg.
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
-                  )}
-                </div>
-                <TabsList
-                  variant='line'
-                  className='bg-transparent p-0'
-                >
-                  <TabsTrigger
-                    value='commissions'
-                    className='rounded-xl px-4 py-2 text-sm data-active:bg-[var(--vf-surface)]'
-                  >
-                    Commissions
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value='overrides'
-                    className='rounded-xl px-4 py-2 text-sm data-active:bg-[var(--vf-surface)]'
-                  >
-                    Override
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+                    <TabsList
+                      variant='line'
+                      className='bg-transparent p-0'
+                    >
+                      <TabsTrigger
+                        value='commissions'
+                        className='rounded-xl px-4 py-2 text-sm data-active:bg-[var(--vf-surface)]'
+                      >
+                        Commissions
+                      </TabsTrigger>
+                      {!viewingSelf && (
+                        <TabsTrigger
+                          value='overrides'
+                          className='rounded-xl px-4 py-2 text-sm data-active:bg-[var(--vf-surface)]'
+                        >
+                          Override
+                        </TabsTrigger>
+                      )}
+                    </TabsList>
+                  </div>
+                );
+              })()}
 
               <TabsContent
                 value='commissions'
@@ -2275,7 +2299,7 @@ export function TeamPage({
                   <MetricCard
                     title='Est. commission'
                     value={fmt(agentDetail.summary.ownCommissionTotal)}
-                    helper={`${fmtPct(agentDetail.subject.compPercentage)} of carrier comp`}
+                    helper='Carrier rate × AP'
                     emphasis
                   />
                   <MetricCard
@@ -3063,36 +3087,75 @@ export function AgencyPage({
                 </div>
               </div>
               {(() => {
-                const FFL_LEVELS = [65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145];
+                const FFL_LEVELS = [
+                  65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145,
+                ];
                 return (
                   <div className='mt-5 overflow-x-auto rounded-[22px] border border-[var(--vf-border)]'>
                     <table className='w-full text-left text-xs'>
                       <thead className='bg-[var(--vf-surface)] text-[var(--vf-muted)]'>
                         <tr>
-                          <th className='sticky left-0 z-10 bg-[var(--vf-surface)] px-4 py-3 font-medium whitespace-nowrap'>Carrier</th>
-                          <th className='sticky left-[120px] z-10 bg-[var(--vf-surface)] px-4 py-3 font-medium whitespace-nowrap'>Product</th>
+                          <th className='sticky left-0 z-10 bg-[var(--vf-surface)] px-4 py-3 font-medium whitespace-nowrap'>
+                            Carrier
+                          </th>
+                          <th className='sticky left-[120px] z-10 bg-[var(--vf-surface)] px-4 py-3 font-medium whitespace-nowrap'>
+                            Product
+                          </th>
                           {FFL_LEVELS.map((lvl) => (
-                            <th key={lvl} className={`px-3 py-3 text-center font-medium whitespace-nowrap${lvl === 80 ? ' text-[var(--vf-accent)]' : ''}`}>
+                            <th
+                              key={lvl}
+                              className={`px-3 py-3 text-center font-medium whitespace-nowrap${lvl === 80 ? " text-[var(--vf-accent)]" : ""}`}
+                            >
                               {lvl}%
                             </th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {compGuide.map((row) => (
-                          <tr key={`${row.carrier}::${row.product}`} className='border-t border-[var(--vf-border)]'>
-                            <td className='sticky left-0 z-10 bg-[var(--vf-panel)] px-4 py-2 font-medium text-[var(--vf-text)] whitespace-nowrap'>{row.carrier}</td>
-                            <td className='sticky left-[120px] z-10 bg-[var(--vf-panel)] px-4 py-2 text-[var(--vf-muted)] whitespace-nowrap'>{row.product}</td>
-                            {FFL_LEVELS.map((lvl) => {
-                              const rate = row.rates[lvl];
-                              return (
-                                <td key={lvl} className={`px-3 py-2 text-center${lvl === 80 ? ' font-semibold text-[var(--vf-text)]' : ' text-[var(--vf-muted)]'}`}>
-                                  {rate != null ? `${rate}%` : '—'}
-                                </td>
+                        {(() => {
+                          let lastCategory: string | null = null;
+                          return compGuide.flatMap((row) => {
+                            const rows = [];
+                            if (row.category !== lastCategory) {
+                              lastCategory = row.category;
+                              rows.push(
+                                <tr key={`cat-${row.category}`}>
+                                  <td
+                                    colSpan={19}
+                                    className='sticky left-0 bg-[var(--vf-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-widest text-[var(--vf-accent)] border-t border-[var(--vf-border)]'
+                                  >
+                                    {row.category}
+                                  </td>
+                                </tr>,
                               );
-                            })}
-                          </tr>
-                        ))}
+                            }
+                            rows.push(
+                              <tr
+                                key={`${row.carrier}::${row.product}`}
+                                className='border-t border-[var(--vf-border)]'
+                              >
+                                <td className='sticky left-0 z-10 bg-[var(--vf-panel)] px-4 py-2 font-medium text-[var(--vf-text)] whitespace-nowrap'>
+                                  {row.carrier}
+                                </td>
+                                <td className='sticky left-[120px] z-10 bg-[var(--vf-panel)] px-4 py-2 text-[var(--vf-muted)] whitespace-nowrap'>
+                                  {row.product}
+                                </td>
+                                {FFL_LEVELS.map((lvl) => {
+                                  const rate = row.rates[lvl];
+                                  return (
+                                    <td
+                                      key={lvl}
+                                      className={`px-3 py-2 text-center${lvl === 80 ? " font-semibold text-[var(--vf-text)]" : " text-[var(--vf-muted)]"}`}
+                                    >
+                                      {rate != null ? `${rate}%` : "—"}
+                                    </td>
+                                  );
+                                })}
+                              </tr>,
+                            );
+                            return rows;
+                          });
+                        })()}
                       </tbody>
                     </table>
                   </div>
@@ -3393,6 +3456,12 @@ function CompetitionModal({
   const [form, setForm] = useState<CompFormState>(BLANK_COMP);
   const [saving, setSaving] = useState(false);
 
+  // Tracks the just-created competition during the step-2 members flow
+  const [createdComp, setCreatedComp] = useState<Competition | null>(null);
+
+  // The competition being worked on: either one passed in for editing, or the one we just created
+  const effectiveComp = editing ?? createdComp;
+
   // Members tab state
   const [allAgents, setAllAgents] = useState<AgentRecord[]>([]);
   const [members, setMembers] = useState<MemberRecord[]>([]);
@@ -3400,7 +3469,10 @@ function CompetitionModal({
 
   // Sync form when modal opens or editing changes
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setCreatedComp(null);
+      return;
+    }
     // This modal intentionally resets to the details tab whenever it opens.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTab("details");
@@ -3424,19 +3496,19 @@ function CompetitionModal({
 
   // Fetch agents + members when Members tab is opened
   useEffect(() => {
-    if (!open || tab !== "members" || !editing) return;
+    if (!open || tab !== "members" || !effectiveComp) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMembersLoading(true);
     Promise.all([
       fetch("/api/agents").then((r) => r.json() as Promise<AgentRecord[]>),
-      fetch(`/api/competitions/${editing.id}/members`).then((r) => r.json() as Promise<MemberRecord[]>),
+      fetch(`/api/competitions/${effectiveComp.id}/members`).then((r) => r.json() as Promise<MemberRecord[]>),
     ])
       .then(([agents, mems]) => {
         setAllAgents(agents);
         setMembers(mems);
       })
       .finally(() => setMembersLoading(false));
-  }, [open, tab, editing]);
+  }, [open, tab, effectiveComp]);
 
   function field(key: keyof CompFormState) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -3481,9 +3553,21 @@ function CompetitionModal({
             ],
           }),
         });
+
+        if (res.ok) {
+          const data = (await res.json()) as { competition: Competition };
+          toast.success("Competition created");
+          setCreatedComp(data.competition);
+          setTab("members");
+          router.refresh();
+        } else {
+          const data = (await res.json()) as { error?: string };
+          toast.error(data.error ?? "Failed");
+        }
+        return;
       }
       if (res.ok) {
-        toast.success(editing ? "Competition updated" : "Competition created");
+        toast.success("Competition updated");
         onClose();
         router.refresh();
       } else {
@@ -3496,15 +3580,15 @@ function CompetitionModal({
   }
 
   async function addMember(teamId: string, agentId: string) {
-    if (!editing) return;
-    const res = await fetch(`/api/competitions/${editing.id}/members`, {
+    if (!effectiveComp) return;
+    const res = await fetch(`/api/competitions/${effectiveComp.id}/members`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ teamId, agentId }),
     });
     if (res.ok) {
       // Refetch to get real id
-      const updated = await fetch(`/api/competitions/${editing.id}/members`).then(
+      const updated = await fetch(`/api/competitions/${effectiveComp.id}/members`).then(
         (r) => r.json() as Promise<MemberRecord[]>,
       );
       setMembers(updated);
@@ -3516,8 +3600,10 @@ function CompetitionModal({
   }
 
   async function removeMember(memberId: string) {
-    if (!editing) return;
-    const res = await fetch(`/api/competitions/${editing.id}/members/${memberId}`, { method: "DELETE" });
+    if (!effectiveComp) return;
+    const res = await fetch(`/api/competitions/${effectiveComp.id}/members/${memberId}`, {
+      method: "DELETE",
+    });
     if (res.ok) {
       setMembers((prev) => prev.filter((m) => m.id !== memberId));
       router.refresh();
@@ -3538,8 +3624,8 @@ function CompetitionModal({
         : "border-transparent text-[var(--vf-muted)] hover:text-[var(--vf-text)]",
     );
 
-  const team1 = editing?.teams[0];
-  const team2 = editing?.teams[1];
+  const team1 = effectiveComp?.teams[0];
+  const team2 = effectiveComp?.teams[1];
   const team1Members = members.filter((m) => m.teamId === team1?.id);
   const team2Members = members.filter((m) => m.teamId === team2?.id);
   const assignedIds = new Set(members.map((m) => m.agentId));
@@ -3557,9 +3643,14 @@ function CompetitionModal({
           <DialogTitle className='text-2xl font-semibold'>
             {editing ? "Edit competition" : "New competition"}
           </DialogTitle>
+          {!editing && (
+            <p className='text-sm text-[var(--vf-muted)]'>
+              {tab === "details" ? "Step 1 of 2 — Details" : "Step 2 of 2 — Add members"}
+            </p>
+          )}
         </DialogHeader>
 
-        {/* Tab bar — only shown when editing */}
+        {/* Tab bar — shown when editing (not during create flow) */}
         {editing && (
           <div className='flex gap-1 border-b border-[var(--vf-border)] pb-2'>
             <button
@@ -3648,21 +3739,16 @@ function CompetitionModal({
               {editing && (
                 <div>
                   <label className='text-sm uppercase tracking-[0.14em] text-[var(--vf-muted)]'>Status</label>
-                  <Select
-                    value={form.status}
-                  >
+                  <Select value={form.status}>
                     <SelectTrigger
-                      className={cn(
-                        modalControlCls,
-                        'flex h-[56px] items-center justify-between text-left',
-                      )}
+                      className={cn(modalControlCls, "flex h-[56px] items-center justify-between text-left")}
                       onClick={(event) => event.stopPropagation()}
                     >
                       <span className='capitalize'>{form.status}</span>
                     </SelectTrigger>
                     <SelectContent
-                      align="start"
-                      side="bottom"
+                      align='start'
+                      side='bottom'
                       sideOffset={8}
                       alignItemWithTrigger={false}
                       className='w-[220px] p-2'
@@ -3743,7 +3829,7 @@ function CompetitionModal({
         )}
 
         {/* ── Members tab ── */}
-        {tab === "members" && editing && (
+        {tab === "members" && effectiveComp && (
           <div className='mt-2 flex-1 overflow-y-auto pr-1'>
             {membersLoading ? (
               <div className='space-y-4 py-1'>
@@ -3897,22 +3983,33 @@ function CompetitionModal({
 
         {/* ── Sticky footer ── */}
         <div className='mt-4 flex justify-end gap-3 border-t border-[var(--vf-border)] pt-4'>
-          <button
-            type='button'
-            onClick={onClose}
-            className='rounded-2xl border border-[var(--vf-border)] px-5 py-3 text-sm text-[var(--vf-muted)]'
-          >
-            {tab === "members" ? "Done" : "Cancel"}
-          </button>
-          {tab === "details" && (
+          {tab === "members" ? (
+            // Step 2 (create) or Members tab (edit) — just a Done button
             <button
-              type='submit'
-              form='competition-form'
-              disabled={saving}
-              className='rounded-2xl bg-[var(--vf-accent)] px-6 py-3 text-sm font-semibold text-[var(--vf-accent-fg)] disabled:opacity-50'
+              type='button'
+              onClick={onClose}
+              className='rounded-2xl bg-[var(--vf-accent)] px-6 py-3 text-sm font-semibold text-[var(--vf-accent-fg)]'
             >
-              {saving ? "Saving..." : editing ? "Save changes" : "Create"}
+              Done
             </button>
+          ) : (
+            <>
+              <button
+                type='button'
+                onClick={onClose}
+                className='rounded-2xl border border-[var(--vf-border)] px-5 py-3 text-sm text-[var(--vf-muted)]'
+              >
+                Cancel
+              </button>
+              <button
+                type='submit'
+                form='competition-form'
+                disabled={saving}
+                className='rounded-2xl bg-[var(--vf-accent)] px-6 py-3 text-sm font-semibold text-[var(--vf-accent-fg)] disabled:opacity-50'
+              >
+                {saving ? "Saving..." : editing ? "Save changes" : "Continue →"}
+              </button>
+            </>
           )}
         </div>
       </DialogContent>
@@ -4411,10 +4508,10 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                           <td className='px-4 py-3 text-[var(--vf-text)]'>
                             <div
                               className={cn(
-                                'relative inline-flex h-[36px] w-[130px] items-center rounded-xl border bg-[var(--vf-surface)] px-3 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors',
+                                "relative inline-flex h-[36px] w-[130px] items-center rounded-xl border bg-[var(--vf-surface)] px-3 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors",
                                 focusedAgentId === agent.id
-                                  ? 'border-[var(--vf-accent)]'
-                                  : 'border-[var(--vf-surface-2)]',
+                                  ? "border-[var(--vf-accent)]"
+                                  : "border-[var(--vf-surface-2)]",
                               )}
                             >
                               <input
@@ -4474,14 +4571,24 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                                 <span>{agent.role === "admin" ? "Admin" : "Stats only"}</span>
                               </SelectTrigger>
                               <SelectContent
-                                align="start"
-                                side="bottom"
+                                align='start'
+                                side='bottom'
                                 sideOffset={8}
                                 alignItemWithTrigger={false}
                                 className='w-[220px] p-2'
                               >
-                                <SelectItem value='admin' className='rounded-lg px-3 py-2.5 text-base'>Admin</SelectItem>
-                                <SelectItem value='agent' className='rounded-lg px-3 py-2.5 text-base'>Stats only</SelectItem>
+                                <SelectItem
+                                  value='admin'
+                                  className='rounded-lg px-3 py-2.5 text-base'
+                                >
+                                  Admin
+                                </SelectItem>
+                                <SelectItem
+                                  value='agent'
+                                  className='rounded-lg px-3 py-2.5 text-base'
+                                >
+                                  Stats only
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           </td>

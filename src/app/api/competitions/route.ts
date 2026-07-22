@@ -56,5 +56,32 @@ export async function POST(req: Request) {
   );
 
   if (teamsErr) return NextResponse.json({ error: teamsErr.message }, { status: 500 });
-  return NextResponse.json({ ok: true, id: comp.id });
+
+  const { data: teamRows } = await supabase
+    .from("competition_teams")
+    .select("id, name, color")
+    .eq("competition_id", comp.id);
+
+  return NextResponse.json({
+    ok: true,
+    competition: {
+      id: comp.id,
+      name,
+      description: description ?? null,
+      prize: prize ?? null,
+      startDate,
+      endDate,
+      status: "draft",
+      pinned: false,
+      winningTeamId: null,
+      teams: (teamRows ?? []).map((t) => ({
+        id: t.id,
+        name: t.name,
+        color: t.color,
+        totalAP: 0,
+        salesCount: 0,
+        members: [],
+      })),
+    },
+  });
 }
