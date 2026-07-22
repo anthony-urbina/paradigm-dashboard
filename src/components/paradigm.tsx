@@ -3058,34 +3058,46 @@ export function AgencyPage({
                 <div>
                   <div className='text-3xl font-semibold text-[var(--vf-text)]'>Master comp guide</div>
                   <div className='mt-2 text-base text-[var(--vf-muted)]'>
-                    FFL master comp guide rates used to estimate agent commissions and stacked overrides.
-                    Showing commission rate at the default 80% FFL contract level.
+                    FFL master comp guide — commission rate as % of AP at each FFL contract level.
                   </div>
                 </div>
               </div>
-              <div className='mt-5 overflow-x-auto rounded-[22px] border border-[var(--vf-border)]'>
-                <table className='w-full min-w-[720px] text-left text-sm'>
-                  <thead className='bg-[var(--vf-surface)] text-[var(--vf-muted)]'>
-                    <tr>
-                      <th className='px-4 py-4 font-medium'>Carrier</th>
-                      <th className='px-4 py-4 font-medium'>Product</th>
-                      <th className='px-4 py-4 font-medium'>Rate at 80%</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {compGuide.map((row) => (
-                      <tr
-                        key={`${row.carrier}::${row.product}`}
-                        className='border-t border-[var(--vf-border)]'
-                      >
-                        <td className='px-4 py-3 font-medium text-[var(--vf-text)]'>{row.carrier}</td>
-                        <td className='px-4 py-3 text-[var(--vf-text)]'>{row.product}</td>
-                        <td className='px-4 py-3 text-[var(--vf-text)]'>{fmtPct(row.baseRate)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {(() => {
+                const FFL_LEVELS = [65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145];
+                return (
+                  <div className='mt-5 overflow-x-auto rounded-[22px] border border-[var(--vf-border)]'>
+                    <table className='w-full text-left text-xs'>
+                      <thead className='bg-[var(--vf-surface)] text-[var(--vf-muted)]'>
+                        <tr>
+                          <th className='sticky left-0 z-10 bg-[var(--vf-surface)] px-4 py-3 font-medium whitespace-nowrap'>Carrier</th>
+                          <th className='sticky left-[120px] z-10 bg-[var(--vf-surface)] px-4 py-3 font-medium whitespace-nowrap'>Product</th>
+                          {FFL_LEVELS.map((lvl) => (
+                            <th key={lvl} className={`px-3 py-3 text-center font-medium whitespace-nowrap${lvl === 80 ? ' text-[var(--vf-accent)]' : ''}`}>
+                              {lvl}%
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {compGuide.map((row) => (
+                          <tr key={`${row.carrier}::${row.product}`} className='border-t border-[var(--vf-border)]'>
+                            <td className='sticky left-0 z-10 bg-[var(--vf-panel)] px-4 py-2 font-medium text-[var(--vf-text)] whitespace-nowrap'>{row.carrier}</td>
+                            <td className='sticky left-[120px] z-10 bg-[var(--vf-panel)] px-4 py-2 text-[var(--vf-muted)] whitespace-nowrap'>{row.product}</td>
+                            {FFL_LEVELS.map((lvl) => {
+                              const rate = row.rates[lvl];
+                              return (
+                                <td key={lvl} className={`px-3 py-2 text-center${lvl === 80 ? ' font-semibold text-[var(--vf-text)]' : ' text-[var(--vf-muted)]'}`}>
+                                  {rate != null ? `${rate}%` : '—'}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </Panel>
           </TabsContent>
         </Tabs>

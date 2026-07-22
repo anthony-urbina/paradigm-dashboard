@@ -117,7 +117,8 @@ export type TeamAgentRecord = {
 export type CompGuideRecord = {
   carrier: string;
   product: string;
-  baseRate: number; // rate at 80% FFL from ffl_rate_schedules
+  /** Map of ffl_level → rate (% of AP) for every available schedule level */
+  rates: Partial<Record<number, number>>;
 };
 
 export type CompensationLineItem = {
@@ -962,21 +963,24 @@ export async function getCompGuideData(): Promise<CompGuideRecord[]> {
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("ffl_rate_schedules")
-    .select("carrier, product, rate")
-    .eq("ffl_level", 80)
+    .select("carrier, product, ffl_level, rate")
     .order("carrier")
-    .order("product");
+    .order("product")
+    .order("ffl_level");
 
   if (!data) return [];
 
-  // Exclude age-banded duplicate variants — keep the canonical product name only
-  return data
-    .filter((row) => !/ \((50-69|70-79|80\+)\)$/.test(row.product))
-    .map((row) => ({
-      carrier: row.carrier,
-      product: row.product,
-      baseRate: Number(row.rate),
-    }));
+  const grouped = new Map<string, CompGuideRecord>();
+  for (const row of data) {
+    // Skip age-banded duplicate variants — keep canonical product names only
+    if (/ \((50-69|70-79|80\+)\)$/.test(row.product)) continue;
+    const key = `${row.carrier}::${row.product}`;
+    if (!grouped.has(key)) {
+      grouped.set(key, { carrier: row.carrier, product: row.product, rates: {} });
+    }
+    grouped.get(key)!.rates[Number(row.ffl_level)] = Number(row.rate);
+  }
+  return Array.from(grouped.values());
 }
 
 async function getFflRateSchedules(): Promise<Map<string, number>> {
