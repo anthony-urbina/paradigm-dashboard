@@ -1,0 +1,28 @@
+{
+  "users": {
+    "1450875972588015734": {
+      "name": "Alize Quinones",
+      "premium": 1270.44,
+      "sales": [
+        {
+          "id": "1D7XP5",
+          "ap": 1270.44,
+          "mp": 105.87,
+          "carrier": "Mutual of Omaha",
+          "lead_type": "Daily Intel",
+          "state": "FL",
+          "draft_date": "8/3",
+          "postdated": true,
+          "date": "2026-07-22",
+          "product_type": "Whole Life",
+          "sale_status": "Approved"
+        }
+      ],
+      "hasWritten": true
+    }
+  },
+  "month": 7,
+  "last_reset_month": null,
+  "first_sale_today": "2026-07-22",
+  "first_sale_today_user": "1450875972588015734"
+}

@@ -522,6 +522,11 @@ function GoalEditor({
       toast.error("Enter a valid goal amount");
       return;
     }
+    if (target === Number(initial)) {
+      setFocused(false);
+      inputRef.current?.blur();
+      return;
+    }
 
     setSaving(true);
     try {
@@ -1053,7 +1058,6 @@ export function WelcomePage({
   featuredComp,
 }: WelcomeProps) {
   const firstName = agentName.split(" ")[0];
-  const [logSaleOpen, setLogSaleOpen] = useState(false);
   const router = useRouter();
   const today = new Date();
   const startOfYear = new Date(today.getFullYear(), 0, 0);
@@ -1086,10 +1090,6 @@ export function WelcomePage({
 
   return (
     <div className='space-y-8'>
-      <LogSaleModal
-        open={logSaleOpen}
-        onClose={() => setLogSaleOpen(false)}
-      />
       {latestSale && (
         <div className='flex flex-wrap items-center gap-3 rounded-[22px] border border-[var(--vf-accent)] bg-[var(--vf-accent)] px-4 py-3 text-[var(--vf-accent-fg)] sm:gap-4 sm:px-5 sm:py-4'>
           <div className='shrink-0 text-xs font-semibold uppercase tracking-[0.2em]'>Latest Sale</div>
@@ -1114,13 +1114,6 @@ export function WelcomePage({
             Here&apos;s your team&apos;s momentum for today.
           </p>
         </div>
-        <button
-          onClick={() => setLogSaleOpen(true)}
-          className='flex items-center gap-2 rounded-2xl bg-[var(--vf-accent)] px-5 py-3 text-base font-semibold text-[var(--vf-accent-fg)] shadow-[0_0_24px_rgba(241,80,37,0.4)] transition hover:shadow-[0_0_32px_rgba(241,80,37,0.55)]'
-        >
-          <Plus className='h-4 w-4' />
-          Log sale
-        </button>
       </div>
 
       <div className='grid gap-5 xl:grid-cols-2'>
@@ -1275,9 +1268,18 @@ function TeamGrowthEditor({
   const [saving, setSaving] = useState(false);
   const [focused, setFocused] = useState(false);
 
+  useEffect(() => {
+    setTarget(String(teamGrowth?.target ?? ""));
+    setDeadline(teamGrowth?.deadline ?? "");
+  }, [teamGrowth?.deadline, teamGrowth?.target]);
+
   async function save() {
     if (!target || Number(target) < 0) {
       toast.error("Enter a valid target");
+      return;
+    }
+    if (Number(target) === Number(teamGrowth?.target ?? "") && (deadline || "") === (teamGrowth?.deadline ?? "")) {
+      setFocused(false);
       return;
     }
     setSaving(true);
@@ -1707,7 +1709,7 @@ function CompensationTable({
               </td>
               <td className='px-4 py-3 text-[var(--vf-text)]'>{fmt(row.ap)}</td>
               <td className='px-4 py-3 text-[var(--vf-text)]'>{fmtPct(row.compPercentage)}</td>
-              <td className='px-4 py-3 text-[var(--vf-text)]'>{fmtPct(row.baseRate)}</td>
+              <td className='px-4 py-3 text-[var(--vf-text)]'>{fmtPct(row.effectiveRate)}</td>
               <td className='px-4 py-3 font-semibold text-[var(--vf-accent)]'>{fmt(row.estimatedTotal)}</td>
               <td className='px-4 py-3 text-[var(--vf-text)]'>{fmt(row.estimatedAdvance)}</td>
               <td className='px-4 py-3 text-[var(--vf-muted)]'>{formatCompDate(row.soldAt)}</td>
@@ -2219,7 +2221,7 @@ export function TeamPage({
                     <span className='font-semibold text-[var(--vf-text)]'>
                       {fmtPct(agentDetail.subject.compPercentage)}
                     </span>{" "}
-                    comp. Your override on this branch is{" "}
+                    comp. Your override on this leg is{" "}
                     <span className='font-semibold text-[var(--vf-accent)]'>
                       {fmtPct(agentDetail.summary.overrideDelta)}
                     </span>
@@ -2232,7 +2234,7 @@ export function TeamPage({
                         {agentDetail.branchAgent.name}
                       </span>{" "}
                       ({fmtPct(agentDetail.branchAgent.compPercentage)} comp) - your direct downline on this
-                      branch.
+                      leg.
                     </div>
                   )}
                 </div>
@@ -2302,7 +2304,7 @@ export function TeamPage({
                   <MetricCard
                     title='Override sales'
                     value={String(agentDetail.summary.overrideSalesCount)}
-                    helper='Across this downline branch'
+                    helper='Across this downline leg'
                   />
                   <MetricCard
                     title='Override AP'
@@ -2312,7 +2314,7 @@ export function TeamPage({
                   <MetricCard
                     title='Est. override'
                     value={fmt(agentDetail.summary.overrideTotal)}
-                    helper={`${fmtPct(agentDetail.summary.overrideDelta)} branch delta`}
+                    helper={`${fmtPct(agentDetail.summary.overrideDelta)} leg delta`}
                     emphasis
                   />
                   <MetricCard
@@ -2323,7 +2325,7 @@ export function TeamPage({
                 </div>
                 {agentDetail.overrides.length === 0 ? (
                   <Panel className='border-dashed bg-[var(--vf-surface)] p-10 text-center text-sm text-[var(--vf-muted)]'>
-                    No override is currently available on this branch for {rangeLabel.toLowerCase()}.
+                    No override is currently available on this leg for {rangeLabel.toLowerCase()}.
                   </Panel>
                 ) : (
                   <CompensationTable
@@ -2968,27 +2970,6 @@ export function AgencyPage({
   isAdmin,
   compGuide,
 }: AgencyProps) {
-  const router = useRouter();
-  const [savingGuideId, setSavingGuideId] = useState<string | null>(null);
-
-  async function updateCompGuide(id: string, value: number) {
-    setSavingGuideId(id);
-    try {
-      const res = await fetch("/api/comp-guide", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, baseRate: value }),
-      });
-      if (!res.ok) throw new Error();
-      toast.success("Comp guide updated");
-      router.refresh();
-    } catch {
-      toast.error("Could not update comp guide");
-    } finally {
-      setSavingGuideId(null);
-    }
-  }
-
   const overview = (
     <>
       <div className='flex justify-end'>
@@ -3077,8 +3058,8 @@ export function AgencyPage({
                 <div>
                   <div className='text-3xl font-semibold text-[var(--vf-text)]'>Master comp guide</div>
                   <div className='mt-2 text-base text-[var(--vf-muted)]'>
-                    Agency-owned carrier and product rates used to estimate agent commissions and stacked
-                    overrides.
+                    FFL master comp guide rates used to estimate agent commissions and stacked overrides.
+                    Showing commission rate at the default 80% FFL contract level.
                   </div>
                 </div>
               </div>
@@ -3088,41 +3069,18 @@ export function AgencyPage({
                     <tr>
                       <th className='px-4 py-4 font-medium'>Carrier</th>
                       <th className='px-4 py-4 font-medium'>Product</th>
-                      <th className='px-4 py-4 font-medium'>Base rate</th>
+                      <th className='px-4 py-4 font-medium'>Rate at 80%</th>
                     </tr>
                   </thead>
                   <tbody>
                     {compGuide.map((row) => (
                       <tr
-                        key={row.id}
+                        key={`${row.carrier}::${row.product}`}
                         className='border-t border-[var(--vf-border)]'
                       >
                         <td className='px-4 py-3 font-medium text-[var(--vf-text)]'>{row.carrier}</td>
                         <td className='px-4 py-3 text-[var(--vf-text)]'>{row.product}</td>
-                        <td className='px-4 py-3'>
-                          <div className='relative inline-flex items-center'>
-                            <input
-                              type='number'
-                              min={0}
-                              max={200}
-                              step='0.5'
-                              defaultValue={row.baseRate}
-                              disabled={savingGuideId === row.id}
-                              onBlur={(event) => {
-                                const nextValue = Number(event.target.value);
-                                if (!Number.isFinite(nextValue) || nextValue === row.baseRate) {
-                                  event.target.value = row.baseRate.toString();
-                                  return;
-                                }
-                                void updateCompGuide(row.id, nextValue);
-                              }}
-                              className='h-[44px] w-[120px] rounded-xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] pl-3 pr-7 text-[var(--vf-text)] outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'
-                            />
-                            <span className='pointer-events-none absolute right-3 text-sm text-[var(--vf-muted)]'>
-                              %
-                            </span>
-                          </div>
-                        </td>
+                        <td className='px-4 py-3 text-[var(--vf-text)]'>{fmtPct(row.baseRate)}</td>
                       </tr>
                     ))}
                   </tbody>

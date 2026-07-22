@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import { createServiceClient } from "@/lib/supabase";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,6 +10,18 @@ const corsHeaders = {
 };
 
 const SALES_INGEST_API_KEY = process.env.SALES_INGEST_API_KEY;
+
+const ingestSchema = z.object({
+  discord_user_id: z.string(),
+  sale: z.object({
+    carrier: z.string(),
+    ap: z.number().positive(),
+    client_age: z.number().int().min(0).max(120).optional(),
+    state: z.string().optional(),
+    product_type: z.string().optional(),
+    product: z.string().optional(),
+  }),
+});
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -27,7 +42,6 @@ export async function POST(req: Request) {
   }
 
   let payload: unknown;
-
   try {
     payload = await req.json();
   } catch {
@@ -39,18 +53,49 @@ export async function POST(req: Request) {
   }
 
   const body = payload as { data?: unknown };
+  const parsed = ingestSchema.safeParse(body.data);
 
-  if (!body.data || typeof body.data !== "object" || Array.isArray(body.data)) {
-    return NextResponse.json({ error: "Expected a `data` object in the request body" }, { status: 400, headers: corsHeaders });
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid payload", details: parsed.error.flatten() },
+      { status: 400, headers: corsHeaders }
+    );
   }
+
+  const { discord_user_id, sale } = parsed.data;
 
   console.log("[sales-ingest] received payload", {
     receivedAt: new Date().toISOString(),
     data: body.data,
   });
 
+  const supabase = createServiceClient();
+
+  // Look up agent by discord_user_id (best-effort — sale is stored even without a match)
+  const { data: agentRow } = await supabase
+    .from("agents")
+    .select("id")
+    .eq("discord_user_id", discord_user_id)
+    .maybeSingle();
+
+  const { error: insertError } = await supabase.from("sales").insert({
+    agent_id:       agentRow?.id ?? null,
+    discord_user_id,
+    carrier:        sale.carrier,
+    ap:             sale.ap,
+    client_age:     sale.client_age ?? null,
+    state:          sale.state ?? null,
+    product_type:   sale.product_type ?? null,
+    product:        sale.product ?? null,
+  });
+
+  if (insertError) {
+    console.error("[sales-ingest] insert error", insertError);
+    return NextResponse.json({ error: insertError.message }, { status: 500, headers: corsHeaders });
+  }
+
   return NextResponse.json({
     ok: true,
-    message: "Sales payload received",
+    agent_matched: !!agentRow,
   }, { headers: corsHeaders });
 }

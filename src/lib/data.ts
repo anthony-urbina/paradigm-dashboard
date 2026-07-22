@@ -76,6 +76,7 @@ type SalesRow = {
   ap: number;
   sold_at: string;
   client_name?: string | null;
+  client_age?: number | null;
 };
 
 type ActivityRow = {
@@ -114,10 +115,9 @@ export type TeamAgentRecord = {
 };
 
 export type CompGuideRecord = {
-  id: string;
   carrier: string;
   product: string;
-  baseRate: number;
+  baseRate: number; // rate at 80% FFL from ffl_rate_schedules
 };
 
 export type CompensationLineItem = {
@@ -129,7 +129,6 @@ export type CompensationLineItem = {
   product: string;
   ap: number;
   soldAt: string;
-  baseRate: number;
   compPercentage: number;
   effectiveRate: number;
   estimatedTotal: number;
@@ -216,6 +215,36 @@ function snapToFflLevel(compPercentage: number): number {
 
 function roundCurrency(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+function resolveCommissionProduct(carrier: string, product: string, clientAge?: number | null): string {
+  const normalizedCarrier = carrier.trim().toLowerCase();
+  const normalizedProduct = product.trim().toLowerCase();
+
+  let canonicalProduct = product;
+  if (normalizedCarrier === "instabrain" && normalizedProduct === "rd senior life term life") {
+    canonicalProduct = "RD Senior Life Term";
+  }
+
+  if (normalizedCarrier !== "instabrain" || clientAge == null) {
+    return canonicalProduct;
+  }
+
+  const bandedProducts = new Map<string, string>([
+    ["final expense wl", "Final Expense WL"],
+    ["guaranteed issue wl", "Guaranteed Issue WL"],
+    ["rd senior life whole life", "RD Senior Life Whole Life"],
+    ["rd senior life term", "RD Senior Life Term"],
+    ["rd senior life term life", "RD Senior Life Term"],
+  ]);
+
+  const baseProduct = bandedProducts.get(normalizedProduct) ?? bandedProducts.get(canonicalProduct.trim().toLowerCase());
+  if (!baseProduct) return canonicalProduct;
+
+  if (clientAge >= 80) return `${baseProduct} (80+)`;
+  if (clientAge >= 70) return `${baseProduct} (70-79)`;
+  if (clientAge >= 50) return `${baseProduct} (50-69)`;
+  return baseProduct;
 }
 
 function getRangeStart(range: TimeRange): string {
@@ -518,7 +547,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
   const idsForGrowth = Array.from(new Set([agentId, ...descendantIds]));
 
   const today = new Date().toISOString().slice(0, 10);
-  const [salesRes, activityRes, compGuide, fflRates, teamGoalRes] = await Promise.all([
+  const [salesRes, activityRes, fflRates, teamGoalRes] = await Promise.all([
     descendantIds.length > 0
       ? supabase
           .from("sales")
@@ -533,7 +562,6 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
           .in("agent_id", descendantIds)
           .gte("date", rangeStart.slice(0, 10))
       : Promise.resolve({ data: [] as ActivityRow[], error: null }),
-    getCompGuideData(),
     getFflRateSchedules(),
     supabase
       .from("goals")
@@ -638,7 +666,6 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
   const activeWriters = new Set(sales.map((sale) => sale.agent_id)).size;
   const agentsById = buildAgentMap(agents);
   const viewerComp = Number(agentsById.get(agentId)?.comp_percentage ?? 80);
-  const guideByKey = new Map(compGuide.map((row) => [normalizeCompRate(row.carrier, row.product), row.baseRate]));
   const totalOverrides = roundCurrency(
     sales.reduce((sum, sale) => {
       const branchAgent = getDirectBranchChild(sale.agent_id, agentId, agentsById);
@@ -647,9 +674,8 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
       const branchComp = Number(branchAgent.comp_percentage ?? 80);
       if (viewerComp <= branchComp) return sum;
 
-      const baseRate = guideByKey.get(normalizeCompRate(sale.carrier ?? "", sale.product ?? "")) ?? 100;
-      const viewerRate = resolveRate(sale.carrier ?? "", sale.product ?? "", viewerComp, fflRates, baseRate);
-      const branchRate = resolveRate(sale.carrier ?? "", sale.product ?? "", branchComp, fflRates, baseRate);
+      const viewerRate = resolveRate(sale.carrier ?? "", sale.product ?? "", viewerComp, fflRates);
+      const branchRate = resolveRate(sale.carrier ?? "", sale.product ?? "", branchComp, fflRates);
       return sum + Number(sale.ap) * Math.max(viewerRate - branchRate, 0) / 100;
     }, 0)
   );
@@ -934,20 +960,23 @@ export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
 
 export async function getCompGuideData(): Promise<CompGuideRecord[]> {
   const supabase = createServiceClient();
-  const { data, error } = await supabase
-    .from("carrier_product_comp_rates")
-    .select("id, carrier, product, base_rate")
+  const { data } = await supabase
+    .from("ffl_rate_schedules")
+    .select("carrier, product, rate")
+    .eq("ffl_level", 80)
     .order("carrier")
     .order("product");
 
-  if (error || !data) return [];
+  if (!data) return [];
 
-  return data.map((row) => ({
-    id: row.id,
-    carrier: row.carrier,
-    product: row.product,
-    baseRate: Number(row.base_rate),
-  }));
+  // Exclude age-banded duplicate variants — keep the canonical product name only
+  return data
+    .filter((row) => !/ \((50-69|70-79|80\+)\)$/.test(row.product))
+    .map((row) => ({
+      carrier: row.carrier,
+      product: row.product,
+      baseRate: Number(row.rate),
+    }));
 }
 
 async function getFflRateSchedules(): Promise<Map<string, number>> {
@@ -965,19 +994,21 @@ async function getFflRateSchedules(): Promise<Map<string, number>> {
 
 /** Resolve commission rate for a sale at an agent's exact FFL level.
  *  Returns the rate as a percentage of AP (e.g. 70 means 70% of AP).
- *  Falls back to base_rate × comp_percentage / 100 when no schedule entry exists. */
+ *  Falls back to the schedule entry at 100% scaled linearly, then to comp_percentage itself. */
 function resolveRate(
   carrier: string,
   product: string,
   compPercentage: number,
   fflRates: Map<string, number>,
-  baseRate: number,
 ): number {
   const fflLevel = snapToFflLevel(compPercentage);
   const exact = fflRates.get(normalizeFflRate(carrier, product, fflLevel));
   if (exact != null) return exact;
-  // Fallback: linear approximation from the 100% base_rate
-  return baseRate * (compPercentage / 100);
+  // Fallback: scale from rate at 100%
+  const rate100 = fflRates.get(normalizeFflRate(carrier, product, 100));
+  if (rate100 != null) return roundCurrency(rate100 * compPercentage / 100);
+  // Ultimate fallback: treat carrier as pass-through at comp level
+  return compPercentage;
 }
 
 export async function getTeamAgentCompensation(
@@ -989,9 +1020,8 @@ export async function getTeamAgentCompensation(
   const supabase = createServiceClient();
   const rangeStart = getRangeStart(range);
 
-  const [{ data: agentsData, error: agentsError }, compGuide, fflRates] = await Promise.all([
+  const [{ data: agentsData, error: agentsError }, fflRates] = await Promise.all([
     supabase.from("agents").select("id, name, upline_id, comp_percentage"),
-    getCompGuideData(),
     getFflRateSchedules(),
   ]);
 
@@ -1056,7 +1086,7 @@ export async function getTeamAgentCompensation(
 
   const { data: salesData, error: salesError } = await supabase
     .from("sales")
-    .select("id, agent_id, carrier, product, ap, sold_at, client_name")
+    .select("id, agent_id, carrier, product, ap, sold_at, client_name, client_age")
     .in("agent_id", subjectSubtreeIds)
     .gte("sold_at", rangeStart)
     .order("sold_at", { ascending: false });
@@ -1092,6 +1122,7 @@ export async function getTeamAgentCompensation(
     normalizedSalesData = (fallbackSales.data ?? []).map((sale) => ({
       ...sale,
       client_name: null,
+      client_age: null,
     }));
   }
 
@@ -1107,7 +1138,6 @@ export async function getTeamAgentCompensation(
     return null;
   }
 
-  const guideByKey = new Map(compGuide.map((row) => [normalizeCompRate(row.carrier, row.product), row.baseRate]));
   const subjectComp = Number(subject.comp_percentage ?? 80);
   const viewerComp = Number(viewer.comp_percentage ?? 80);
   const branchAgent =
@@ -1133,8 +1163,8 @@ export async function getTeamAgentCompensation(
   });
 
   const toLineItem = (sale: SalesRow, compPercentage: number, saleAgentName: string): CompensationLineItem => {
-    const baseRate = guideByKey.get(normalizeCompRate(sale.carrier ?? "", sale.product ?? "")) ?? 100;
-    const effectiveRate = roundCurrency(resolveRate(sale.carrier ?? "", sale.product ?? "", compPercentage, fflRates, baseRate));
+    const commissionProduct = resolveCommissionProduct(sale.carrier ?? "", sale.product ?? "", sale.client_age);
+    const effectiveRate = roundCurrency(resolveRate(sale.carrier ?? "", commissionProduct, compPercentage, fflRates));
     const estimatedTotal = roundCurrency(Number(sale.ap) * effectiveRate / 100);
     const estimatedAdvance = roundCurrency(estimatedTotal * 0.75);
 
@@ -1147,7 +1177,6 @@ export async function getTeamAgentCompensation(
       product: sale.product ?? "Unknown product",
       ap: Number(sale.ap),
       soldAt: sale.sold_at,
-      baseRate,
       compPercentage,
       effectiveRate,
       estimatedTotal,

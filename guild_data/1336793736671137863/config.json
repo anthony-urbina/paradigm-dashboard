@@ -1,0 +1,19 @@
+{
+  "agency_name": "Our Agency",
+  "managers": [],
+  "channels": {},
+  "leaderboard_msg_ids": {},
+  "goal": 450000.0,
+  "goal_weekly": 100000.0,
+  "goal_daily": 20000.0,
+  "setup_done": false,
+  "admin_user_id": null,
+  "prelicense_total": 28,
+  "training_questions": [
+    "Attended Morning Kickoff?",
+    "Attended Tue-Fri Training?",
+    "Attended Daily Recap?"
+  ],
+  "migration_v1_done": true,
+  "activity_clock_reset_v2": true
+}
