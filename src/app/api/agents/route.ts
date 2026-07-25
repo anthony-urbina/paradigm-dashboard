@@ -17,6 +17,7 @@ const updateAgentSchema = z.object({
   role: z.enum(["admin", "agent"]).optional(),
   uplineId: z.string().uuid().nullable().optional(),
   compPercentage: z.coerce.number().min(0).max(200).optional(),
+  email: z.string().trim().email().optional(),
 });
 
 export async function GET() {
@@ -136,10 +137,11 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "A valid agent update is required" }, { status: 400 });
   }
 
-  const update: { role?: "admin" | "agent"; upline_id?: string | null; comp_percentage?: number } = {};
+  const update: { role?: "admin" | "agent"; upline_id?: string | null; comp_percentage?: number; email?: string } = {};
   if (parsed.data.role !== undefined) update.role = parsed.data.role;
   if (parsed.data.uplineId !== undefined) update.upline_id = parsed.data.uplineId;
   if (parsed.data.compPercentage !== undefined) update.comp_percentage = parsed.data.compPercentage;
+  if (parsed.data.email !== undefined) update.email = parsed.data.email.toLowerCase();
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "No changes provided" }, { status: 400 });

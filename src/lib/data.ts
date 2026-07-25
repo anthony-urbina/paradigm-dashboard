@@ -12,6 +12,7 @@ export type LeaderboardEntry = {
   tone?: "gold" | "accent";
   progressLabel?: string;
   progressValue?: number;
+  imageUrl?: string | null;
 };
 
 export type GoalProgress = {
@@ -66,6 +67,8 @@ type AgentNode = {
   name: string;
   upline_id: string | null;
   comp_percentage?: number;
+  profile_image_url?: string | null;
+  discord_avatar_url?: string | null;
 };
 
 type SalesRow = {
@@ -98,6 +101,7 @@ export type AdminAgentRecord = {
   uplineId: string | null;
   uplineName: string;
   isNew: boolean;
+  imageUrl: string | null;
 };
 
 export type SubAgency = {
@@ -119,6 +123,7 @@ export type TeamAgentRecord = {
   conversations: number;
   appointments: number;
   presentations: number;
+  imageUrl: string | null;
 };
 
 export type CompGuideRecord = {
@@ -398,16 +403,22 @@ export async function getWeeklyLeaders(currentAgentId?: string): Promise<Leaderb
   const { data, error } = await supabase.rpc("get_weekly_leaders", { lim: 10 });
   if (error || !data) return [];
 
-  return (data as { id: string; name: string; ap: number; sales_count: number }[]).map(
-    (row, i) => ({
-      rank: i + 1,
-      name: row.name,
-      subtitle: `${row.sales_count} ${row.sales_count === 1 ? "sale" : "sales"}`,
-      value: fmt(row.ap),
-      tone: tone(i + 1),
-      badge: row.id === currentAgentId ? "(you)" : undefined,
-    })
-  );
+  const rows = data as { id: string; name: string; ap: number; sales_count: number }[];
+  const agentIds = rows.map((r) => r.id);
+  const { data: imgData } = agentIds.length
+    ? await supabase.from("agents").select("id, profile_image_url, discord_avatar_url").in("id", agentIds)
+    : { data: [] };
+  const imageById = new Map((imgData ?? []).map((a: { id: string; profile_image_url: string | null; discord_avatar_url: string | null }) => [a.id, a.profile_image_url ?? a.discord_avatar_url ?? null]));
+
+  return rows.map((row, i) => ({
+    rank: i + 1,
+    name: row.name,
+    subtitle: `${row.sales_count} ${row.sales_count === 1 ? "sale" : "sales"}`,
+    value: fmt(row.ap),
+    tone: tone(i + 1),
+    badge: row.id === currentAgentId ? "(you)" : undefined,
+    imageUrl: imageById.get(row.id) ?? null,
+  }));
 }
 
 // ─── Monthly leaders ─────────────────────────────────────────
@@ -422,16 +433,22 @@ export async function getMonthlyLeaders(currentAgentId?: string): Promise<Leader
 
   if (error || !data) return [];
 
-  return (data as { agent_id: string; name: string; ap: number; sales_count: number }[]).map(
-    (row, i) => ({
-      rank: i + 1,
-      name: row.name,
-      subtitle: `${row.sales_count} ${row.sales_count === 1 ? "sale" : "sales"}`,
-      value: fmt(row.ap),
-      tone: tone(i + 1),
-      badge: row.agent_id === currentAgentId ? "(you)" : undefined,
-    })
-  );
+  const rows = data as { agent_id: string; name: string; ap: number; sales_count: number }[];
+  const agentIds = rows.map((r) => r.agent_id);
+  const { data: imgData } = agentIds.length
+    ? await supabase.from("agents").select("id, profile_image_url, discord_avatar_url").in("id", agentIds)
+    : { data: [] };
+  const imageById = new Map((imgData ?? []).map((a: { id: string; profile_image_url: string | null; discord_avatar_url: string | null }) => [a.id, a.profile_image_url ?? a.discord_avatar_url ?? null]));
+
+  return rows.map((row, i) => ({
+    rank: i + 1,
+    name: row.name,
+    subtitle: `${row.sales_count} ${row.sales_count === 1 ? "sale" : "sales"}`,
+    value: fmt(row.ap),
+    tone: tone(i + 1),
+    badge: row.agent_id === currentAgentId ? "(you)" : undefined,
+    imageUrl: imageById.get(row.agent_id) ?? null,
+  }));
 }
 
 // ─── Latest sale ─────────────────────────────────────────────
@@ -439,18 +456,20 @@ export async function getLatestSale() {
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("sales")
-    .select("ap, carrier, agents(name)")
+    .select("id, ap, carrier, agents(name, profile_image_url, discord_avatar_url)")
+    .not("agent_id", "is", null)
     .order("sold_at", { ascending: false })
     .limit(1)
     .single();
 
   if (error || !data) return null;
-  const row = data as unknown as { ap: number; carrier: string; agents: { name: string } | null };
+  const row = data as unknown as { id: string; ap: number; carrier: string; agents: { name: string; profile_image_url: string | null; discord_avatar_url: string | null } | null };
   const agentName = row.agents?.name ?? "Someone";
   const parts = agentName.split(" ");
   const initials = parts.map((p: string) => p[0]).join("").slice(0, 2).toUpperCase();
+  const imageUrl = row.agents?.profile_image_url ?? row.agents?.discord_avatar_url ?? null;
 
-  return { agentName, initials, carrier: row.carrier, ap: row.ap };
+  return { id: row.id, agentName, initials, carrier: row.carrier, ap: row.ap, imageUrl };
 }
 
 // ─── Goals for current user ──────────────────────────────────
@@ -554,7 +573,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
 
   const { data: agentsData } = await supabase
     .from("agents")
-    .select("id, name, upline_id, comp_percentage");
+    .select("id, name, upline_id, comp_percentage, profile_image_url, discord_avatar_url");
 
   const agents = (agentsData ?? []) as AgentNode[];
   const childrenByUpline = buildChildrenMap(agents);
@@ -648,6 +667,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
       conversations: kpis.conversations,
       appointments: kpis.appointments,
       presentations: kpis.presentations,
+      imageUrl: agent.profile_image_url ?? agent.discord_avatar_url ?? null,
     };
   }
 
@@ -757,7 +777,7 @@ export async function getAgencyData(range: TimeRange = "30d", currentAgentId?: s
 
   const prevRangeStart = getPrevRangeStart(range);
   const [agentsRes, salesRes, prevSalesRes, subAgenciesRes] = await Promise.all([
-    supabase.from("agents").select("id, name, upline_id"),
+    supabase.from("agents").select("id, name, upline_id, profile_image_url, discord_avatar_url"),
     supabase
       .from("sales")
       .select("agent_id, ap, sold_at")
@@ -828,6 +848,7 @@ export async function getAgencyData(range: TimeRange = "30d", currentAgentId?: s
         name: agent.name,
         ap: own.ap,
         salesCount: own.salesCount,
+        imageUrl: agent.profile_image_url ?? agent.discord_avatar_url ?? null,
       };
     })
     .filter((agent) => agent.ap > 0)
@@ -836,10 +857,11 @@ export async function getAgencyData(range: TimeRange = "30d", currentAgentId?: s
     .map((agent, i) => ({
       rank: i + 1,
       name: agent.name,
-      subtitle: `${agent.salesCount} sales`,
+      subtitle: `${agent.salesCount} ${agent.salesCount === 1 ? "sale" : "sales"}`,
       value: fmt(agent.ap),
       tone: tone(i + 1),
       badge: agent.id === currentAgentId ? "(you)" : undefined,
+      imageUrl: agent.imageUrl,
     }));
 
   const teamLeaderboard = agents
@@ -865,7 +887,7 @@ export async function getAgencyData(range: TimeRange = "30d", currentAgentId?: s
       return {
         rank: i + 1,
         name: displayName,
-        subtitle: `${subtitlePrefix}${agent.writingAgents} writing agents · ${agent.salesCount} sales`,
+        subtitle: `${subtitlePrefix}${agent.writingAgents} ${agent.writingAgents === 1 ? "writing agent" : "writing agents"} · ${agent.salesCount} ${agent.salesCount === 1 ? "sale" : "sales"}`,
         value: fmt(agent.teamAP),
         tone: tone(i + 1),
         logoUrl: sa?.logo_url ?? null,
@@ -902,7 +924,7 @@ export async function getAdminData() {
   const supabase = createServiceClient();
   const [{ data, error }, { data: agentOptions }, leaderboardPosts, { data: subAgenciesData }] = await Promise.all([
     supabase.rpc("get_admin_agents"),
-    supabase.from("agents").select("id, name, upline_id").order("name"),
+    supabase.from("agents").select("id, name, upline_id, profile_image_url, discord_avatar_url").order("name"),
     getLeaderboardPostsData(),
     supabase.from("sub_agencies").select("id, name, logo_url, root_agent_id").order("created_at"),
   ]);
@@ -934,27 +956,32 @@ export async function getAdminData() {
   const totalSales  = rows.reduce((s, r) => s + Number(r.lifetime_sales), 0);
   const activeAgents = rows.filter((r) => r.lifetime_sales > 0).length;
 
+  type AgentOptionRow = { id: string; name: string; upline_id: string | null; profile_image_url: string | null; discord_avatar_url: string | null };
   const agentMetaById = new Map(
-    (((agentOptions ?? []) as { id: string; name: string; upline_id: string | null }[])).map((agent) => [
+    (((agentOptions ?? []) as AgentOptionRow[])).map((agent) => [
       agent.id,
       agent,
     ])
   );
 
-  const agents: AdminAgentRecord[] = rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    email: r.email,
-    lifetimeAP: fmt(r.lifetime_ap),
-    lifetimeSales: String(r.lifetime_sales),
-    compPercentage: Number(r.comp_percentage ?? 80),
-    role: r.role,
-    uplineId: agentMetaById.get(r.id)?.upline_id ?? null,
-    uplineName: r.upline_name,
-    isNew: r.is_new,
-  }));
+  const agents: AdminAgentRecord[] = rows.map((r) => {
+    const meta = agentMetaById.get(r.id);
+    return {
+      id: r.id,
+      name: r.name,
+      email: r.email,
+      lifetimeAP: fmt(r.lifetime_ap),
+      lifetimeSales: String(r.lifetime_sales),
+      compPercentage: Number(r.comp_percentage ?? 80),
+      role: r.role,
+      uplineId: meta?.upline_id ?? null,
+      uplineName: r.upline_name,
+      isNew: r.is_new,
+      imageUrl: meta?.profile_image_url ?? meta?.discord_avatar_url ?? null,
+    };
+  });
 
-  const allAgentMeta = (agentOptions ?? []) as { id: string; name: string; upline_id: string | null }[];
+  const allAgentMeta = (agentOptions ?? []) as AgentOptionRow[];
   const agentsWithDownline = new Set(allAgentMeta.map((a) => a.upline_id).filter(Boolean) as string[]);
   const uplineOptions = allAgentMeta.filter((agent) => agent.name.trim().length > 0);
   const subAgencyRootOptions = uplineOptions.filter((agent) => agentsWithDownline.has(agent.id));

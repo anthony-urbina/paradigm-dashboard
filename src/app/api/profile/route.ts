@@ -7,6 +7,7 @@ import { createServiceClient } from "@/lib/supabase";
 
 const updateProfileSchema = z.object({
   name: z.string().trim().min(1).max(100).optional(),
+  email: z.string().trim().email().optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -17,8 +18,9 @@ export async function PATCH(req: Request) {
   const parsed = updateProfileSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: "Invalid data" }, { status: 400 });
 
-  const update: { name?: string } = {};
+  const update: { name?: string; email?: string } = {};
   if (parsed.data.name) update.name = parsed.data.name;
+  if (parsed.data.email) update.email = parsed.data.email.toLowerCase();
 
   if (Object.keys(update).length === 0) return NextResponse.json({ error: "No changes" }, { status: 400 });
 

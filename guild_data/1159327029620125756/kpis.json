@@ -2,13 +2,13 @@
   "2026-07-25": {
     "302261992477949952": {
       "outbound_dials": 120,
-      "outbound_pickups": 12,
-      "outbound_presentations": 3,
-      "outbound_sold": 1,
-      "outbound_ap": 750.0,
-      "outbound_lead_spend": 150.0,
-      "outbound_appts_booked": 6,
-      "submitted_at": "2026-07-25T07:05:29.892782-07:00"
+      "outbound_pickups": 30,
+      "outbound_presentations": 9,
+      "outbound_sold": 3,
+      "outbound_ap": 2400.0,
+      "outbound_lead_spend": 250.0,
+      "outbound_appts_booked": 3,
+      "submitted_at": "2026-07-25T07:14:32.185514-07:00"
     }
   }
 }
