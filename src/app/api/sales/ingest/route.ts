@@ -20,6 +20,7 @@ const ingestSchema = z.object({
     state: z.string().optional(),
     product_type: z.string().optional(),
     product: z.string().optional(),
+    lead_type: z.string().optional(),
   }),
 });
 
@@ -87,6 +88,7 @@ export async function POST(req: Request) {
     state:          sale.state ?? null,
     product_type:   sale.product_type ?? null,
     product:        sale.product ?? null,
+    lead_type:      sale.lead_type ?? null,
   });
 
   if (insertError) {

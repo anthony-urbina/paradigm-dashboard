@@ -1,0 +1,60 @@
+{
+  "users": {
+    "302261992477949952": {
+      "name": "Anthony",
+      "premium": 2604.0,
+      "sales": [
+        {
+          "id": "SJD15X",
+          "ap": 1092.0,
+          "mp": 91.0,
+          "carrier": "Americo",
+          "lead_type": "LAL",
+          "state": "CA",
+          "draft_date": "07/22",
+          "postdated": false,
+          "date": "2026-07-22",
+          "product_type": "Whole Life",
+          "product": "Eagle Select",
+          "client_age": 24,
+          "sale_status": "Approved"
+        },
+        {
+          "id": "104FTR",
+          "ap": 972.0,
+          "mp": 81.0,
+          "carrier": "Americo",
+          "lead_type": "LAL",
+          "state": "CA",
+          "draft_date": "07/23",
+          "postdated": false,
+          "date": "2026-07-23",
+          "product_type": "Whole Life",
+          "product": "Eagle Select",
+          "client_age": 45,
+          "sale_status": "Approved"
+        },
+        {
+          "id": "HZLENP",
+          "ap": 540.0,
+          "mp": 45.0,
+          "carrier": "Americo",
+          "lead_type": "LAL",
+          "state": "CA",
+          "draft_date": "07/24",
+          "postdated": false,
+          "date": "2026-07-24",
+          "product_type": "Whole Life",
+          "product": "Eagle Select",
+          "client_age": 45,
+          "sale_status": "Approved"
+        }
+      ],
+      "hasWritten": true
+    }
+  },
+  "month": 7,
+  "last_reset_month": null,
+  "first_sale_today": "2026-07-24",
+  "first_sale_today_user": "302261992477949952"
+}

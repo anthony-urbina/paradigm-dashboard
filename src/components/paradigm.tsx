@@ -24,6 +24,8 @@ import {
   Menu,
   Pencil,
   Plus,
+  Receipt,
+  Search,
   Shield,
   ShieldCheck,
   Star,
@@ -56,6 +58,9 @@ import type {
   CompGuideRecord,
   LeaderboardPostCard,
   LeaderboardPostsData,
+  MySaleRow,
+  MySalesMetrics,
+  SubAgency,
   TeamAgentCompensationDetail,
   TeamAgentRecord,
   TimeRange,
@@ -71,6 +76,7 @@ type LeaderboardEntry = {
   tone?: "gold" | "accent";
   progressLabel?: string;
   progressValue?: number;
+  logoUrl?: string | null;
 };
 type GoalProgress = { ap: number; target: number; pct: number };
 type CompetitionTeam = {
@@ -127,6 +133,7 @@ const DAILY_MOTIVATION_QUOTES = [
 const navItems = [
   { label: "Welcome", href: "/dashboard", icon: Home },
   { label: "Goals", href: "/dashboard/goals", icon: Gauge },
+  { label: "My Sales", href: "/dashboard/sales", icon: Receipt },
   { label: "My Team", href: "/dashboard/team", icon: Users, teamLocked: true },
   { label: "Competitions", href: "/dashboard/competition", icon: Swords },
   { label: "Agency", href: "/dashboard/agency", icon: Building2 },
@@ -360,11 +367,24 @@ function LeaderboardList({
                   entry.rank
                 )}
               </div>
-              <Avatar
-                name={entry.name}
-                small
-                ring={entry.rank <= 3}
-              />
+              {entry.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={entry.logoUrl}
+                  alt={entry.name}
+                  className={cn(
+                    "h-8 w-8 shrink-0 rounded-full object-cover",
+                    entry.rank <= 3 &&
+                      "ring-2 ring-[var(--vf-blurple)] shadow-[0_0_10px_rgba(88,101,242,0.4)]",
+                  )}
+                />
+              ) : (
+                <Avatar
+                  name={entry.name}
+                  small
+                  ring={entry.rank <= 3}
+                />
+              )}
               <div className='min-w-0 flex-1'>
                 <div className='truncate text-sm font-semibold text-white sm:text-base'>
                   {entry.name}
@@ -444,12 +464,14 @@ function MetricCard({
   value,
   helper,
   delta,
+  trend,
   emphasis = false,
 }: {
   title: string;
   value: string;
   helper: string;
   delta?: string;
+  trend?: number;
   emphasis?: boolean;
 }) {
   return (
@@ -468,7 +490,21 @@ function MetricCard({
       >
         {value}
       </div>
-      {delta ? (
+      {trend !== undefined ? (
+        <div
+          className={cn(
+            "mt-3 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+            trend > 0
+              ? "bg-[rgba(59,196,115,0.12)] text-[var(--vf-emerald)]"
+              : trend < 0
+                ? "bg-[rgba(239,68,68,0.1)] text-red-400"
+                : "bg-[var(--vf-surface-2)] text-[var(--vf-muted)]",
+          )}
+        >
+          {trend > 0 ? "+" : ""}
+          {trend}%
+        </div>
+      ) : delta ? (
         <div className='mt-3 inline-flex rounded-full bg-[var(--vf-emerald-dim)] px-3 py-1 text-sm text-[var(--vf-emerald)]'>
           {delta}
         </div>
@@ -1038,6 +1074,412 @@ function LogSaleModal({ open, onClose }: { open: boolean; onClose: () => void })
   );
 }
 
+// ─── My Sales Page ───────────────────────────────────────────
+
+type MySalesProps = {
+  sales: MySaleRow[];
+  compPercentage: number;
+  metrics: MySalesMetrics;
+  selectedRange: TimeRange;
+  rangeLabel: string;
+};
+
+function SaleEditModal({
+  sale,
+  open,
+  onClose,
+}: {
+  sale: MySaleRow | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const [clientName, setClientName] = useState("");
+  const [policyNumber, setPolicyNumber] = useState("");
+  const [effectiveDate, setEffectiveDate] = useState("");
+  const [state, setState] = useState("");
+  const [leadType, setLeadType] = useState("");
+
+  useEffect(() => {
+    if (sale) {
+      setClientName(sale.clientName ?? "");
+      setPolicyNumber(sale.policyNumber ?? "");
+      setEffectiveDate(sale.effectiveDate ?? "");
+      setState(sale.state ?? "");
+      setLeadType(sale.leadType ?? "");
+    }
+  }, [sale]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!sale) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/sales/${sale.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientName: clientName.trim() || null,
+          policyNumber: policyNumber.trim() || null,
+          effectiveDate: effectiveDate || null,
+          state: state.trim() || null,
+          leadType: leadType.trim() || null,
+        }),
+      });
+      if (res.ok) {
+        toast.success("Sale updated");
+        onClose();
+        router.refresh();
+      } else {
+        const data = (await res.json()) as { error?: string };
+        toast.error(data.error ?? "Failed to update sale");
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputCls =
+    "mt-2 w-full rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 py-3 text-base text-[var(--vf-text)] outline-none placeholder:text-[var(--vf-muted)]";
+  const labelCls = "text-sm uppercase tracking-[0.14em] text-[var(--vf-muted)]";
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent className='flex w-[90vw] max-w-3xl sm:max-w-3xl max-h-[85vh] flex-col overflow-hidden border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)]'>
+        <DialogHeader>
+          <DialogTitle className='text-2xl font-semibold'>Edit sale</DialogTitle>
+        </DialogHeader>
+        <form
+          id='edit-sale-form'
+          onSubmit={handleSubmit}
+          className='mt-2 flex-1 overflow-y-auto pr-1'
+        >
+          <div className='grid grid-cols-2 gap-x-5 gap-y-5'>
+            <div className='col-span-2'>
+              <label className={labelCls}>Client Name</label>
+              <input
+                className={inputCls}
+                placeholder='First Last'
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+              />
+            </div>
+            <div className='col-span-2'>
+              <label className={labelCls}>Policy Number</label>
+              <input
+                className={inputCls}
+                placeholder='e.g. AM03496312'
+                value={policyNumber}
+                onChange={(e) => setPolicyNumber(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Effective Date</label>
+              <div className='mt-2'>
+                <DatePicker
+                  value={effectiveDate}
+                  onChange={setEffectiveDate}
+                  placeholder='Pick effective date'
+                />
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>State</label>
+              <input
+                className={inputCls}
+                placeholder='e.g. MD'
+                value={state}
+                onChange={(e) => setState(e.target.value.toUpperCase().slice(0, 2))}
+              />
+            </div>
+            <div className='col-span-2'>
+              <label className={labelCls}>Lead Provider</label>
+              <input
+                className={inputCls}
+                placeholder='e.g. GOAT'
+                value={leadType}
+                onChange={(e) => setLeadType(e.target.value)}
+              />
+            </div>
+          </div>
+        </form>
+        <div className='mt-4 flex justify-end gap-3 border-t border-[var(--vf-border)] pt-4'>
+          <button
+            type='button'
+            onClick={onClose}
+            className='rounded-2xl border border-[var(--vf-border)] px-5 py-3 text-sm text-[var(--vf-muted)]'
+          >
+            Cancel
+          </button>
+          <button
+            type='submit'
+            form='edit-sale-form'
+            disabled={saving}
+            className='rounded-2xl bg-[var(--vf-accent)] px-6 py-3 text-sm font-semibold text-[var(--vf-accent-fg)] disabled:opacity-50'
+          >
+            {saving ? "Saving..." : "Save changes"}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const PAGE_SIZE = 25;
+
+export function MySalesPage({ sales, compPercentage, metrics, selectedRange, rangeLabel }: MySalesProps) {
+  const [editingSale, setEditingSale] = useState<MySaleRow | null>(null);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+
+  function fmtDate(dateStr: string) {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? sales.filter(
+        (s) =>
+          s.clientName?.toLowerCase().includes(q) ||
+          s.carrier.toLowerCase().includes(q) ||
+          s.state?.toLowerCase().includes(q) ||
+          s.leadType?.toLowerCase().includes(q) ||
+          s.policyNumber?.toLowerCase().includes(q),
+      )
+    : sales;
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  function handleSearch(value: string) {
+    setQuery(value);
+    setPage(1);
+  }
+
+  const thCls =
+    "px-4 py-3 text-left text-xs uppercase tracking-[0.14em] text-[var(--vf-muted)] font-medium whitespace-nowrap";
+  const thRightCls =
+    "px-4 py-3 text-right text-xs uppercase tracking-[0.14em] text-[var(--vf-muted)] font-medium whitespace-nowrap";
+  const tdCls = "px-4 py-3 text-sm whitespace-nowrap";
+  const tdRightCls = "px-4 py-3 text-sm text-right whitespace-nowrap";
+
+  return (
+    <div className='space-y-6'>
+      <div className='flex flex-wrap items-start justify-between gap-4'>
+        <PageTitle
+          title='My Sales'
+          description='Your personal production history. Commission estimates are based on your FFL contract level.'
+          icon={<Receipt className='h-6 w-6' />}
+        />
+        <TimeRangeFilters
+          selectedRange={selectedRange}
+          storageKey='paradigm-sales-range'
+        />
+      </div>
+
+      <div className='grid grid-cols-2 gap-4 lg:grid-cols-5'>
+        <MetricCard
+          title='Sales'
+          value={String(metrics.totalSales)}
+          helper={`Policies written in ${rangeLabel.toLowerCase()}`}
+          trend={metrics.trends.totalSales}
+        />
+        <MetricCard
+          title='Submitted AP'
+          value={fmt(metrics.submittedAP)}
+          helper={`AP submitted in ${rangeLabel.toLowerCase()}`}
+          trend={metrics.trends.submittedAP}
+          emphasis
+        />
+        <MetricCard
+          title='Avg AP'
+          value={fmt(metrics.avgAP)}
+          helper='Average AP per policy'
+          trend={metrics.trends.avgAP}
+        />
+        <MetricCard
+          title='12-mo Commission'
+          value={fmt(metrics.twelveMonthComm)}
+          helper='Projected full commission'
+          trend={metrics.trends.twelveMonthComm}
+        />
+        <MetricCard
+          title='9-mo Advance'
+          value={fmt(metrics.nineMonthAdv)}
+          helper='Projected advance payout'
+          trend={metrics.trends.nineMonthAdv}
+        />
+      </div>
+
+      <Panel>
+        <div className='flex items-center justify-between gap-4 border-b border-[var(--vf-border)] px-4 py-3'>
+          <div className='flex items-center gap-2'>
+            <span className='text-sm font-medium text-[var(--vf-text)]'>{filtered.length}</span>
+            <span className='text-sm text-[var(--vf-muted)]'>
+              {filtered.length === 1 ? "sale" : "sales"}
+              {q ? " found" : ""}
+            </span>
+          </div>
+          <div className='relative w-64'>
+            <Search className='pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--vf-muted)]' />
+            <input
+              type='text'
+              placeholder='Search…'
+              value={query}
+              onChange={(e) => handleSearch(e.target.value)}
+              className='w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface)] py-1.5 pl-8 pr-3 text-sm text-[var(--vf-text)] placeholder:text-[var(--vf-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--vf-accent)]'
+            />
+          </div>
+        </div>
+
+        <div className='overflow-x-auto'>
+          <table className='w-full'>
+            <thead>
+              <tr className='border-b border-[var(--vf-border)]'>
+                <th className={thCls}>Sold</th>
+                <th className={thCls}>Client</th>
+                <th className={thRightCls}>AP</th>
+                <th className={thCls}>Carrier</th>
+                <th className={thRightCls}>Comp</th>
+                <th className={thRightCls}>9-mo</th>
+                <th className={thRightCls}>12-mo</th>
+                <th className={thCls}>Effective</th>
+                <th className={thCls}>Lead</th>
+                <th className={thCls}>State</th>
+                <th className={thCls}>Policy #</th>
+                <th className={thCls} />
+              </tr>
+            </thead>
+            <tbody>
+              {pageRows.map((sale) => (
+                <tr
+                  key={sale.id}
+                  className='border-b border-[var(--vf-border)] last:border-0 hover:bg-[var(--vf-surface)]/40'
+                >
+                  <td className={tdCls}>{fmtDate(sale.soldAt)}</td>
+                  <td className={tdCls}>
+                    {sale.clientName ?? <span className='text-[var(--vf-muted)]'>—</span>}
+                  </td>
+                  <td className={tdRightCls}>{fmt(sale.ap)}</td>
+                  <td className={tdCls}>{sale.carrier}</td>
+                  <td className={cn(tdRightCls, "text-[var(--vf-muted)]")}>{sale.compRate}%</td>
+                  <td className={tdRightCls}>{fmt(sale.nineMonthComm)}</td>
+                  <td className={cn(tdRightCls, "text-[var(--vf-accent)] font-medium")}>
+                    {fmt(sale.twelveMonthComm)}
+                  </td>
+                  <td className={tdCls}>
+                    {sale.effectiveDate ? (
+                      fmtDate(sale.effectiveDate)
+                    ) : (
+                      <span className='text-[var(--vf-muted)]'>—</span>
+                    )}
+                  </td>
+                  <td className={tdCls}>
+                    {sale.leadType ?? <span className='text-[var(--vf-muted)]'>—</span>}
+                  </td>
+                  <td className={tdCls}>{sale.state ?? <span className='text-[var(--vf-muted)]'>—</span>}</td>
+                  <td className={cn(tdCls, "font-mono text-xs text-[var(--vf-muted)]")}>
+                    {sale.policyNumber ?? <span>—</span>}
+                  </td>
+                  <td className={tdCls}>
+                    <button
+                      onClick={() => setEditingSale(sale)}
+                      className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[var(--vf-muted)] transition-colors hover:bg-[var(--vf-surface-2)] hover:text-[var(--vf-text)]'
+                    >
+                      <Pencil className='h-3.5 w-3.5' />
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && (
+            <div className='py-16 text-center text-sm text-[var(--vf-muted)]'>
+              {q ? "No sales match your search." : "No sales in this period. Try a wider time range."}
+            </div>
+          )}
+        </div>
+
+        {totalPages > 1 && (
+          <div className='flex items-center justify-between border-t border-[var(--vf-border)] px-4 py-3'>
+            <span className='text-xs text-[var(--vf-muted)]'>
+              {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of{" "}
+              {filtered.length}
+            </span>
+            <div className='flex items-center gap-1'>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className='rounded-lg px-3 py-1.5 text-xs text-[var(--vf-muted)] transition-colors hover:bg-[var(--vf-surface-2)] hover:text-[var(--vf-text)] disabled:pointer-events-none disabled:opacity-40'
+              >
+                Previous
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                .reduce<(number | "…")[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) =>
+                  p === "…" ? (
+                    <span
+                      key={`ellipsis-${i}`}
+                      className='px-1 text-xs text-[var(--vf-muted)]'
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p as number)}
+                      className={cn(
+                        "rounded-lg px-3 py-1.5 text-xs transition-colors",
+                        p === safePage
+                          ? "bg-[var(--vf-accent)] text-[var(--vf-accent-fg)] font-semibold"
+                          : "text-[var(--vf-muted)] hover:bg-[var(--vf-surface-2)] hover:text-[var(--vf-text)]",
+                      )}
+                    >
+                      {p}
+                    </button>
+                  ),
+                )}
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className='rounded-lg px-3 py-1.5 text-xs text-[var(--vf-muted)] transition-colors hover:bg-[var(--vf-surface-2)] hover:text-[var(--vf-text)] disabled:pointer-events-none disabled:opacity-40'
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </Panel>
+
+      <SaleEditModal
+        sale={editingSale}
+        open={!!editingSale}
+        onClose={() => setEditingSale(null)}
+      />
+    </div>
+  );
+}
+
+// ─── Welcome Page ─────────────────────────────────────────────
+
 type WelcomeProps = {
   agentName: string;
   latestSale: { agentName: string; initials: string; carrier: string; ap: number } | null;
@@ -1407,7 +1849,7 @@ export function GoalsPage({ salesGoal, teamGoal, teamGrowth, teamUnlocked }: Goa
     <div className='space-y-6'>
       <PageTitle
         title='Goals'
-        description='Set targets for your sales production, team production, and growth, then track your progress automatically from your sales and team.'
+        description='Set personal and team production targets, then track your progress automatically.'
         icon={<Gauge className='h-6 w-6' />}
       />
 
@@ -1567,6 +2009,7 @@ type TeamProps = {
     teamAP: number;
     activeWriters: number;
     totalOverrides: number;
+    trends: { teamAP: number; activeWriters: number };
   };
   growthBars: [string, string, number][];
   goalBarHeight: number | null;
@@ -1814,7 +2257,7 @@ export function TeamPage({
       <div className='flex flex-wrap items-start justify-between gap-3'>
         <PageTitle
           title='My team'
-          description="This month's sales and activity for you and everyone in your downline. Once you have agents assigned, they'll appear here beneath you."
+          description='Production and hierarchy across your downline for the selected period.'
           icon={<Users className='h-6 w-6' />}
         />
         <TimeRangeFilters
@@ -1855,12 +2298,14 @@ export function TeamPage({
               title='Team AP (month)'
               value={fmt(metrics.teamAP)}
               helper='Combined AP this month'
+              trend={metrics.trends.teamAP}
               emphasis
             />
             <MetricCard
               title='Active writers'
               value={String(metrics.activeWriters)}
               helper='Submitted a policy this month'
+              trend={metrics.trends.activeWriters}
             />
           </div>
 
@@ -2675,6 +3120,10 @@ export function CompetitionPage({
     id: string;
     name: string;
   } | null>(null);
+  const [featurePending, setFeaturePending] = useState<{
+    id: string;
+    currentFeaturedName: string;
+  } | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "draft" | "ended">(() => {
     if (typeof window === "undefined") return "all";
     const savedFilter = window.localStorage.getItem("paradigm-competition-filter");
@@ -2752,7 +3201,16 @@ export function CompetitionPage({
         else if (status === "active") setConfirmPending({ action: "activate", id, name: c.name });
         else void setStatus(id, status);
       },
-      onToggleFeatured: () => toggleFeatured(c.id, c.pinned),
+      onToggleFeatured: () => {
+        if (!c.pinned) {
+          const alreadyFeatured = competitions.find((x) => x.pinned && x.id !== c.id);
+          if (alreadyFeatured) {
+            setFeaturePending({ id: c.id, currentFeaturedName: alreadyFeatured.name });
+            return;
+          }
+        }
+        void toggleFeatured(c.id, c.pinned);
+      },
     };
   }
 
@@ -2798,7 +3256,11 @@ export function CompetitionPage({
           <div className='flex flex-wrap items-end justify-between gap-4'>
             <PageTitle
               title='Competitions'
-              description='Live matchups scored on AP written during each window. Go get it.'
+              description={
+                isAdmin
+                  ? "Create and manage competitions across your agency."
+                  : "Live matchups scored on AP written during each window."
+              }
               icon={<Swords className='h-6 w-6' />}
             />
             {isAdmin && (
@@ -2917,6 +3379,41 @@ export function CompetitionPage({
         </>
       )}
 
+      {/* Replace featured competition modal */}
+      <Dialog
+        open={!!featurePending}
+        onOpenChange={(open) => {
+          if (!open) setFeaturePending(null);
+        }}
+      >
+        <DialogContent className='max-w-sm border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)]'>
+          <DialogHeader>
+            <DialogTitle className='text-xl font-semibold'>Replace featured competition?</DialogTitle>
+          </DialogHeader>
+          <p className='text-sm text-[var(--vf-muted)]'>
+            <span className='font-medium text-[var(--vf-text)]'>"{featurePending?.currentFeaturedName}"</span>{" "}
+            is currently featured on the welcome page. Featuring a new competition will remove it.
+          </p>
+          <div className='mt-2 flex justify-end gap-3'>
+            <button
+              onClick={() => setFeaturePending(null)}
+              className='rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-medium text-[var(--vf-text)] hover:bg-[var(--vf-surface-2)]'
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (featurePending) void toggleFeatured(featurePending.id, false);
+                setFeaturePending(null);
+              }}
+              className='rounded-xl bg-[var(--vf-accent)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90'
+            >
+              Feature this one
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Confirmation modal */}
       <Dialog
         open={!!confirmPending}
@@ -2976,7 +3473,12 @@ export function CompetitionPage({
 }
 
 type AgencyProps = {
-  metrics: { totalSales: number; agencyAP: number; activeWriters: number };
+  metrics: {
+    totalSales: number;
+    agencyAP: number;
+    activeWriters: number;
+    trends: { totalSales: number; agencyAP: number; activeWriters: number };
+  };
   agentLeaderboard: LeaderboardEntry[];
   teamLeaderboard: LeaderboardEntry[];
   selectedRange: TimeRange;
@@ -3007,17 +3509,20 @@ export function AgencyPage({
           title='Total sales'
           value={String(metrics.totalSales)}
           helper={`Policies submitted in ${rangeLabel.toLowerCase()}`}
+          trend={metrics.trends.totalSales}
         />
         <MetricCard
           title='Agency AP'
           value={fmt(metrics.agencyAP)}
           helper={`Combined AP in ${rangeLabel.toLowerCase()}`}
+          trend={metrics.trends.agencyAP}
           emphasis
         />
         <MetricCard
           title='Active writers'
           value={String(metrics.activeWriters)}
           helper={`Submitted a policy in ${rangeLabel.toLowerCase()}`}
+          trend={metrics.trends.activeWriters}
         />
       </div>
       <div className='grid gap-5 xl:grid-cols-2'>
@@ -3043,8 +3548,8 @@ export function AgencyPage({
         <Tabs defaultValue='overview'>
           <div className='flex flex-wrap items-end justify-between gap-4'>
             <PageTitle
-              title='Agency overview'
-              description='Track agency production and manage the master carrier comp guide.'
+              title='Agency'
+              description='Agency-wide production, top agents, and the master carrier comp guide.'
               icon={<Building2 className='h-6 w-6' />}
             />
             <TabsList
@@ -3082,7 +3587,7 @@ export function AgencyPage({
                 <div>
                   <div className='text-3xl font-semibold text-[var(--vf-text)]'>Master comp guide</div>
                   <div className='mt-2 text-base text-[var(--vf-muted)]'>
-                    FFL master comp guide — commission rate as % of AP at each FFL contract level.
+                    FFL master comp guide. Commission rate as % of AP at each FFL contract level.
                   </div>
                 </div>
               </div>
@@ -3090,82 +3595,104 @@ export function AgencyPage({
                 const FFL_LEVELS = [
                   65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145,
                 ];
-                return (
-                  <div className='mt-5 overflow-x-auto rounded-[22px] border border-[var(--vf-border)]'>
-                    <table className='w-full text-left text-xs'>
-                      <thead className='bg-[var(--vf-surface)] text-[var(--vf-muted)]'>
-                        <tr>
-                          <th className='sticky left-0 z-10 bg-[var(--vf-surface)] px-4 py-3 font-medium whitespace-nowrap'>
-                            Carrier
-                          </th>
-                          <th className='sticky left-[120px] z-10 bg-[var(--vf-surface)] px-4 py-3 font-medium whitespace-nowrap'>
-                            Product
-                          </th>
-                          {FFL_LEVELS.map((lvl) => (
-                            <th
-                              key={lvl}
-                              className={`px-3 py-3 text-center font-medium whitespace-nowrap${lvl === 80 ? " text-[var(--vf-accent)]" : ""}`}
-                            >
-                              {lvl}%
+                const CATEGORIES = ["Whole Life", "Term", "IUL / Annuity"] as const;
+                const renderTable = (category: string) => {
+                  const rows = compGuide.filter((r) => r.category === category);
+                  return (
+                    <div className='mt-5 overflow-x-auto rounded-[22px] border border-[var(--vf-border)]'>
+                      <table className='w-full text-left text-xs'>
+                        <thead className='bg-[var(--vf-surface)] text-[var(--vf-muted)]'>
+                          <tr>
+                            <th className='sticky left-0 z-10 bg-[var(--vf-surface)] px-4 py-3 font-medium whitespace-nowrap'>
+                              Carrier
                             </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(() => {
-                          let lastCategory: string | null = null;
-                          return compGuide.flatMap((row) => {
-                            const rows = [];
-                            if (row.category !== lastCategory) {
-                              lastCategory = row.category;
-                              rows.push(
-                                <tr key={`cat-${row.category}`}>
-                                  <td
-                                    colSpan={19}
-                                    className='sticky left-0 bg-[var(--vf-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-widest text-[var(--vf-accent)] border-t border-[var(--vf-border)]'
-                                  >
-                                    {row.category}
-                                  </td>
-                                </tr>,
-                              );
-                            }
-                            rows.push(
-                              <tr
-                                key={`${row.carrier}::${row.product}`}
-                                className='border-t border-[var(--vf-border)]'
+                            <th className='sticky left-[120px] z-10 bg-[var(--vf-surface)] px-4 py-3 font-medium whitespace-nowrap'>
+                              Product
+                            </th>
+                            {FFL_LEVELS.map((lvl) => (
+                              <th
+                                key={lvl}
+                                className={`px-3 py-3 text-center font-medium whitespace-nowrap${lvl === 80 ? " text-[var(--vf-accent)]" : ""}`}
                               >
-                                <td className='sticky left-0 z-10 bg-[var(--vf-panel)] px-4 py-2 font-medium text-[var(--vf-text)] whitespace-nowrap'>
-                                  {row.carrier}
-                                </td>
-                                <td className='sticky left-[120px] z-10 bg-[var(--vf-panel)] px-4 py-2 text-[var(--vf-muted)] whitespace-nowrap'>
-                                  {row.product}
-                                </td>
-                                {FFL_LEVELS.map((lvl) => {
-                                  const rate = row.rates[lvl];
-                                  return (
-                                    <td
-                                      key={lvl}
-                                      className={`px-3 py-2 text-center${lvl === 80 ? " font-semibold text-[var(--vf-text)]" : " text-[var(--vf-muted)]"}`}
-                                    >
-                                      {rate != null ? `${rate}%` : "—"}
-                                    </td>
-                                  );
-                                })}
-                              </tr>,
-                            );
-                            return rows;
-                          });
-                        })()}
-                      </tbody>
-                    </table>
-                  </div>
+                                {lvl}%
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((row) => (
+                            <tr
+                              key={`${row.carrier}::${row.product}`}
+                              className='border-t border-[var(--vf-border)]'
+                            >
+                              <td className='sticky left-0 z-10 bg-[var(--vf-panel)] px-4 py-2 font-medium text-[var(--vf-text)] whitespace-nowrap'>
+                                {row.carrier}
+                              </td>
+                              <td className='sticky left-[120px] z-10 bg-[var(--vf-panel)] px-4 py-2 text-[var(--vf-muted)] whitespace-nowrap'>
+                                {row.product}
+                              </td>
+                              {FFL_LEVELS.map((lvl) => {
+                                const rate = row.rates[lvl];
+                                return (
+                                  <td
+                                    key={lvl}
+                                    className={`px-3 py-2 text-center${lvl === 80 ? " font-semibold text-[var(--vf-text)]" : " text-[var(--vf-muted)]"}`}
+                                  >
+                                    {rate != null ? `${rate}%` : "—"}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                };
+                return (
+                  <Tabs
+                    defaultValue='Whole Life'
+                    className='mt-5'
+                  >
+                    <TabsList
+                      variant='line'
+                      className='bg-transparent p-0'
+                    >
+                      {CATEGORIES.map((cat) => (
+                        <TabsTrigger
+                          key={cat}
+                          value={cat}
+                          className='rounded-xl px-4 py-2 text-sm data-active:bg-[var(--vf-surface)]'
+                        >
+                          {cat}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                    {CATEGORIES.map((cat) => (
+                      <TabsContent
+                        key={cat}
+                        value={cat}
+                      >
+                        {renderTable(cat)}
+                      </TabsContent>
+                    ))}
+                  </Tabs>
                 );
               })()}
             </Panel>
           </TabsContent>
         </Tabs>
       ) : (
-        overview
+        <>
+          <div className='flex flex-wrap items-end justify-between gap-4'>
+            <PageTitle
+              title='Agency'
+              description='Agency-wide production, top agents, and team leaderboards.'
+              icon={<Building2 className='h-6 w-6' />}
+            />
+          </div>
+          {overview}
+        </>
       )}
     </div>
   );
@@ -3175,7 +3702,9 @@ type AdminProps = {
   metrics: { totalAP: number; totalSales: number; activeAgents: number };
   agents: AdminAgentRecord[];
   uplineOptions: { id: string; name: string }[];
+  subAgencyRootOptions: { id: string; name: string }[];
   leaderboardPosts: LeaderboardPostsData;
+  subAgencies: SubAgency[];
 };
 
 function escapeXml(value: string) {
@@ -3645,7 +4174,7 @@ function CompetitionModal({
           </DialogTitle>
           {!editing && (
             <p className='text-sm text-[var(--vf-muted)]'>
-              {tab === "details" ? "Step 1 of 2 — Details" : "Step 2 of 2 — Add members"}
+              {tab === "details" ? "Step 1 of 2: Details" : "Step 2 of 2: Add members"}
             </p>
           )}
         </DialogHeader>
@@ -3935,7 +4464,7 @@ function CompetitionModal({
                 {/* Available agents */}
                 <div className='mt-4'>
                   <div className='mb-2 text-sm font-medium text-[var(--vf-muted)]'>
-                    Available agents{available.length > 0 ? ` (${available.length})` : " — all assigned"}
+                    Available agents{available.length > 0 ? ` (${available.length})` : " (all assigned)"}
                   </div>
                   {available.length === 0 ? (
                     <div className='rounded-2xl border border-dashed border-[var(--vf-border)] py-5 text-center text-sm text-[var(--vf-muted)]'>
@@ -4092,9 +4621,16 @@ function UplineSelect({
 }
 
 // ─── Admin page ───────────────────────────────────────────────
-export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: AdminProps) {
+export function AdminPage({
+  metrics,
+  agents,
+  uplineOptions,
+  subAgencyRootOptions,
+  leaderboardPosts,
+  subAgencies: initialSubAgencies,
+}: AdminProps) {
   const router = useRouter();
-  const [tab, setTab] = useState<"management" | "leaderboardPosts">("management");
+  const [tab, setTab] = useState<"management" | "leaderboardPosts" | "subAgencies">("management");
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteList, setInviteList] = useState("agent1@paradigmfinancial.com\nagent2@paradigmfinancial.com");
@@ -4110,8 +4646,24 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
 
   const pageSize = 10;
 
-  const sidebarItems: { label: string; key: "management" | "leaderboardPosts" }[] = [
+  const [subAgencies, setSubAgencies] = useState<SubAgency[]>(initialSubAgencies);
+  const [saName, setSaName] = useState("");
+  const [saRootId, setSaRootId] = useState("");
+  const [saLogoFile, setSaLogoFile] = useState<File | null>(null);
+  const [saSearch, setSaSearch] = useState("");
+  const [savingSa, setSavingSa] = useState(false);
+  const [deletingSaId, setDeletingSaId] = useState<string | null>(null);
+  const [createSaOpen, setCreateSaOpen] = useState(false);
+  const [expandedSaId, setExpandedSaId] = useState<string | null>(null);
+  const [deleteSaPending, setDeleteSaPending] = useState<SubAgency | null>(null);
+  const [editSa, setEditSa] = useState<SubAgency | null>(null);
+  const [editSaName, setEditSaName] = useState("");
+  const [editSaLogoFile, setEditSaLogoFile] = useState<File | null>(null);
+  const [savingEditSa, setSavingEditSa] = useState(false);
+
+  const sidebarItems: { label: string; key: "management" | "leaderboardPosts" | "subAgencies" }[] = [
     { label: "Management", key: "management" },
+    { label: "Sub-agencies", key: "subAgencies" },
     { label: "Leaderboard Posts", key: "leaderboardPosts" },
   ];
 
@@ -4142,6 +4694,115 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
       toast.success("Leaderboard post copied");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to copy leaderboard post");
+    }
+  }
+
+  async function createSubAgency(e: React.FormEvent) {
+    e.preventDefault();
+    if (!saName.trim() || !saRootId) return;
+    setSavingSa(true);
+    try {
+      const res = await fetch("/api/sub-agencies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: saName.trim(), root_agent_id: saRootId }),
+      });
+      const data = (await res.json()) as { id?: string; error?: string };
+      if (!res.ok || !data.id) {
+        toast.error(data.error ?? "Failed to create sub-agency");
+        return;
+      }
+      const newId = data.id;
+      let logoUrl: string | null = null;
+      if (saLogoFile) {
+        const fd = new FormData();
+        fd.append("file", saLogoFile);
+        const logoRes = await fetch(`/api/sub-agencies/${newId}/logo`, { method: "POST", body: fd });
+        const logoData = (await logoRes.json()) as { logoUrl?: string };
+        logoUrl = logoData.logoUrl ?? null;
+      }
+      const rootAgentName = uplineOptions.find((a) => a.id === saRootId)?.name ?? "";
+      setSubAgencies((prev) => [...prev, { id: newId, name: saName.trim(), logoUrl, rootAgentId: saRootId }]);
+      setSaName("");
+      setSaRootId("");
+      setSaLogoFile(null);
+      setCreateSaOpen(false);
+      toast.success(`${saName.trim()} created`);
+      void rootAgentName;
+    } finally {
+      setSavingSa(false);
+    }
+  }
+
+  async function deleteSubAgency(id: string) {
+    setDeletingSaId(id);
+    try {
+      const res = await fetch(`/api/sub-agencies/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        toast.error(data.error ?? "Failed to delete sub-agency");
+        return;
+      }
+      setSubAgencies((prev) => prev.filter((sa) => sa.id !== id));
+      toast.success("Sub-agency deleted");
+    } finally {
+      setDeletingSaId(null);
+    }
+  }
+
+  async function updateSubAgency(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editSa || !editSaName.trim()) return;
+
+    const nameChanged = editSaName.trim() !== editSa.name;
+    const hasNewLogo = !!editSaLogoFile;
+
+    if (!nameChanged && !hasNewLogo) {
+      setEditSa(null);
+      return;
+    }
+
+    setSavingEditSa(true);
+    try {
+      const patch: Record<string, unknown> = {};
+      let updatedLogoUrl = editSa.logoUrl;
+
+      if (nameChanged) patch.name = editSaName.trim();
+
+      if (hasNewLogo) {
+        const fd = new FormData();
+        fd.append("file", editSaLogoFile!);
+        const logoRes = await fetch(`/api/sub-agencies/${editSa.id}/logo`, { method: "POST", body: fd });
+        const logoData = (await logoRes.json()) as { logoUrl?: string; error?: string };
+        if (!logoRes.ok) {
+          toast.error(logoData.error ?? "Failed to upload logo");
+          return;
+        }
+        updatedLogoUrl = logoData.logoUrl ?? updatedLogoUrl;
+        patch.logo_url = updatedLogoUrl;
+      }
+
+      const res = await fetch(`/api/sub-agencies/${editSa.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to update sub-agency");
+        return;
+      }
+
+      setSubAgencies((prev) =>
+        prev.map((sa) =>
+          sa.id === editSa.id ? { ...sa, name: editSaName.trim(), logoUrl: updatedLogoUrl } : sa,
+        ),
+      );
+      setEditSa(null);
+      setEditSaLogoFile(null);
+      toast.success("Sub-agency updated");
+    } finally {
+      setSavingEditSa(false);
     }
   }
 
@@ -4358,7 +5019,7 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
     <div className='space-y-8'>
       <PageTitle
         title='Admin controls'
-        description='Manage agents, KPIs, and all sales across your team.'
+        description='Manage agents, sub-agencies, and leaderboard posts for your organization.'
         icon={<Shield className='h-6 w-6' />}
       />
       <div className='grid gap-4 md:grid-cols-3'>
@@ -4568,7 +5229,7 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                               disabled={savingAgentId === agent.id}
                             >
                               <SelectTrigger className='h-[52px] w-[220px] rounded-xl border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
-                                <span>{agent.role === "admin" ? "Admin" : "Stats only"}</span>
+                                <span>{agent.role === "admin" ? "Admin" : "Agent"}</span>
                               </SelectTrigger>
                               <SelectContent
                                 align='start'
@@ -4587,7 +5248,7 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
                                   value='agent'
                                   className='rounded-lg px-3 py-2.5 text-base'
                                 >
-                                  Stats only
+                                  Agent
                                 </SelectItem>
                               </SelectContent>
                             </Select>
@@ -4702,6 +5363,425 @@ export function AdminPage({ metrics, agents, uplineOptions, leaderboardPosts }: 
               ))}
             </div>
           )}
+
+          {tab === "subAgencies" && (
+            <Panel className='p-6'>
+              <div className='flex items-start justify-between gap-4'>
+                <div>
+                  <h2 className='text-2xl font-semibold text-[var(--vf-text)]'>Sub-agencies</h2>
+                  <p className='mt-1 text-sm text-[var(--vf-muted)]'>
+                    Recognize a branch as its own sub-agency. They'll appear on the team leaderboard with
+                    their name and optional logo.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setCreateSaOpen(true)}
+                  className='shrink-0 rounded-2xl bg-[var(--vf-accent)] px-4 py-2.5 text-sm font-semibold text-[var(--vf-accent-fg)]'
+                >
+                  + Add sub-agency
+                </button>
+              </div>
+
+              {subAgencies.length === 0 ? (
+                <div className='mt-8 flex flex-col items-center justify-center py-10 text-center'>
+                  <div className='text-sm text-[var(--vf-muted)]'>No sub-agencies yet</div>
+                  <div className='mt-1 text-xs text-[var(--vf-muted)] opacity-60'>
+                    Click "Add sub-agency" to recognize a branch.
+                  </div>
+                </div>
+              ) : (
+                (() => {
+                  const childrenByUpline = new Map<string, AdminAgentRecord[]>();
+                  for (const a of agents) {
+                    if (!a.uplineId) continue;
+                    if (!childrenByUpline.has(a.uplineId)) childrenByUpline.set(a.uplineId, []);
+                    childrenByUpline.get(a.uplineId)!.push(a);
+                  }
+                  function subtreeAgents(rootId: string): AdminAgentRecord[] {
+                    const result: AdminAgentRecord[] = [];
+                    const queue = [rootId];
+                    while (queue.length) {
+                      const id = queue.shift()!;
+                      for (const child of childrenByUpline.get(id) ?? []) {
+                        result.push(child);
+                        queue.push(child.id);
+                      }
+                    }
+                    return result;
+                  }
+                  return (
+                    <div className='mt-5 divide-y divide-[var(--vf-border)] rounded-2xl border border-[var(--vf-border)]'>
+                      {subAgencies.map((sa) => {
+                        const rootName =
+                          uplineOptions.find((a) => a.id === sa.rootAgentId)?.name ?? "Unknown agent";
+                        const members = subtreeAgents(sa.rootAgentId);
+                        const isExpanded = expandedSaId === sa.id;
+                        return (
+                          <div key={sa.id}>
+                            <div
+                              className='flex cursor-pointer items-center gap-4 px-4 py-3 hover:bg-[rgba(255,255,255,0.02)]'
+                              onClick={() => setExpandedSaId(isExpanded ? null : sa.id)}
+                            >
+                              {sa.logoUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={sa.logoUrl}
+                                  alt={sa.name}
+                                  className='h-9 w-9 shrink-0 rounded-full object-cover'
+                                />
+                              ) : (
+                                <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[rgba(88,101,242,0.2)] text-xs font-semibold text-white'>
+                                  {initials(sa.name)}
+                                </div>
+                              )}
+                              <div className='min-w-0 flex-1'>
+                                <div className='truncate text-sm font-semibold text-[var(--vf-text)]'>
+                                  {sa.name}
+                                </div>
+                                <div className='text-xs text-[var(--vf-muted)]'>
+                                  {rootName}&apos;s Team · {members.length} agent
+                                  {members.length !== 1 ? "s" : ""}
+                                </div>
+                              </div>
+                              <ChevronDown
+                                className={cn(
+                                  "h-4 w-4 shrink-0 text-[var(--vf-muted)] transition-transform",
+                                  isExpanded && "rotate-180",
+                                )}
+                              />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditSa(sa);
+                                  setEditSaName(sa.name);
+                                  setEditSaLogoFile(null);
+                                }}
+                                className='shrink-0 rounded-xl border border-[var(--vf-border)] px-3 py-1.5 text-xs text-[var(--vf-muted)] hover:border-[var(--vf-accent)]/40 hover:text-[var(--vf-text)]'
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteSaPending(sa);
+                                }}
+                                disabled={deletingSaId === sa.id}
+                                className='shrink-0 rounded-xl border border-[var(--vf-border)] px-3 py-1.5 text-xs text-[var(--vf-muted)] hover:border-red-500/40 hover:text-red-400 disabled:opacity-50'
+                              >
+                                {deletingSaId === sa.id ? "Deleting…" : "Delete"}
+                              </button>
+                            </div>
+                            {isExpanded &&
+                              (() => {
+                                type TreeNode = {
+                                  agent: AdminAgentRecord;
+                                  depth: number;
+                                  hasChildren: boolean;
+                                };
+                                const treeNodes: TreeNode[] = [];
+                                function traverseSa(id: string, depth: number) {
+                                  const children = childrenByUpline.get(id) ?? [];
+                                  for (const child of children) {
+                                    const hasKids = (childrenByUpline.get(child.id)?.length ?? 0) > 0;
+                                    treeNodes.push({ agent: child, depth, hasChildren: hasKids });
+                                    traverseSa(child.id, depth + 1);
+                                  }
+                                }
+                                traverseSa(sa.rootAgentId, 0);
+                                return (
+                                  <div className='border-t border-[var(--vf-border)] bg-[rgba(255,255,255,0.02)] py-2'>
+                                    {treeNodes.length === 0 ? (
+                                      <p className='px-4 py-2 text-xs text-[var(--vf-muted)]'>
+                                        No agents under this root yet.
+                                      </p>
+                                    ) : (
+                                      treeNodes.map(({ agent: m, depth, hasChildren: hasKids }) => (
+                                        <div
+                                          key={m.id}
+                                          className='flex items-center px-4 py-1.5 text-sm'
+                                        >
+                                          <div
+                                            className='flex items-center shrink-0'
+                                            style={{ paddingLeft: depth * 24 }}
+                                          >
+                                            {depth > 0 && (
+                                              <div className='mr-1.5 flex h-8 flex-col items-center'>
+                                                <div className='w-px flex-1 bg-[var(--vf-border)]' />
+                                                <div className='h-px w-3 bg-[var(--vf-border)]' />
+                                              </div>
+                                            )}
+                                            <div
+                                              className={cn(
+                                                "mr-1.5 h-5 w-5 shrink-0",
+                                                !hasKids && depth === 0 && "invisible",
+                                              )}
+                                            />
+                                          </div>
+                                          <div className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgba(88,101,242,0.15)] text-[10px] font-semibold text-white'>
+                                            {initials(m.name)}
+                                          </div>
+                                          <span className='ml-2.5 flex-1 truncate font-medium text-[var(--vf-text)]'>
+                                            {m.name}
+                                          </span>
+                                          <span className='shrink-0 text-xs text-[var(--vf-muted)]'>
+                                            {m.compPercentage}%
+                                          </span>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
+              )}
+            </Panel>
+          )}
+
+          <Dialog
+            open={createSaOpen}
+            onOpenChange={(o) => {
+              if (!o) {
+                setCreateSaOpen(false);
+                setSaName("");
+                setSaRootId("");
+                setSaLogoFile(null);
+                setSaSearch("");
+              }
+            }}
+          >
+            <DialogContent className='flex max-w-md max-h-[85vh] flex-col overflow-hidden border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)]'>
+              <DialogHeader>
+                <DialogTitle className='text-2xl font-semibold'>Add sub-agency</DialogTitle>
+              </DialogHeader>
+              <form
+                id='create-sa-form'
+                onSubmit={(e) => void createSubAgency(e)}
+                className='mt-2 flex-1 space-y-5 overflow-y-auto pr-1'
+              >
+                <div>
+                  <label className='text-sm uppercase tracking-[0.14em] text-[var(--vf-muted)]'>Name</label>
+                  <input
+                    className='mt-2 w-full rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 py-3 text-sm text-[var(--vf-text)] outline-none'
+                    placeholder='e.g. Paradigm Financial JR.'
+                    value={saName}
+                    onChange={(e) => setSaName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className='flex items-baseline gap-2 text-sm uppercase tracking-[0.14em] text-[var(--vf-muted)]'>
+                    Root agent
+                    <span className='normal-case text-xs tracking-normal font-normal'>
+                      only agents with at least 1 downline
+                    </span>
+                  </label>
+                  <Select
+                    value={saRootId || "none"}
+                    onValueChange={(v) => {
+                      setSaSearch("");
+                      setSaRootId(v === "none" ? "" : (v ?? ""));
+                    }}
+                  >
+                    <SelectTrigger className='mt-2 w-full rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 py-3 text-sm text-[var(--vf-text)] outline-none data-[size=default]:h-auto'>
+                      <span className={saRootId ? "text-[var(--vf-text)]" : "text-[var(--vf-muted)]"}>
+                        {saRootId
+                          ? (subAgencyRootOptions.find((a) => a.id === saRootId)?.name ?? "Select an agent…")
+                          : "Select an agent…"}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent
+                      className='w-[280px] max-h-[300px] p-2'
+                      align='start'
+                    >
+                      <div className='pb-2'>
+                        <input
+                          autoFocus
+                          value={saSearch}
+                          onChange={(e) => setSaSearch(e.target.value)}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          placeholder='Search agents...'
+                          className='w-full rounded-lg bg-[rgba(255,255,255,0.07)] px-3 py-2 text-sm text-[var(--vf-text)] outline-none placeholder:text-[var(--vf-muted)]'
+                        />
+                      </div>
+                      {subAgencyRootOptions
+                        .filter((a) => !subAgencies.some((sa) => sa.rootAgentId === a.id))
+                        .filter((a) => a.name.toLowerCase().includes(saSearch.toLowerCase()))
+                        .map((a) => (
+                          <SelectItem
+                            key={a.id}
+                            value={a.id}
+                            className='rounded-lg px-3 py-2.5 text-sm'
+                          >
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      {subAgencyRootOptions.filter(
+                        (a) =>
+                          !subAgencies.some((sa) => sa.rootAgentId === a.id) &&
+                          a.name.toLowerCase().includes(saSearch.toLowerCase()),
+                      ).length === 0 && (
+                        <div className='px-3 py-3 text-sm text-[var(--vf-muted)]'>No agents found</div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className='text-sm uppercase tracking-[0.14em] text-[var(--vf-muted)]'>
+                    Logo <span className='normal-case'>(optional)</span>
+                  </label>
+                  <input
+                    type='file'
+                    accept='image/jpeg,image/png,image/webp,image/gif'
+                    className='mt-2 w-full cursor-pointer rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 py-3 text-sm text-[var(--vf-muted)] file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-[var(--vf-accent)] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[var(--vf-accent-fg)]'
+                    onChange={(e) => setSaLogoFile(e.target.files?.[0] ?? null)}
+                  />
+                  <p className='mt-1 text-xs text-[var(--vf-muted)]'>JPG, PNG, WEBP, or GIF up to 5 MB</p>
+                </div>
+              </form>
+              <div className='mt-4 flex justify-end gap-3 border-t border-[var(--vf-border)] pt-4'>
+                <button
+                  type='button'
+                  onClick={() => {
+                    setCreateSaOpen(false);
+                    setSaName("");
+                    setSaRootId("");
+                    setSaLogoFile(null);
+                    setSaSearch("");
+                  }}
+                  className='rounded-2xl border border-[var(--vf-border)] px-5 py-3 text-sm text-[var(--vf-muted)]'
+                >
+                  Cancel
+                </button>
+                <button
+                  type='submit'
+                  form='create-sa-form'
+                  disabled={savingSa || !saName.trim() || !saRootId}
+                  className='rounded-2xl bg-[var(--vf-accent)] px-6 py-3 text-sm font-semibold text-[var(--vf-accent-fg)] disabled:opacity-50'
+                >
+                  {savingSa ? "Creating…" : "Create"}
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={!!editSa}
+            onOpenChange={(o) => {
+              if (!o) {
+                setEditSa(null);
+                setEditSaLogoFile(null);
+              }
+            }}
+          >
+            <DialogContent className='flex max-w-md max-h-[85vh] flex-col overflow-hidden border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)]'>
+              <DialogHeader>
+                <DialogTitle className='text-2xl font-semibold'>Edit sub-agency</DialogTitle>
+              </DialogHeader>
+              <form
+                id='edit-sa-form'
+                onSubmit={(e) => void updateSubAgency(e)}
+                className='mt-2 flex-1 space-y-5 overflow-y-auto pr-1'
+              >
+                <div>
+                  <label className='text-sm uppercase tracking-[0.14em] text-[var(--vf-muted)]'>Name</label>
+                  <input
+                    className='mt-2 w-full rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 py-3 text-sm text-[var(--vf-text)] outline-none'
+                    value={editSaName}
+                    onChange={(e) => setEditSaName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className='text-sm uppercase tracking-[0.14em] text-[var(--vf-muted)]'>
+                    Logo <span className='normal-case'>(optional)</span>
+                  </label>
+                  {editSa?.logoUrl && !editSaLogoFile && (
+                    <div className='mt-2 flex items-center gap-3'>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={editSa.logoUrl}
+                        alt={editSa.name}
+                        className='h-10 w-10 rounded-full object-cover'
+                      />
+                      <span className='text-xs text-[var(--vf-muted)]'>
+                        Current logo. Upload a new file to replace.
+                      </span>
+                    </div>
+                  )}
+                  <input
+                    type='file'
+                    accept='image/jpeg,image/png,image/webp,image/gif'
+                    className='mt-2 w-full cursor-pointer rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 py-3 text-sm text-[var(--vf-muted)] file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-[var(--vf-accent)] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[var(--vf-accent-fg)]'
+                    onChange={(e) => setEditSaLogoFile(e.target.files?.[0] ?? null)}
+                  />
+                  <p className='mt-1 text-xs text-[var(--vf-muted)]'>JPG, PNG, WEBP, or GIF up to 5 MB</p>
+                </div>
+              </form>
+              <div className='mt-4 flex justify-end gap-3 border-t border-[var(--vf-border)] pt-4'>
+                <button
+                  type='button'
+                  onClick={() => {
+                    setEditSa(null);
+                    setEditSaLogoFile(null);
+                  }}
+                  className='rounded-2xl border border-[var(--vf-border)] px-5 py-3 text-sm text-[var(--vf-muted)]'
+                >
+                  Cancel
+                </button>
+                <button
+                  type='submit'
+                  form='edit-sa-form'
+                  disabled={savingEditSa || !editSaName.trim()}
+                  className='rounded-2xl bg-[var(--vf-accent)] px-6 py-3 text-sm font-semibold text-[var(--vf-accent-fg)] disabled:opacity-50'
+                >
+                  {savingEditSa ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={!!deleteSaPending}
+            onOpenChange={(o) => {
+              if (!o) setDeleteSaPending(null);
+            }}
+          >
+            <DialogContent className='max-w-sm border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)]'>
+              <DialogHeader>
+                <DialogTitle className='text-xl font-semibold'>Delete sub-agency</DialogTitle>
+              </DialogHeader>
+              <p className='text-sm text-[var(--vf-muted)]'>
+                Are you sure you want to delete{" "}
+                <span className='font-medium text-[var(--vf-text)]'>"{deleteSaPending?.name}"</span>? This
+                only removes the sub-agency label. Agents and their data are unaffected.
+              </p>
+              <div className='mt-2 flex justify-end gap-3'>
+                <button
+                  onClick={() => setDeleteSaPending(null)}
+                  className='rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-medium text-[var(--vf-text)]'
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={!!deletingSaId}
+                  onClick={() => {
+                    if (deleteSaPending) {
+                      void deleteSubAgency(deleteSaPending.id);
+                      setDeleteSaPending(null);
+                    }
+                  }}
+                  className='rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50'
+                >
+                  Delete
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -4931,7 +6011,7 @@ export function ProfilePage({
       <div className='flex flex-wrap items-start justify-between gap-3'>
         <PageTitle
           title='Profile'
-          description='Manage your photo, account details, and carrier commission rates.'
+          description='Manage your agent card, display name, and account details.'
           icon={<UserCircle2 className='h-6 w-6' />}
         />
         <button
@@ -4943,7 +6023,7 @@ export function ProfilePage({
       </div>
 
       <Panel className='p-6'>
-        <h2 className='text-3xl font-semibold text-[var(--vf-text)]'>Profile photo</h2>
+        <h2 className='text-3xl font-semibold text-[var(--vf-text)]'>Agent card</h2>
         <p className='mt-2 text-base text-[var(--vf-muted)]'>
           Shown next to your name on the Welcome board and leaderboards.
         </p>

@@ -101,23 +101,41 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   const apiKey = req.headers.get("x-api-key");
+  const userAgent = req.headers.get("user-agent");
+  const startedAt = new Date().toISOString();
 
   if (!SALES_INGEST_API_KEY) {
+    console.error("[kpi-ingest] missing api key config", { startedAt, userAgent });
     return NextResponse.json({ error: "Sales ingest API key is not configured" }, { status: 500, headers: corsHeaders });
   }
 
   if (apiKey !== SALES_INGEST_API_KEY) {
+    console.warn("[kpi-ingest] invalid api key", {
+      startedAt,
+      userAgent,
+      hasApiKey: Boolean(apiKey),
+    });
     return NextResponse.json({ error: "Invalid API key" }, { status: 401, headers: corsHeaders });
   }
 
   let payload: unknown;
   try {
     payload = await req.json();
-  } catch {
+  } catch (error) {
+    console.error("[kpi-ingest] invalid json body", {
+      startedAt,
+      userAgent,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400, headers: corsHeaders });
   }
 
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    console.error("[kpi-ingest] invalid body shape", {
+      startedAt,
+      userAgent,
+      payloadType: Array.isArray(payload) ? "array" : typeof payload,
+    });
     return NextResponse.json({ error: "Expected a JSON object body" }, { status: 400, headers: corsHeaders });
   }
 
@@ -125,6 +143,13 @@ export async function POST(req: Request) {
   const parsed = ingestSchema.safeParse(body.data);
 
   if (!parsed.success) {
+    console.error("[kpi-ingest] invalid payload", {
+      startedAt,
+      userAgent,
+      data: body.data,
+      issues: parsed.error.issues,
+      details: parsed.error.flatten(),
+    });
     return NextResponse.json(
       { error: "Invalid payload", details: parsed.error.flatten() },
       { status: 400, headers: corsHeaders }
@@ -135,7 +160,8 @@ export async function POST(req: Request) {
   const submissionDate = parsed.data.submission_date ?? submittedAt.slice(0, 10);
 
   console.log("[kpi-ingest] received payload", {
-    receivedAt: new Date().toISOString(),
+    receivedAt: startedAt,
+    userAgent,
     data: body.data,
   });
 
@@ -146,6 +172,12 @@ export async function POST(req: Request) {
     .select("id")
     .eq("discord_user_id", parsed.data.discord_user_id)
     .maybeSingle();
+
+  console.log("[kpi-ingest] agent lookup result", {
+    discord_user_id: parsed.data.discord_user_id,
+    submissionDate,
+    agentMatched: Boolean(agentRow?.id),
+  });
 
   const { data: existingRow, error: existingError } = await supabase
     .from("kpi_submissions")
@@ -191,7 +223,12 @@ export async function POST(req: Request) {
   });
 
   if (upsertError) {
-    console.error("[kpi-ingest] upsert error", upsertError);
+    console.error("[kpi-ingest] upsert error", {
+      discord_user_id: parsed.data.discord_user_id,
+      submissionDate,
+      mergedKpi,
+      error: upsertError,
+    });
     return NextResponse.json({ error: upsertError.message }, { status: 500, headers: corsHeaders });
   }
 
@@ -212,12 +249,24 @@ export async function POST(req: Request) {
     });
 
     if (activityError) {
-      console.error("[kpi-ingest] activity upsert error", activityError);
+      console.error("[kpi-ingest] activity upsert error", {
+        discord_user_id: parsed.data.discord_user_id,
+        submissionDate,
+        activityPayload,
+        error: activityError,
+      });
       return NextResponse.json({ error: activityError.message }, { status: 500, headers: corsHeaders });
     }
 
     activityUpdated = true;
   }
+
+  console.log("[kpi-ingest] success", {
+    discord_user_id: parsed.data.discord_user_id,
+    submissionDate,
+    agentMatched: Boolean(agentRow?.id),
+    activityUpdated,
+  });
 
   return NextResponse.json(
     {

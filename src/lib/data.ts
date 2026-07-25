@@ -100,6 +100,13 @@ export type AdminAgentRecord = {
   isNew: boolean;
 };
 
+export type SubAgency = {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+  rootAgentId: string;
+};
+
 export type TeamAgentRecord = {
   id: string;
   name: string;
@@ -254,6 +261,14 @@ function getRangeStart(range: TimeRange): string {
   const daysBack = range === "30d" ? 29 : range === "90d" ? 89 : range === "180d" ? 179 : 364;
   const start = new Date(now);
   start.setDate(now.getDate() - daysBack);
+  return start.toISOString();
+}
+
+function getPrevRangeStart(range: TimeRange): string {
+  const now = new Date();
+  const days = range === "30d" ? 30 : range === "90d" ? 90 : range === "180d" ? 180 : 365;
+  const start = new Date(now);
+  start.setDate(now.getDate() - days * 2);
   return start.toISOString();
 }
 
@@ -550,12 +565,19 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
   const idsForGrowth = allTeamIds;
 
   const today = new Date().toISOString().slice(0, 10);
-  const [salesRes, activityRes, fflRates, teamGoalRes] = await Promise.all([
+  const prevRangeStart = getPrevRangeStart(range);
+  const [salesRes, prevSalesRes, activityRes, fflRates, teamGoalRes] = await Promise.all([
     supabase
         .from("sales")
         .select("agent_id, carrier, product, ap, sold_at")
         .in("agent_id", allTeamIds)
         .gte("sold_at", rangeStart),
+    supabase
+        .from("sales")
+        .select("agent_id, ap")
+        .in("agent_id", allTeamIds)
+        .gte("sold_at", prevRangeStart)
+        .lt("sold_at", rangeStart),
     allTeamIds.length > 0
       ? supabase
           .from("activity")
@@ -575,6 +597,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
   ]);
   const teamGoalTarget = teamGoalRes.data ? Number(teamGoalRes.data.target) : null;
   const sales = (salesRes.data ?? []) as SalesRow[];
+  const prevSales = (prevSalesRes.data ?? []) as { agent_id: string; ap: number }[];
   const activity = (activityRes.data ?? []) as ActivityRow[];
 
   const ownSalesByAgent = new Map<string, { ap: number; salesCount: number }>();
@@ -670,6 +693,17 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
   const totalTeam = descendants.length;
   const teamAP = sales.reduce((sum, sale) => sum + Number(sale.ap), 0);
   const activeWriters = new Set(sales.filter((sale) => sale.agent_id !== agentId).map((sale) => sale.agent_id)).size;
+
+  const prevTeamAP = prevSales.reduce((sum, sale) => sum + Number(sale.ap), 0);
+  const prevActiveWriters = new Set(prevSales.filter((s) => s.agent_id !== agentId).map((s) => s.agent_id)).size;
+  function pctChange(curr: number, prev: number) {
+    if (prev === 0) return curr > 0 ? 100 : 0;
+    return Math.round(((curr - prev) / prev) * 1000) / 10;
+  }
+  const trends = {
+    teamAP: pctChange(teamAP, prevTeamAP),
+    activeWriters: pctChange(activeWriters, prevActiveWriters),
+  };
   const agentsById = buildAgentMap(agents);
   const viewerComp = Number(agentsById.get(agentId)?.comp_percentage ?? 80);
   const totalOverrides = roundCurrency(
@@ -693,6 +727,7 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
       teamAP,
       activeWriters,
       totalOverrides,
+      trends,
     },
     growthBars,
     goalBarHeight,
@@ -720,17 +755,30 @@ export async function getAgencyData(range: TimeRange = "30d", currentAgentId?: s
   const supabase = createServiceClient();
   const rangeStart = getRangeStart(range);
 
-  const [agentsRes, salesRes] = await Promise.all([
+  const prevRangeStart = getPrevRangeStart(range);
+  const [agentsRes, salesRes, prevSalesRes, subAgenciesRes] = await Promise.all([
     supabase.from("agents").select("id, name, upline_id"),
     supabase
       .from("sales")
       .select("agent_id, ap, sold_at")
       .gte("sold_at", rangeStart),
+    supabase
+      .from("sales")
+      .select("agent_id, ap")
+      .gte("sold_at", prevRangeStart)
+      .lt("sold_at", rangeStart),
+    supabase.from("sub_agencies").select("id, name, logo_url, root_agent_id"),
   ]);
 
   const agents = (agentsRes.data ?? []) as AgentNode[];
   const sales = (salesRes.data ?? []) as SalesRow[];
+  const prevSales = (prevSalesRes.data ?? []) as { agent_id: string; ap: number }[];
   const childrenByUpline = buildChildrenMap(agents);
+
+  type SubAgencyRow = { id: string; name: string; logo_url: string | null; root_agent_id: string };
+  const subAgencyByRootId = new Map<string, SubAgencyRow>(
+    ((subAgenciesRes.data ?? []) as SubAgencyRow[]).map((sa) => [sa.root_agent_id, sa])
+  );
 
   const ownSalesByAgent = new Map<string, { ap: number; salesCount: number }>();
   for (const sale of sales) {
@@ -797,31 +845,52 @@ export async function getAgencyData(range: TimeRange = "30d", currentAgentId?: s
   const teamLeaderboard = agents
     .map((agent) => {
       const stats = computeAgencySubtree(agent.id);
+      const subtreeSize = (childrenByUpline.get(agent.id) ?? []).length;
       return {
         id: agent.id,
         name: agent.name,
         teamAP: stats.ap,
         writingAgents: stats.writers.size,
         salesCount: stats.salesCount,
+        hasDownline: subtreeSize > 0,
       };
     })
-    .filter((agent) => agent.teamAP > 0)
+    .filter((agent) => agent.teamAP > 0 && agent.hasDownline)
     .sort((a, b) => b.teamAP - a.teamAP)
     .slice(0, 10)
-    .map((agent, i) => ({
-      rank: i + 1,
-      name: agent.name,
-      subtitle: `${agent.writingAgents} writing agents · ${agent.salesCount} sales`,
-      value: fmt(agent.teamAP),
-      tone: tone(i + 1),
-    }));
+    .map((agent, i) => {
+      const sa = subAgencyByRootId.get(agent.id);
+      const displayName = sa ? sa.name : agent.name;
+      const subtitlePrefix = sa ? `${agent.name}'s Team · ` : "";
+      return {
+        rank: i + 1,
+        name: displayName,
+        subtitle: `${subtitlePrefix}${agent.writingAgents} writing agents · ${agent.salesCount} sales`,
+        value: fmt(agent.teamAP),
+        tone: tone(i + 1),
+        logoUrl: sa?.logo_url ?? null,
+      };
+    });
 
   const totalSales = sales.length;
   const agencyAP = sales.reduce((sum, sale) => sum + Number(sale.ap), 0);
-  const activeWriters = new Set(sales.map((sale) => sale.agent_id)).size;
+  const activeWriters = new Set(sales.filter((sale) => sale.agent_id).map((sale) => sale.agent_id)).size;
+
+  const prevTotalSales = prevSales.length;
+  const prevAgencyAP = prevSales.reduce((sum, s) => sum + Number(s.ap), 0);
+  const prevActiveWriters = new Set(prevSales.filter((s) => s.agent_id).map((s) => s.agent_id)).size;
+  function pctChange(curr: number, prev: number) {
+    if (prev === 0) return curr > 0 ? 100 : 0;
+    return Math.round(((curr - prev) / prev) * 1000) / 10;
+  }
+  const trends = {
+    totalSales: pctChange(totalSales, prevTotalSales),
+    agencyAP: pctChange(agencyAP, prevAgencyAP),
+    activeWriters: pctChange(activeWriters, prevActiveWriters),
+  };
 
   return {
-    metrics: { totalSales, agencyAP, activeWriters },
+    metrics: { totalSales, agencyAP, activeWriters, trends },
     agentLeaderboard,
     teamLeaderboard,
     rangeLabel: getRangeLabel(range),
@@ -831,17 +900,20 @@ export async function getAgencyData(range: TimeRange = "30d", currentAgentId?: s
 // ─── Admin page ──────────────────────────────────────────────
 export async function getAdminData() {
   const supabase = createServiceClient();
-  const [{ data, error }, { data: agentOptions }, leaderboardPosts] = await Promise.all([
+  const [{ data, error }, { data: agentOptions }, leaderboardPosts, { data: subAgenciesData }] = await Promise.all([
     supabase.rpc("get_admin_agents"),
     supabase.from("agents").select("id, name, upline_id").order("name"),
     getLeaderboardPostsData(),
+    supabase.from("sub_agencies").select("id, name, logo_url, root_agent_id").order("created_at"),
   ]);
   if (error || !data) {
     return {
       metrics: { totalAP: 0, totalSales: 0, activeAgents: 0 },
       agents: [] as AdminAgentRecord[],
       uplineOptions: [],
+      subAgencyRootOptions: [],
       leaderboardPosts: { cards: [] } as LeaderboardPostsData,
+      subAgencies: [] as SubAgency[],
     };
   }
 
@@ -882,9 +954,20 @@ export async function getAdminData() {
     isNew: r.is_new,
   }));
 
-  const uplineOptions = ((agentOptions ?? []) as { id: string; name: string }[]).filter((agent) => agent.name.trim().length > 0);
+  const allAgentMeta = (agentOptions ?? []) as { id: string; name: string; upline_id: string | null }[];
+  const agentsWithDownline = new Set(allAgentMeta.map((a) => a.upline_id).filter(Boolean) as string[]);
+  const uplineOptions = allAgentMeta.filter((agent) => agent.name.trim().length > 0);
+  const subAgencyRootOptions = uplineOptions.filter((agent) => agentsWithDownline.has(agent.id));
 
-  return { metrics: { totalAP, totalSales, activeAgents }, agents, uplineOptions, leaderboardPosts };
+  type SubAgencyRow = { id: string; name: string; logo_url: string | null; root_agent_id: string };
+  const subAgencies: SubAgency[] = ((subAgenciesData ?? []) as SubAgencyRow[]).map((sa) => ({
+    id: sa.id,
+    name: sa.name,
+    logoUrl: sa.logo_url,
+    rootAgentId: sa.root_agent_id,
+  }));
+
+  return { metrics: { totalAP, totalSales, activeAgents }, agents, uplineOptions, subAgencyRootOptions, leaderboardPosts, subAgencies };
 }
 
 export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
@@ -929,7 +1012,7 @@ export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
     shareLabel: "ready to share on Instagram (1080×1350)",
     entries: toLeaderboardPostEntries(sourceSales, agentNameById, limit),
     totalAp: roundCurrency(sourceSales.reduce((sum, sale) => sum + Number(sale.ap), 0)),
-    writingAgents: new Set(sourceSales.map((sale) => sale.agent_id)).size,
+    writingAgents: new Set(sourceSales.filter((sale) => sale.agent_id).map((sale) => sale.agent_id)).size,
     ready: sourceSales.length > 0,
     emptyMessage,
   });
@@ -1390,5 +1473,140 @@ export async function getProfileData(agentId: string): Promise<ProfileData | nul
     discordGlobalName: null,
     discordAvatarUrl: null,
     discordConnectedAt: null,
+  };
+}
+
+// ─── My Sales page ───────────────────────────────────────────
+export type MySalesMetrics = {
+  totalSales: number;
+  submittedAP: number;
+  avgAP: number;
+  twelveMonthComm: number;
+  nineMonthAdv: number;
+  trends: {
+    totalSales: number;
+    submittedAP: number;
+    avgAP: number;
+    twelveMonthComm: number;
+    nineMonthAdv: number;
+  };
+};
+
+export type MySaleRow = {
+  id: string;
+  soldAt: string;
+  clientName: string | null;
+  ap: number;
+  carrier: string;
+  product: string | null;
+  productType: string | null;
+  leadType: string | null;
+  state: string | null;
+  policyNumber: string | null;
+  effectiveDate: string | null;
+  compRate: number;
+  nineMonthComm: number;
+  twelveMonthComm: number;
+};
+
+export async function getMySalesData(
+  agentId: string,
+  range: TimeRange = "30d"
+): Promise<{ sales: MySaleRow[]; compPercentage: number; metrics: MySalesMetrics; rangeLabel: string }> {
+  const supabase = createServiceClient();
+  const rangeStart = getRangeStart(range);
+  const prevRangeStart = getPrevRangeStart(range);
+
+  const [{ data: agentData }, fflRates, { data: salesData }, { data: prevSalesData }] = await Promise.all([
+    supabase.from("agents").select("comp_percentage").eq("id", agentId).maybeSingle(),
+    getFflRateSchedules(),
+    supabase
+      .from("sales")
+      .select("id, carrier, product, product_type, ap, sold_at, client_name, client_age, state, lead_type, policy_number, effective_date")
+      .eq("agent_id", agentId)
+      .gte("sold_at", rangeStart)
+      .order("sold_at", { ascending: false }),
+    supabase
+      .from("sales")
+      .select("ap, carrier, product, client_age")
+      .eq("agent_id", agentId)
+      .gte("sold_at", prevRangeStart)
+      .lt("sold_at", rangeStart),
+  ]);
+
+  const compPercentage = Number(agentData?.comp_percentage ?? 80);
+
+  type RawSale = {
+    id: string; carrier: string; product: string | null; product_type: string | null;
+    ap: number; sold_at: string; client_name: string | null; client_age: number | null;
+    state: string | null; lead_type: string | null; policy_number: string | null; effective_date: string | null;
+  };
+
+  const sales = (salesData ?? []) as RawSale[];
+
+  const mappedSales: MySaleRow[] = sales.map((sale) => {
+    const commissionProduct = resolveCommissionProduct(sale.carrier ?? "", sale.product ?? "", sale.client_age);
+    const compRate = roundCurrency(resolveRate(sale.carrier ?? "", commissionProduct, compPercentage, fflRates));
+    const twelveMonthComm = roundCurrency(Number(sale.ap) * compRate / 100);
+    const nineMonthComm = roundCurrency(twelveMonthComm * 0.75);
+    return {
+      id: sale.id,
+      soldAt: sale.sold_at,
+      clientName: sale.client_name,
+      ap: Number(sale.ap),
+      carrier: sale.carrier,
+      product: sale.product,
+      productType: sale.product_type,
+      leadType: sale.lead_type,
+      state: sale.state,
+      policyNumber: sale.policy_number,
+      effectiveDate: sale.effective_date,
+      compRate,
+      nineMonthComm,
+      twelveMonthComm,
+    };
+  });
+
+  const totalSales = mappedSales.length;
+  const submittedAP = roundCurrency(mappedSales.reduce((sum, s) => sum + s.ap, 0));
+  const avgAP = totalSales > 0 ? roundCurrency(submittedAP / totalSales) : 0;
+  const twelveMonthComm = roundCurrency(mappedSales.reduce((sum, s) => sum + s.twelveMonthComm, 0));
+  const nineMonthAdv = roundCurrency(mappedSales.reduce((sum, s) => sum + s.nineMonthComm, 0));
+
+  type PrevSale = { ap: number; carrier: string; product: string | null; client_age: number | null };
+  const prevSales = (prevSalesData ?? []) as PrevSale[];
+  const prevTotalSales = prevSales.length;
+  const prevSubmittedAP = roundCurrency(prevSales.reduce((sum, s) => sum + Number(s.ap), 0));
+  const prevAvgAP = prevTotalSales > 0 ? roundCurrency(prevSubmittedAP / prevTotalSales) : 0;
+  const prevTwelveMonthComm = roundCurrency(prevSales.reduce((sum, s) => {
+    const cp = resolveCommissionProduct(s.carrier ?? "", s.product ?? "", s.client_age);
+    const rate = resolveRate(s.carrier ?? "", cp, compPercentage, fflRates);
+    return sum + roundCurrency(Number(s.ap) * rate / 100);
+  }, 0));
+  const prevNineMonthAdv = roundCurrency(prevTwelveMonthComm * 0.75);
+
+  function pctChange(curr: number, prev: number): number {
+    if (prev === 0) return curr > 0 ? 100 : 0;
+    return Math.round(((curr - prev) / prev) * 1000) / 10;
+  }
+
+  return {
+    compPercentage,
+    sales: mappedSales,
+    rangeLabel: getRangeLabel(range),
+    metrics: {
+      totalSales,
+      submittedAP,
+      avgAP,
+      twelveMonthComm,
+      nineMonthAdv,
+      trends: {
+        totalSales: pctChange(totalSales, prevTotalSales),
+        submittedAP: pctChange(submittedAP, prevSubmittedAP),
+        avgAP: pctChange(avgAP, prevAvgAP),
+        twelveMonthComm: pctChange(twelveMonthComm, prevTwelveMonthComm),
+        nineMonthAdv: pctChange(nineMonthAdv, prevNineMonthAdv),
+      },
+    },
   };
 }

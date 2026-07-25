@@ -49,7 +49,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className='border-b border-sidebar-border px-4 py-4'>
+      <SidebarHeader className='border-b border-sidebar-border px-4 py-4 items-center md:items-start'>
         <Link
           href='/dashboard'
           className='flex items-center gap-2'
