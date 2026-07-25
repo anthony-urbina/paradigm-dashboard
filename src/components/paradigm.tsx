@@ -36,6 +36,9 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import useSWR from "swr";
+
+import { AnimatePresence, motion } from "motion/react";
 
 import { DatePicker } from "@/components/ui/date-picker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -77,6 +80,7 @@ type LeaderboardEntry = {
   progressLabel?: string;
   progressValue?: number;
   logoUrl?: string | null;
+  imageUrl?: string | null;
 };
 type GoalProgress = { ap: number; target: number; pct: number };
 type CompetitionTeam = {
@@ -163,7 +167,21 @@ function Panel({ children, className }: { children: React.ReactNode; className?:
   );
 }
 
-function Avatar({ name, small = false, ring = false }: { name: string; small?: boolean; ring?: boolean }) {
+function Avatar({ name, imageUrl, small = false, ring = false }: { name: string; imageUrl?: string | null; small?: boolean; ring?: boolean }) {
+  if (imageUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={imageUrl}
+        alt={name}
+        className={cn(
+          "rounded-full object-cover",
+          small ? "h-8 w-8" : "h-10 w-10",
+          ring && "ring-2 ring-[var(--vf-blurple)] shadow-[0_0_10px_rgba(88,101,242,0.4)]",
+        )}
+      />
+    );
+  }
   return (
     <div
       className={cn(
@@ -381,6 +399,7 @@ function LeaderboardList({
               ) : (
                 <Avatar
                   name={entry.name}
+                  imageUrl={entry.imageUrl}
                   small
                   ring={entry.rank <= 3}
                 />
@@ -1478,11 +1497,88 @@ export function MySalesPage({ sales, compPercentage, metrics, selectedRange, ran
   );
 }
 
+// ─── Latest Sale Banner ───────────────────────────────────────
+
+type LatestSaleData = {
+  id: string;
+  agentName: string;
+  initials: string;
+  carrier: string;
+  ap: number;
+  imageUrl: string | null;
+};
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+
+function LatestSaleBanner({ initial }: { initial: LatestSaleData | null }) {
+  const { data } = useSWR<LatestSaleData | null>("/api/sales/latest", fetcher, {
+    refreshInterval: 15_000,
+    fallbackData: initial,
+    revalidateOnFocus: false,
+  });
+
+  const [displayed, setDisplayed] = useState<LatestSaleData | null>(initial);
+  const [animating, setAnimating] = useState(false);
+
+  function triggerUpdate(next: LatestSaleData) {
+    if (animating) return;
+    setAnimating(true);
+    setTimeout(() => {
+      setDisplayed(next);
+      setAnimating(false);
+    }, 50);
+  }
+
+  useEffect(() => {
+    if (!data) return;
+    if (!displayed || data.id !== displayed.id) {
+      if (!displayed) { setDisplayed(data); return; }
+      triggerUpdate(data);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.id]);
+
+  if (!displayed) return null;
+
+  return (
+    /* perspective wrapper so children get true 3-D depth */
+    <div style={{ perspective: "1200px" }}>
+      <AnimatePresence mode='wait'>
+        <motion.div
+          key={displayed.id}
+          className='relative overflow-hidden rounded-[22px] border bg-[#5865F2] text-white'
+          style={{ transformOrigin: "center bottom" }}
+          initial={{ rotateX: -70, opacity: 0, scale: 0.95 }}
+          animate={{ rotateX: 0, opacity: 1, scale: 1 }}
+          exit={{ rotateX: 70, opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className='flex flex-wrap items-center gap-3 px-4 py-3 sm:gap-4 sm:px-5 sm:py-4'>
+            <div className='shrink-0 text-xs font-semibold uppercase tracking-[0.2em]'>Latest Sale</div>
+            {displayed.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={displayed.imageUrl} alt={displayed.agentName} className='h-9 w-9 shrink-0 rounded-full object-cover sm:h-10 sm:w-10' />
+            ) : (
+              <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[rgba(0,0,0,0.2)] text-sm font-semibold text-white sm:h-10 sm:w-10'>
+                {displayed.initials}
+              </div>
+            )}
+            <p className='min-w-0 text-sm font-medium sm:text-xl'>
+              {displayed.agentName} just wrote {fmt(displayed.ap)} with {displayed.carrier}. Keep it going!
+            </p>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Welcome Page ─────────────────────────────────────────────
 
 type WelcomeProps = {
   agentName: string;
-  latestSale: { agentName: string; initials: string; carrier: string; ap: number } | null;
+  latestSale: { id: string; agentName: string; initials: string; carrier: string; ap: number; imageUrl: string | null } | null;
   salesGoal: GoalProgress | null;
   teamGoal: GoalProgress | null;
   weeklyLeaders: LeaderboardEntry[];
@@ -1532,17 +1628,7 @@ export function WelcomePage({
 
   return (
     <div className='space-y-8'>
-      {latestSale && (
-        <div className='flex flex-wrap items-center gap-3 rounded-[22px] border border-[var(--vf-accent)] bg-[var(--vf-accent)] px-4 py-3 text-[var(--vf-accent-fg)] sm:gap-4 sm:px-5 sm:py-4'>
-          <div className='shrink-0 text-xs font-semibold uppercase tracking-[0.2em]'>Latest Sale</div>
-          <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[rgba(0,0,0,0.2)] text-sm font-semibold text-[var(--vf-accent-fg)] sm:h-10 sm:w-10'>
-            {latestSale.initials}
-          </div>
-          <p className='min-w-0 text-sm font-medium sm:text-xl'>
-            {latestSale.agentName} just wrote {fmt(latestSale.ap)} with {latestSale.carrier}. Keep it going!
-          </p>
-        </div>
-      )}
+      <LatestSaleBanner initial={latestSale} />
 
       <div className='flex flex-wrap items-end justify-between gap-4'>
         <div>
@@ -2353,7 +2439,7 @@ export function TeamPage({
             {goalBarHeight && (
               <div className='mt-4 flex items-center gap-4 text-xs text-[var(--vf-muted)]'>
                 <div className='flex items-center gap-2'>
-                  <div className='h-3 w-4 rounded-sm bg-[var(--vf-accent)]' />
+                  <div className='h-3 w-4 rounded-sm bg-[var(--vf-blurple)]' />
                   <span>Team AP</span>
                 </div>
                 <div className='flex items-center gap-2'>
@@ -2381,9 +2467,7 @@ export function TeamPage({
                     <div
                       className={cn(
                         "relative w-full rounded-t-xl",
-                        index === growthBars.length - 1
-                          ? "bg-[var(--vf-accent)]"
-                          : "bg-[var(--vf-surface-2)]",
+                        index === growthBars.length - 1 ? "bg-[var(--vf-blurple)]" : "bg-[var(--vf-surface-2)]",
                       )}
                       style={{ height: `${height}%` }}
                     />
@@ -2466,6 +2550,7 @@ export function TeamPage({
                           <div className='flex items-center gap-3'>
                             <Avatar
                               name={agent.name}
+                              imageUrl={agent.imageUrl}
                               small
                             />
                             <div className='flex items-center gap-2'>
@@ -2557,6 +2642,7 @@ export function TeamPage({
                               )}
                               <Avatar
                                 name={name}
+                                imageUrl={agent.imageUrl}
                                 small
                               />
                               <div className='ml-3 flex items-center gap-2'>
@@ -5146,21 +5232,37 @@ export function AdminPage({
                           className='border-t border-[var(--vf-border)] text-sm'
                         >
                           <td className='px-4 py-3'>
-                            <div className='flex items-center gap-3'>
+                            <div className='flex items-center gap-3 min-w-0'>
                               <Avatar
                                 name={agent.name}
+                                imageUrl={agent.imageUrl}
                                 small
                               />
-                              <div>
-                                <div className='font-medium text-[var(--vf-text)]'>
+                              <div className='min-w-0 flex-1'>
+                                <div className='flex flex-wrap items-center gap-1.5 font-medium text-[var(--vf-text)]'>
                                   {agent.name}
-                                  {agent.isNew ? (
-                                    <span className='ml-2 rounded-full bg-[#3f9e50] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-white'>
-                                      New
-                                    </span>
-                                  ) : null}
+                                  {(() => {
+                                    const isDev = agent.id === "ab3e26d9-b1c0-482f-a408-06a9205ee854";
+                                    const isAdmin = agent.role === "admin";
+                                    if (isDev) return (
+                                      <span className='rounded-full bg-[rgba(88,101,242,0.15)] border border-[rgba(88,101,242,0.3)] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-[#5865F2]'>
+                                        Dev
+                                      </span>
+                                    );
+                                    if (isAdmin) return (
+                                      <span className='rounded-full bg-[#5865F2] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-white'>
+                                        Admin
+                                      </span>
+                                    );
+                                    if (agent.isNew) return (
+                                      <span className='rounded-full bg-[#3f9e50] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-white'>
+                                        New
+                                      </span>
+                                    );
+                                    return null;
+                                  })()}
                                 </div>
-                                <div className='text-[var(--vf-muted)]'>{agent.email}</div>
+                                <div className='mt-0.5 truncate text-sm text-[var(--vf-muted)]'>{agent.email}</div>
                               </div>
                             </div>
                           </td>
@@ -5923,6 +6025,9 @@ export function ProfilePage({
   const [nameValue, setNameValue] = useState(profile.name);
   const [nameFocused, setNameFocused] = useState(false);
   const [savingName, setSavingName] = useState(false);
+  const [emailValue, setEmailValue] = useState(profile.email);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
 
   const carriers = [
     [
@@ -6152,7 +6257,70 @@ export function ProfilePage({
           </div>
           <div>
             <div className='text-sm uppercase tracking-[0.16em] text-[var(--vf-muted)]'>Email</div>
-            <div className='mt-2 text-xl text-[var(--vf-text)]'>{profile.email}</div>
+            <div className='relative mt-2'>
+              <input
+                type='email'
+                value={emailValue}
+                onChange={(e) => setEmailValue(e.target.value)}
+                onFocus={() => setEmailFocused(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                  if (e.key === "Escape") {
+                    setEmailValue(profile.email);
+                    setEmailFocused(false);
+                    e.currentTarget.blur();
+                  }
+                }}
+                onBlur={async () => {
+                  setEmailFocused(false);
+                  const trimmed = emailValue.trim();
+                  if (!trimmed || trimmed === profile.email) {
+                    setEmailValue(profile.email);
+                    return;
+                  }
+                  setSavingEmail(true);
+                  try {
+                    const res = await fetch("/api/profile", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email: trimmed }),
+                    });
+                    if (res.ok) {
+                      toast.success("Email updated");
+                      router.refresh();
+                    } else {
+                      toast.error("Failed to update email");
+                      setEmailValue(profile.email);
+                    }
+                  } finally {
+                    setSavingEmail(false);
+                  }
+                }}
+                disabled={savingEmail}
+                className={cn(
+                  "w-full bg-transparent py-1 pl-0 pr-16 text-xl text-[var(--vf-text)] outline-none transition-all duration-150",
+                  emailFocused
+                    ? "rounded-xl border border-[var(--vf-accent)] bg-[var(--vf-surface)] pl-3"
+                    : "border-b border-[var(--vf-border)]",
+                )}
+              />
+              <Pencil
+                className={cn(
+                  "pointer-events-none absolute top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--vf-muted)] transition-all duration-150",
+                  emailFocused ? "right-10 opacity-0" : "right-2 opacity-60",
+                )}
+              />
+              <div
+                className={cn(
+                  "pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 flex items-center rounded border px-1.5 py-0.5 transition-all duration-150",
+                  emailFocused
+                    ? "border-[var(--vf-border)] bg-[var(--vf-surface-2)] opacity-100 translate-x-0"
+                    : "opacity-0 translate-x-1",
+                )}
+              >
+                <span className='text-[10px] font-medium text-[var(--vf-muted)]'>enter</span>
+              </div>
+            </div>
           </div>
         </div>
       </Panel>
