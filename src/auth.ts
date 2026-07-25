@@ -21,6 +21,9 @@ declare module "next-auth/jwt" {
     agentId?: string;
     role?: string;
     email?: string;
+    discordUserId?: string;
+    discordUsername?: string | null;
+    discordGlobalName?: string | null;
     picture?: string | null;
     name?: string | null;
   }
@@ -36,7 +39,6 @@ type AgentRecord = {
 async function resolveAgentByEmail(email?: string | null): Promise<AgentRecord | null> {
   const normalizedEmail = email?.trim().toLowerCase();
   if (!normalizedEmail) {
-    console.error("[auth] resolveAgentByEmail missing email", { originalEmail: email ?? null });
     return null;
   }
 
@@ -84,6 +86,37 @@ async function resolveAgentByEmail(email?: string | null): Promise<AgentRecord |
   }
 
   return exactMatch;
+}
+
+async function resolveAgentByDiscordUserId(discordUserId?: string | null): Promise<AgentRecord | null> {
+  const normalizedDiscordUserId = discordUserId?.trim();
+  if (!normalizedDiscordUserId) {
+    return null;
+  }
+
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("agents")
+    .select("id, name, email, role")
+    .eq("discord_user_id", normalizedDiscordUserId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[auth] resolveAgentByDiscordUserId failed", {
+      discordUserId: normalizedDiscordUserId,
+      error: error.message,
+    });
+    return null;
+  }
+
+  if (!data) {
+    console.warn("[auth] resolveAgentByDiscordUserId no match", {
+      discordUserId: normalizedDiscordUserId,
+    });
+    return null;
+  }
+
+  return data as AgentRecord;
 }
 
 async function activateInvitedAgent(
@@ -142,6 +175,13 @@ async function resolveAgentFromToken(token: JWT): Promise<AgentRecord | null> {
     if (data && !error) return data;
   }
 
+  const discordAgent = await resolveAgentByDiscordUserId(
+    typeof token.discordUserId === "string" ? token.discordUserId : null,
+  );
+  if (discordAgent) {
+    return discordAgent;
+  }
+
   return resolveAgentByEmail(typeof token.email === "string" ? token.email : null);
 }
 
@@ -158,7 +198,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/auth/error",
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       console.log("[auth] signIn start", {
         email: user.email ?? null,
         name: user.name ?? null,
@@ -206,11 +246,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // await activateInvitedAgent(agent, user, discord);
       return true;
     },
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, trigger, account, profile }) {
       if (user?.email || trigger === "signIn") {
         token.email = user?.email ?? token.email;
         token.name = user?.name ?? token.name;
         token.picture = user?.image ?? token.picture;
+      }
+
+      if (trigger === "signIn") {
+        token.discordUserId = undefined;
+        token.discordUsername = undefined;
+        token.discordGlobalName = undefined;
+      }
+
+      const discordProfile = profile as { username?: string; global_name?: string } | undefined;
+      if (account?.provider === "discord") {
+        token.discordUserId = account.providerAccountId;
+        token.discordUsername = discordProfile?.username ?? token.discordUsername ?? null;
+        token.discordGlobalName = discordProfile?.global_name ?? token.discordGlobalName ?? null;
       }
 
       const agent = await resolveAgentFromToken(token);
@@ -222,6 +275,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       } else {
         delete token.agentId;
         delete token.role;
+        console.warn("[auth] no agent resolved from token", {
+          email: token.email ?? null,
+          discordUserId: token.discordUserId ?? null,
+        });
       }
 
       return token;
