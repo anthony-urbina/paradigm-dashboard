@@ -70,6 +70,13 @@ type KpiRecord = Record<KpiField, number> & {
   agent_id: string | null;
 };
 
+type ActivityRecord = {
+  dials: number;
+  conversations: number;
+  appointments: number;
+  presentations: number;
+};
+
 function emptyKpiRecord() {
   return {
     inbound_calls: 0,
@@ -89,6 +96,51 @@ function emptyKpiRecord() {
     recruiting_bom_invites: 0,
     recruiting_hired: 0,
   };
+}
+
+function isMissingKpiSubmissionsTable(error: { code?: string; message?: string } | null) {
+  return (
+    error?.code === "PGRST205" &&
+    typeof error.message === "string" &&
+    error.message.includes("public.kpi_submissions")
+  );
+}
+
+function buildActivityMetrics(source: Pick<
+  KpiRecord,
+  "inbound_billable" | "inbound_presentations" | "outbound_dials" | "outbound_pickups" | "outbound_appts_booked" | "outbound_presentations"
+>): ActivityRecord {
+  return {
+    dials: source.outbound_dials,
+    conversations: source.inbound_billable + source.outbound_pickups,
+    appointments: source.outbound_appts_booked,
+    presentations: source.inbound_presentations + source.outbound_presentations,
+  };
+}
+
+function mergeActivityMetrics(
+  existing: ActivityRecord,
+  kpi: z.infer<typeof kpiSchema>,
+): ActivityRecord {
+  const next = { ...existing };
+
+  if ("outbound_dials" in kpi) {
+    next.dials = kpi.outbound_dials ?? existing.dials;
+  }
+
+  if ("inbound_billable" in kpi || "outbound_pickups" in kpi) {
+    next.conversations = (kpi.inbound_billable ?? 0) + (kpi.outbound_pickups ?? 0);
+  }
+
+  if ("outbound_appts_booked" in kpi) {
+    next.appointments = kpi.outbound_appts_booked ?? existing.appointments;
+  }
+
+  if ("inbound_presentations" in kpi || "outbound_presentations" in kpi) {
+    next.presentations = (kpi.inbound_presentations ?? 0) + (kpi.outbound_presentations ?? 0);
+  }
+
+  return next;
 }
 
 export async function OPTIONS() {
@@ -178,6 +230,17 @@ export async function POST(req: Request) {
     agentMatched: Boolean(agentRow?.id),
   });
 
+  let mergedKpi: KpiRecord = {
+    ...emptyKpiRecord(),
+    ...parsed.data.kpi,
+    discord_user_id: parsed.data.discord_user_id,
+    submission_date: submissionDate,
+    submitted_at: submittedAt,
+    agent_id: agentRow?.id ?? null,
+  };
+  let kpiSubmissionStored = false;
+  let kpiSubmissionFallback = false;
+
   const { data: existingRow, error: existingError } = await supabase
     .from("kpi_submissions")
     .select(`
@@ -203,45 +266,89 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   if (existingError) {
-    console.error("[kpi-ingest] lookup error", existingError);
-    return NextResponse.json({ error: existingError.message }, { status: 500, headers: corsHeaders });
-  }
-
-  const mergedKpi: KpiRecord = {
-    ...emptyKpiRecord(),
-    ...(existingRow ?? {}),
-    ...parsed.data.kpi,
-    discord_user_id: parsed.data.discord_user_id,
-    submission_date: submissionDate,
-    submitted_at: submittedAt,
-    agent_id: agentRow?.id ?? null,
-  };
-
-  const { error: upsertError } = await supabase.from("kpi_submissions").upsert(mergedKpi, {
-    onConflict: "discord_user_id,submission_date",
-  });
-
-  if (upsertError) {
-    console.error("[kpi-ingest] upsert error", {
+    if (isMissingKpiSubmissionsTable(existingError)) {
+      kpiSubmissionFallback = true;
+      console.warn("[kpi-ingest] kpi_submissions missing, falling back to activity-only storage", {
+        discord_user_id: parsed.data.discord_user_id,
+        submissionDate,
+        error: existingError,
+      });
+    } else {
+      console.error("[kpi-ingest] lookup error", existingError);
+      return NextResponse.json({ error: existingError.message }, { status: 500, headers: corsHeaders });
+    }
+  } else {
+    mergedKpi = {
+      ...emptyKpiRecord(),
+      ...(existingRow ?? {}),
+      ...parsed.data.kpi,
       discord_user_id: parsed.data.discord_user_id,
-      submissionDate,
-      mergedKpi,
-      error: upsertError,
+      submission_date: submissionDate,
+      submitted_at: submittedAt,
+      agent_id: agentRow?.id ?? null,
+    };
+
+    const { error: upsertError } = await supabase.from("kpi_submissions").upsert(mergedKpi, {
+      onConflict: "discord_user_id,submission_date",
     });
-    return NextResponse.json({ error: upsertError.message }, { status: 500, headers: corsHeaders });
+
+    if (upsertError) {
+      if (isMissingKpiSubmissionsTable(upsertError)) {
+        kpiSubmissionFallback = true;
+        console.warn("[kpi-ingest] kpi_submissions upsert skipped because table is missing", {
+          discord_user_id: parsed.data.discord_user_id,
+          submissionDate,
+          error: upsertError,
+        });
+      } else {
+        console.error("[kpi-ingest] upsert error", {
+          discord_user_id: parsed.data.discord_user_id,
+          submissionDate,
+          mergedKpi,
+          error: upsertError,
+        });
+        return NextResponse.json({ error: upsertError.message }, { status: 500, headers: corsHeaders });
+      }
+    } else {
+      kpiSubmissionStored = true;
+    }
   }
 
   let activityUpdated = false;
 
   if (agentRow?.id) {
-    const activityPayload = {
+    let activityPayload = {
       agent_id: agentRow.id,
       date: submissionDate,
-      dials: mergedKpi.outbound_dials,
-      conversations: mergedKpi.inbound_billable + mergedKpi.outbound_pickups,
-      appointments: mergedKpi.outbound_appts_booked,
-      presentations: mergedKpi.inbound_presentations + mergedKpi.outbound_presentations,
+      ...buildActivityMetrics(mergedKpi),
     };
+
+    if (kpiSubmissionFallback) {
+      const { data: existingActivity, error: activityLookupError } = await supabase
+        .from("activity")
+        .select("dials, conversations, appointments, presentations")
+        .eq("agent_id", agentRow.id)
+        .eq("date", submissionDate)
+        .maybeSingle<ActivityRecord>();
+
+      if (activityLookupError) {
+        console.error("[kpi-ingest] activity lookup error", {
+          discord_user_id: parsed.data.discord_user_id,
+          submissionDate,
+          error: activityLookupError,
+        });
+        return NextResponse.json({ error: activityLookupError.message }, { status: 500, headers: corsHeaders });
+      }
+
+      activityPayload = {
+        agent_id: agentRow.id,
+        date: submissionDate,
+        ...mergeActivityMetrics(
+          existingActivity ?? { dials: 0, conversations: 0, appointments: 0, presentations: 0 },
+          parsed.data.kpi,
+        ),
+      };
+    }
 
     const { error: activityError } = await supabase.from("activity").upsert(activityPayload, {
       onConflict: "agent_id,date",
@@ -264,6 +371,8 @@ export async function POST(req: Request) {
     discord_user_id: parsed.data.discord_user_id,
     submissionDate,
     agentMatched: Boolean(agentRow?.id),
+    kpiSubmissionStored,
+    kpiSubmissionFallback,
     activityUpdated,
   });
 
@@ -271,6 +380,8 @@ export async function POST(req: Request) {
     {
       ok: true,
       agent_matched: !!agentRow,
+      kpi_submission_stored: kpiSubmissionStored,
+      kpi_submission_fallback: kpiSubmissionFallback,
       activity_updated: activityUpdated,
       submission_date: submissionDate,
     },
