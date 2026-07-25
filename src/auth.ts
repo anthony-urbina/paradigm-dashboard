@@ -36,6 +36,12 @@ type AgentRecord = {
   role: string;
 };
 
+type DiscordIdentity = {
+  userId: string;
+  username?: string | null;
+  globalName?: string | null;
+};
+
 async function resolveAgentByEmail(email?: string | null): Promise<AgentRecord | null> {
   const normalizedEmail = email?.trim().toLowerCase();
   if (!normalizedEmail) {
@@ -122,7 +128,7 @@ async function resolveAgentByDiscordUserId(discordUserId?: string | null): Promi
 async function activateInvitedAgent(
   agent: AgentRecord,
   user: { name?: string | null; image?: string | null },
-  discord?: { userId: string; username?: string | null; globalName?: string | null },
+  discord?: DiscordIdentity,
 ) {
   const update: Record<string, unknown> = {};
 
@@ -162,6 +168,52 @@ async function activateInvitedAgent(
   return data;
 }
 
+function buildDiscordFallbackEmail(discordUserId: string) {
+  return `discord-${discordUserId}@paradigm.local`;
+}
+
+async function createAgentForDiscordSignIn(
+  user: { email?: string | null; name?: string | null; image?: string | null },
+  discord: DiscordIdentity,
+): Promise<AgentRecord | null> {
+  const supabase = createServiceClient();
+  const email = user.email?.trim().toLowerCase() || buildDiscordFallbackEmail(discord.userId);
+  const name = user.name?.trim() || discord.globalName?.trim() || discord.username?.trim() || "Agent";
+
+  const { data, error } = await supabase
+    .from("agents")
+    .insert({
+      email,
+      name,
+      role: "agent",
+      profile_image_url: user.image ?? null,
+      discord_user_id: discord.userId,
+      discord_username: discord.username ?? null,
+      discord_global_name: discord.globalName ?? null,
+      discord_avatar_url: user.image ?? null,
+      discord_connected_at: new Date().toISOString(),
+    })
+    .select("id, name, email, role")
+    .maybeSingle();
+
+  if (error) {
+    console.error("[auth] createAgentForDiscordSignIn failed", {
+      email,
+      discordUserId: discord.userId,
+      error: error.message,
+    });
+    return null;
+  }
+
+  console.log("[auth] created agent from discord sign-in", {
+    agentId: data?.id ?? null,
+    email,
+    discordUserId: discord.userId,
+  });
+
+  return (data as AgentRecord | null) ?? null;
+}
+
 async function resolveAgentFromToken(token: JWT): Promise<AgentRecord | null> {
   const supabase = createServiceClient();
 
@@ -198,7 +250,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/auth/error",
   },
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       console.log("[auth] signIn start", {
         email: user.email ?? null,
         name: user.name ?? null,
@@ -220,6 +272,46 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           console.error("[auth] signIn — could not fetch guilds", { status: guildsRes.status });
           return "/login?error=guild_check_failed";
         }
+      }
+
+      if (account?.provider === "discord" && account.providerAccountId) {
+        const discord: DiscordIdentity = {
+          userId: account.providerAccountId,
+          username: (profile as { username?: string } | undefined)?.username ?? null,
+          globalName: (profile as { global_name?: string } | undefined)?.global_name ?? null,
+        };
+
+        const existingByDiscord = await resolveAgentByDiscordUserId(discord.userId);
+        if (existingByDiscord) {
+          await activateInvitedAgent(existingByDiscord, user, discord);
+          console.log("[auth] signIn matched existing discord agent", {
+            agentId: existingByDiscord.id,
+            discordUserId: discord.userId,
+          });
+          return true;
+        }
+
+        const existingByEmail = await resolveAgentByEmail(user.email);
+        if (existingByEmail) {
+          await activateInvitedAgent(existingByEmail, user, discord);
+          console.log("[auth] signIn linked discord to existing email agent", {
+            agentId: existingByEmail.id,
+            email: existingByEmail.email,
+            discordUserId: discord.userId,
+          });
+          return true;
+        }
+
+        const createdAgent = await createAgentForDiscordSignIn(user, discord);
+        if (createdAgent) {
+          return true;
+        }
+
+        console.error("[auth] signIn failed to provision discord agent", {
+          email: user.email ?? null,
+          discordUserId: discord.userId,
+        });
+        return "/auth/error?error=Configuration";
       }
 
       // const agent = await resolveAgentByEmail(user.email);
