@@ -242,7 +242,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Discord({
       clientId: process.env.AUTH_DISCORD_CLIENT_ID!,
       clientSecret: process.env.AUTH_DISCORD_CLIENT_SECRET!,
-      authorization: { params: { scope: "identify email guilds" } },
+      authorization: { params: { scope: "identify email guilds guilds.members.read" } },
     }),
   ],
   pages: {
@@ -256,21 +256,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         name: user.name ?? null,
       });
 
-      // Guild membership check
+      // Guild membership + active-agent role check
+      const GUILD_ID = "1336793736671137863";
+      const ACTIVE_AGENT_ROLE_ID = "1339711849070985407";
       if (account?.provider === "discord" && account.access_token) {
-        const guildsRes = await fetch("https://discord.com/api/users/@me/guilds", {
+        const memberRes = await fetch(`https://discord.com/api/users/@me/guilds/${GUILD_ID}/member`, {
           headers: { Authorization: `Bearer ${account.access_token}` },
         });
-        if (guildsRes.ok) {
-          const guilds = (await guildsRes.json()) as { id: string }[];
-          const inGuild = guilds.some((g) => g.id === "1336793736671137863");
-          if (!inGuild) {
-            console.error("[auth] signIn denied — not in guild", { email: user.email ?? null });
-            return "/login?error=not_in_server";
+        if (memberRes.ok) {
+          const member = (await memberRes.json()) as { roles: string[] };
+          if (!member.roles.includes(ACTIVE_AGENT_ROLE_ID)) {
+            console.error("[auth] signIn denied — missing active agent role", { email: user.email ?? null });
+            return "/auth/error?error=AccessDenied";
           }
         } else {
-          console.error("[auth] signIn — could not fetch guilds", { status: guildsRes.status });
-          return "/login?error=guild_check_failed";
+          // 404 means not in the guild at all
+          const status = memberRes.status;
+          console.error("[auth] signIn — could not fetch guild member", { status, email: user.email ?? null });
+          return status === 404 ? "/login?error=not_in_server" : "/login?error=guild_check_failed";
         }
       }
 

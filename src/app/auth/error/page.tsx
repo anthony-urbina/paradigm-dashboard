@@ -14,27 +14,27 @@ const errorContent: Record<
   }
 > = {
   AccessDenied: {
-    eyebrow: "Access restricted",
-    title: "This Google account doesn’t have dashboard access yet.",
-    description: "Your sign-in worked, but this email is not currently approved for Paradigm Financial.",
-    hint: "Ask your admin to add your email, then try again.",
+    eyebrow: "Paradigm Access",
+    title: "You need the Active Agent role to access this dashboard.",
+    description: "Your Discord sign-in worked, but your account doesn't have the Active Agent role in the Paradigm Financial server.",
+    hint: "Ask your admin to assign you the Active Agent role, then try signing in again.",
   },
   Configuration: {
-    eyebrow: "Auth setup issue",
-    title: "We hit a configuration problem while signing you in.",
-    description: "Something in the authentication setup is incomplete or temporarily misconfigured.",
-    hint: "Please try again shortly, or contact the team if this keeps happening.",
+    eyebrow: "Connection Issue",
+    title: "We hit a Discord sign-in configuration problem.",
+    description: "Something in the Paradigm authentication flow is incomplete or temporarily misconfigured.",
+    hint: "Try again in a moment, or contact the Paradigm team if this keeps happening.",
   },
   Verification: {
-    eyebrow: "Verification issue",
-    title: "We couldn’t verify your sign-in request.",
-    description: "The verification step expired or couldn’t be completed successfully.",
-    hint: "Start the sign-in flow again and complete it in one attempt.",
+    eyebrow: "Verification Issue",
+    title: "We couldn't verify your Discord sign-in request.",
+    description: "The verification step expired or couldn't be completed successfully.",
+    hint: "Start the Discord sign-in flow again and complete it in one attempt.",
   },
   Default: {
-    eyebrow: "Sign-in failed",
-    title: "We couldn’t complete your authentication.",
-    description: "Something interrupted the sign-in flow before we could open your dashboard.",
+    eyebrow: "Sign-In Failed",
+    title: "We couldn't complete your Paradigm sign-in.",
+    description: "Something interrupted the Discord authentication flow before we could open your dashboard.",
     hint: "Try again, and if it still fails, contact Paradigm support.",
   },
 };
