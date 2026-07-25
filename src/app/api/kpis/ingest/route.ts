@@ -39,7 +39,6 @@ const kpiSchema = z
 const ingestSchema = z.object({
   discord_user_id: z.string().min(1),
   submission_date: dateSchema.optional(),
-  submitted_at: z.string().datetime().optional(),
   kpi: kpiSchema,
 });
 
@@ -156,7 +155,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const submittedAt = parsed.data.submitted_at ?? new Date().toISOString();
+  const submittedAt = new Date().toISOString();
   const submissionDate = parsed.data.submission_date ?? submittedAt.slice(0, 10);
 
   console.log("[kpi-ingest] received payload", {

@@ -1,14 +1,14 @@
 {
   "2026-07-25": {
     "302261992477949952": {
-      "outbound_dials": 12,
-      "outbound_pickups": 6,
+      "outbound_dials": 120,
+      "outbound_pickups": 12,
       "outbound_presentations": 3,
       "outbound_sold": 1,
-      "outbound_ap": 810.0,
-      "outbound_lead_spend": 250.0,
-      "outbound_appts_booked": 3,
-      "submitted_at": "2026-07-25T06:54:39.251598-07:00"
+      "outbound_ap": 750.0,
+      "outbound_lead_spend": 150.0,
+      "outbound_appts_booked": 6,
+      "submitted_at": "2026-07-25T07:05:29.892782-07:00"
     }
   }
 }
