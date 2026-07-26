@@ -27,6 +27,7 @@ import {
   Receipt,
   Search,
   Shield,
+  Sparkles,
   ShieldCheck,
   Star,
   Swords,
@@ -1849,14 +1850,15 @@ function TeamGrowthEditor({
     setDeadline(teamGrowth?.deadline ?? "");
   }, [teamGrowth?.deadline, teamGrowth?.target]);
 
-  async function save() {
+  async function save(overrideDeadline?: string) {
+    const effectiveDeadline = overrideDeadline !== undefined ? overrideDeadline : deadline;
     if (!target || Number(target) < 0) {
       toast.error("Enter a valid target");
       return;
     }
     if (
       Number(target) === Number(teamGrowth?.target ?? "") &&
-      (deadline || "") === (teamGrowth?.deadline ?? "")
+      (effectiveDeadline || "") === (teamGrowth?.deadline ?? "")
     ) {
       setFocused(false);
       return;
@@ -1864,7 +1866,7 @@ function TeamGrowthEditor({
     setSaving(true);
     console.log("[Goals] Saving team growth goal", {
       target: Number(target),
-      hasDeadline: Boolean(deadline),
+      hasDeadline: Boolean(effectiveDeadline),
     });
     try {
       const res = await fetch("/api/goals", {
@@ -1873,7 +1875,7 @@ function TeamGrowthEditor({
         body: JSON.stringify({
           type: "team_growth",
           target: Number(target),
-          deadlineDate: deadline || undefined,
+          deadlineDate: effectiveDeadline || undefined,
         }),
       });
       if (res.ok) {
@@ -1957,7 +1959,10 @@ function TeamGrowthEditor({
           <div className='text-lg font-medium text-[var(--vf-text)]'>Target deadline (optional)</div>
           <DatePicker
             value={deadline}
-            onChange={setDeadline}
+            onChange={(val) => {
+              setDeadline(val);
+              void save(val);
+            }}
             placeholder='Pick a deadline'
             className='mt-2 text-lg'
             disablePast
@@ -4858,6 +4863,8 @@ export function AdminPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [sort, setSort] = useState<AdminSortConfig | null>(null);
+  const [aiImages, setAiImages] = useState<Record<string, string | null>>({});
+  const [aiGenerating, setAiGenerating] = useState<Record<string, boolean>>({});
 
   const pageSize = 10;
 
@@ -4882,7 +4889,152 @@ export function AdminPage({
     { label: "Leaderboard Posts", key: "leaderboardPosts" },
   ];
 
+  function buildLeaderboardPrompt(post: LeaderboardPostCard): string {
+    const fmtAp = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
+    const periodType = post.title.replace(/\s*post\s*/i, "").toUpperCase();
+    const top3 = post.entries.slice(0, 3);
+    const podiumLines = top3.map((e) => {
+      const pos   = e.rank === 1 ? "CENTER (tallest gold/marble podium)" : e.rank === 2 ? "LEFT (medium silver/white podium)" : "RIGHT (shortest silver/white podium)";
+      const ring  = e.rank === 1 ? "thick gold ring border and golden glow halo" : "silver ring border";
+      const crown = e.rank === 1 ? "gold crown" : "silver crown";
+      const apCol  = e.rank === 1 ? "large gold text" : "bold black text";
+      const avatar = e.imageUrl
+        ? `Use the attached profile photo for ${e.name} inside the circle.`
+        : `Show initials "${e.initials}" in bold inside the circle.`;
+      return `  #${e.rank} — ${pos}: Circle avatar with ${ring}. ${avatar} ${crown} above circle. Below podium: "${e.shortName}" bold italic, "TOTAL AP" label in small gray, ${fmtAp(e.ap)} in ${apCol}, "${e.salesCount} ${e.salesCount === 1 ? "sale" : "sales"}" in gray.`;
+    }).join("\n");
+    const restSection = post.entries.slice(3).length > 0
+      ? `\nADDITIONAL RANKINGS (two-column list below the podium):\n${post.entries.slice(3).map((e) => `  #${e.rank} ${e.shortName} — ${fmtAp(e.ap)}, ${e.salesCount} ${e.salesCount === 1 ? "sale" : "sales"}`).join("\n")}`
+      : "";
+    const imageAttachments = [
+      `• paradigm-logo.png — official Paradigm Financial logo (use exactly in header)`,
+      ...top3
+        .filter((e) => e.imageUrl)
+        .map((e) => {
+          const ext = e.imageUrl!.split("?")[0].split(".").pop() ?? "jpg";
+          return `• agent-${e.rank}-${e.initials.toLowerCase()}.${ext} — profile photo for #${e.rank} ${e.name}`;
+        }),
+    ];
+
+    return `=== HOW TO USE THIS PACKAGE ===
+Upload ALL of the following files (included in this ZIP) to ChatGPT, then paste this prompt.
+${imageAttachments.join("\n")}
+================================
+
+Create a professional sports-inspired leaderboard graphic for Paradigm Financial insurance agency. Portrait orientation (2:3 ratio), suitable for Instagram.
+
+STYLE: Off-white/cream textured background with dark gray grunge paint brush stroke splatters in the upper-left and upper-right corners. Bold athletic typography. Gold and silver metallic accents. Clean, high-contrast, premium social media graphic.
+
+LAYOUT (top to bottom):
+
+1. HEADER: Use the attached Paradigm Financial logo image exactly as-is, centered at the top. Do not redraw or approximate it.
+
+2. MAIN TITLE: "LEADERBOARD" — very large, bold, italic, black, athletic/brush-script style.
+
+3. SUBTITLE: "${periodType}" — large gold metallic gradient text. Gold brushstroke accent marks flanking the word on each side.
+
+4. DATE: "${post.periodLabel.toUpperCase()}" — small bold black centered text with thin horizontal lines extending left and right.
+
+5. PODIUM (three positions, classic award-podium layout):
+${podiumLines}
+   CRITICAL PODIUM HEIGHT RULES:
+   - #1 CENTER podium is by far the tallest — roughly 3× the height of the #3 podium. It dominates the center.
+   - #2 LEFT podium is only slightly taller than #3 — perhaps 20–30% taller at most. Nearly the same height as #3, NOT close to #1.
+   - #3 RIGHT podium is the shortest.
+   - Very large, obvious height gap between #1 and both #2 and #3.
+   - All three podium blocks share the same bottom edge. Ghost rank numbers inside each block. Gold rank badge for #1, dark gray for #2 and #3.
+${restSection}
+
+6. FOOTER BAR — lightly shaded rounded rectangle:
+   LEFT: Gold circle with "$" + "TEAM TOTAL AP" label in small gray caps + "${fmtAp(post.totalAp)}" in large gold.
+   VERTICAL DIVIDER.
+   RIGHT: Person silhouette icon + "WRITING AGENTS" label in small gray caps + "${post.writingAgents}" in large gold.
+
+7. BOTTOM TAGLINE: "ONE TEAM." | "ONE MISSION." | "ONE CHAMPION." separated by vertical lines. Small bold dark uppercase.
+
+Render all text exactly as specified. Use exact names and numbers. Professional, bold, Instagram-ready.`;
+  }
+
+  async function copyLeaderboardPrompt(post: LeaderboardPostCard) {
+    try {
+      await navigator.clipboard.writeText(buildLeaderboardPrompt(post));
+      toast.success("Prompt copied to clipboard");
+    } catch {
+      toast.error("Failed to copy prompt");
+    }
+  }
+
+  async function generateAiLeaderboardImage(post: LeaderboardPostCard) {
+    setAiGenerating((prev) => ({ ...prev, [post.key]: true }));
+    try {
+      const res = await fetch("/api/leaderboard-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(post),
+      });
+      if (!res.ok) {
+        const { error } = (await res.json()) as { error: string };
+        throw new Error(error ?? "Generation failed");
+      }
+      const { b64_json } = (await res.json()) as { b64_json: string };
+      setAiImages((prev) => ({ ...prev, [post.key]: b64_json }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to generate image");
+    } finally {
+      setAiGenerating((prev) => ({ ...prev, [post.key]: false }));
+    }
+  }
+
+  async function downloadLeaderboardPackage(post: LeaderboardPostCard) {
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+
+      // 1. Prompt text
+      zip.file("prompt.txt", buildLeaderboardPrompt(post));
+
+      // 2. Paradigm logo
+      const logoRes = await fetch("/paradigm-logo.png");
+      if (logoRes.ok) {
+        zip.file("paradigm-logo.png", await logoRes.arrayBuffer());
+      }
+
+      // 3. Agent profile photos for top 3
+      for (const entry of post.entries.slice(0, 3)) {
+        if (!entry.imageUrl) continue;
+        try {
+          const imgRes = await fetch(entry.imageUrl);
+          if (!imgRes.ok) continue;
+          const ext = entry.imageUrl.split("?")[0].split(".").pop() ?? "jpg";
+          const filename = `agent-${entry.rank}-${entry.initials.toLowerCase()}.${ext}`;
+          zip.file(filename, await imgRes.arrayBuffer());
+        } catch { /* skip on failure */ }
+      }
+
+      // 4. Download the zip
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url  = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href     = url;
+      link.download = `paradigm-${post.key}-leaderboard-package.zip`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success("Package downloaded — extract the ZIP, then upload all files to ChatGPT");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create package");
+    }
+  }
+
   async function downloadLeaderboardPost(post: LeaderboardPostCard) {
+    const b64 = aiImages[post.key];
+    if (b64) {
+      // Download the AI-generated image
+      const link = document.createElement("a");
+      link.href = `data:image/png;base64,${b64}`;
+      link.download = `paradigm-leaderboard-${post.key}.png`;
+      link.click();
+      return;
+    }
     try {
       const blob = await leaderboardPostPngBlob(post);
       const url = URL.createObjectURL(blob);
@@ -4904,8 +5056,15 @@ export function AdminPage({
         return;
       }
 
-      const blob = await leaderboardPostPngBlob(post);
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      const b64 = aiImages[post.key];
+      if (b64) {
+        const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: "image/png" });
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      } else {
+        const blob = await leaderboardPostPngBlob(post);
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      }
       toast.success("Leaderboard post copied");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to copy leaderboard post");
@@ -5539,61 +5698,114 @@ export function AdminPage({
             </>
           )}
 
-          {tab === "leaderboardPosts" && (
-            <div className='space-y-5'>
-              {leaderboardPosts.cards.map((post) => (
-                <div
-                  key={post.key}
-                  className='py-2'
-                >
-                  <div className='flex flex-wrap items-start justify-between gap-4'>
-                    <div>
-                      <div className='flex items-center gap-3'>
-                        <div className='flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--vf-surface)] text-[var(--vf-accent)]'>
-                          <ImageIcon className='h-5 w-5' />
+          {tab === "leaderboardPosts" && (() => {
+            const anyGenerating = Object.values(aiGenerating).some(Boolean);
+            return (
+              <div className='space-y-4'>
+                {leaderboardPosts.cards.map((post) => {
+                  const aiImg     = aiImages[post.key] ?? null;
+                  const generating = aiGenerating[post.key] ?? false;
+                  const hasAiImg  = !!aiImg;
+                  const blockedByOther = anyGenerating && !generating;
+                  return (
+                    <Panel key={post.key} className='p-5'>
+                      <div className='flex flex-wrap items-center justify-between gap-4'>
+                        <div className='flex items-center gap-3'>
+                          <div className='flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--vf-surface)] text-[var(--vf-accent)]'>
+                            <ImageIcon className='h-4 w-4' />
+                          </div>
+                          <div>
+                            <h2 className='text-lg font-semibold text-[var(--vf-text)]'>{post.title}</h2>
+                            <p className='text-xs text-[var(--vf-muted)]'>{post.periodLabel}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h2 className='text-3xl font-semibold text-[var(--vf-text)]'>{post.title}</h2>
-                          <p className='mt-1 text-sm text-[var(--vf-muted)]'>
-                            {post.periodLabel} · {post.shareLabel}
-                          </p>
+
+                        <div className='flex items-center gap-2'>
+                          <button
+                            onClick={() => void generateAiLeaderboardImage(post)}
+                            disabled={!post.ready || generating || blockedByOther}
+                            className='inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-[var(--vf-accent)] px-4 py-2 text-sm font-semibold text-[var(--vf-accent-fg)] disabled:cursor-not-allowed disabled:opacity-40'
+                          >
+                            <Sparkles className={cn('h-4 w-4', generating && 'animate-spin')} />
+                            {generating ? 'Generating…' : hasAiImg ? 'Regenerate' : 'Generate'}
+                          </button>
+                          {post.ready && (
+                            <button
+                              onClick={() => void downloadLeaderboardPackage(post)}
+                              className='inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-semibold text-[var(--vf-text)]'
+                              title='Download a ZIP with the prompt + all images — upload everything to ChatGPT at once'
+                            >
+                              <Download className='h-4 w-4' />
+                              Download Package
+                            </button>
+                          )}
+                          {post.ready && (
+                            <button
+                              onClick={() => void copyLeaderboardPrompt(post)}
+                              className='inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-semibold text-[var(--vf-text)]'
+                              title='Copy just the prompt text'
+                            >
+                              <Copy className='h-4 w-4' />
+                              Copy Prompt
+                            </button>
+                          )}
+                          {hasAiImg && (
+                            <>
+                              <button
+                                onClick={() => void copyLeaderboardPost(post)}
+                                disabled={generating}
+                                className='inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-semibold text-[var(--vf-text)] disabled:cursor-not-allowed disabled:opacity-40'
+                              >
+                                <Copy className='h-4 w-4' />
+                                Copy
+                              </button>
+                              <button
+                                onClick={() => void downloadLeaderboardPost(post)}
+                                disabled={generating}
+                                className='inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-semibold text-[var(--vf-text)] disabled:cursor-not-allowed disabled:opacity-40'
+                              >
+                                <Download className='h-4 w-4' />
+                                Download
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
-                    </div>
 
-                    <div className='flex flex-wrap items-center gap-2'>
-                      <button
-                        onClick={() => void copyLeaderboardPost(post)}
-                        disabled={!post.ready}
-                        className='inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--vf-text)] disabled:cursor-not-allowed disabled:opacity-50'
-                      >
-                        <Copy className='h-4 w-4' />
-                        Copy image
-                      </button>
-                      <button
-                        onClick={() => void downloadLeaderboardPost(post)}
-                        disabled={!post.ready}
-                        className='inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-[var(--vf-accent)] px-4 py-2.5 text-sm font-semibold text-[var(--vf-accent-fg)] disabled:cursor-not-allowed disabled:opacity-50'
-                      >
-                        <Download className='h-4 w-4' />
-                        Download PNG
-                      </button>
-                    </div>
-                  </div>
+                      <div className='mt-4'>
+                        {generating && (
+                          <div className='flex items-center justify-center rounded-2xl border border-dashed border-[var(--vf-border)] bg-[var(--vf-surface)] py-16'>
+                            <div className='text-center'>
+                              <Sparkles className='mx-auto mb-3 h-7 w-7 animate-pulse text-[var(--vf-accent)]' />
+                              <p className='text-sm text-[var(--vf-muted)]'>Generating with AI…</p>
+                              <p className='mt-1 text-xs text-[var(--vf-muted)] opacity-60'>~15–30 seconds</p>
+                            </div>
+                          </div>
+                        )}
 
-                  {post.ready ? (
-                    <div className='mt-6'>
-                      <LeaderboardPostPreview post={post} />
-                    </div>
-                  ) : (
-                    <div className='mt-6 rounded-[28px] border border-dashed border-[var(--vf-border)] bg-[var(--vf-surface)] px-6 py-10 text-center text-[var(--vf-muted)]'>
-                      {post.emptyMessage}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                        {!generating && hasAiImg && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={`data:image/png;base64,${aiImg}`}
+                            alt={`AI-generated ${post.title}`}
+                            className='mx-auto block w-full max-w-xs rounded-2xl shadow-xl'
+                          />
+                        )}
+
+                        {!generating && !hasAiImg && (
+                          <div className='rounded-2xl border border-dashed border-[var(--vf-border)] bg-[var(--vf-surface)] px-6 py-8 text-center text-sm text-[var(--vf-muted)]'>
+                            {post.ready
+                              ? <>Click <span className='font-semibold text-[var(--vf-text)]'>Generate</span> to create this leaderboard graphic.</>
+                              : post.emptyMessage}
+                          </div>
+                        )}
+                      </div>
+                    </Panel>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
           {tab === "subAgencies" && (
             <Panel className='p-6'>
