@@ -820,30 +820,59 @@ function HeaderNav({
   const [logoBroken, setLogoBroken] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const adminBadge = isAdmin ? (
+  const adminBadgeAbsolute = isAdmin ? (
+    <div className='admin-badge-animate absolute -bottom-1 -right-1 inline-flex translate-x-[calc(1/3*100%+0.5rem)] translate-y-1/3 items-center gap-0.5 rounded-full border border-[rgba(88,101,242,0.4)] bg-[#5865F2] px-1.5 py-0.5 text-[6px] font-semibold uppercase tracking-[0.16em] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]'>
+      <Shield className='h-2 w-2' />
+      Admin
+    </div>
+  ) : null;
+
+  const adminBadgeInline = isAdmin ? (
     <div className='admin-badge-animate inline-flex items-center gap-0.5 rounded-full border border-[rgba(88,101,242,0.4)] bg-[#5865F2] px-1.5 py-0.5 text-[6px] font-semibold uppercase tracking-[0.16em] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]'>
       <Shield className='h-2 w-2' />
       Admin
     </div>
   ) : null;
 
+  // Desktop: original absolute-positioned badge
   const brand = !logoBroken ? (
+    <div className='relative inline-flex'>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src='/Paradigm Financial Logo-21.png'
+        alt='Paradigm Financial logo'
+        className='h-12 w-auto max-w-[165px] object-contain'
+        onError={() => setLogoBroken(true)}
+      />
+      {adminBadgeAbsolute}
+    </div>
+  ) : (
+    <div className='relative inline-flex'>
+      <div className='text-[1.05rem] font-semibold uppercase tracking-[0.38em] text-[var(--vf-text)]'>
+        Paradigm Financial
+      </div>
+      {adminBadgeAbsolute}
+    </div>
+  );
+
+  // Mobile: badge sits below logo in a column so it doesn't overflow
+  const mobileBrand = !logoBroken ? (
     <div className='inline-flex flex-col items-start gap-1'>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src='/Paradigm Financial Logo-21.png'
         alt='Paradigm Financial logo'
-        className='h-12 w-auto max-w-[135px] object-contain sm:max-w-[165px]'
+        className='h-10 w-auto max-w-[135px] object-contain'
         onError={() => setLogoBroken(true)}
       />
-      {adminBadge}
+      {adminBadgeInline}
     </div>
   ) : (
     <div className='inline-flex flex-col items-start gap-1'>
       <div className='text-[1.05rem] font-semibold uppercase tracking-[0.38em] text-[var(--vf-text)]'>
         Paradigm Financial
       </div>
-      {adminBadge}
+      {adminBadgeInline}
     </div>
   );
 
@@ -863,7 +892,7 @@ function HeaderNav({
             href='/dashboard'
             className='flex min-w-0 items-center gap-3'
           >
-            {brand}
+            {mobileBrand}
           </Link>
           <Link
             href='/dashboard/profile'
@@ -901,7 +930,7 @@ function HeaderNav({
             onClick={() => setMenuOpen(false)}
             className='flex items-center gap-3'
           >
-            {brand}
+            {mobileBrand}
           </Link>
           <NavLinks
             pathname={pathname}
