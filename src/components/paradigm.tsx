@@ -132,6 +132,24 @@ const DAILY_MOTIVATION_QUOTES = [
   "Be impatient with your actions. Be patient with your results.",
   "Every action you take is a vote for the type of person you wish to become.",
   "Most people need consistency more than they need intensity.",
+  "You don't need more information. You need more repetitions.",
+  "Your future is built by today's boring work.",
+  "Discipline solves problems that motivation never will.",
+  "Results are rented, and rent is due every day.",
+  "The uncomfortable path usually pays the highest return.",
+  "Excellence is built through ordinary days.",
+  "Change happens when the pain of staying the same becomes greater than the pain of changing.",
+  "The scoreboard doesn't care how you feel.",
+  "Volume creates skill. Skill creates confidence.",
+  "F*ck your mood. Follow the plan.",
+  "Your team will never outperform your example.",
+  "Production solves almost every problem.",
+  "You don't become confident before you act. You become confident because you act.",
+  "The reps you don't want to do are usually the ones that matter most.",
+  "Success is just doing the unremarkable things longer than everyone else.",
+  "Comfort is expensive.",
+  "Execution over emotion.",
+  "Done beats perfect.",
 ] as const;
 
 const navItems = [
@@ -1660,7 +1678,7 @@ export function WelcomePage({
             </div>
           </div>
           <div className='mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--vf-muted)]'>
-            Daily motivation
+            Daily reminder
           </div>
           <button
             onClick={rollMotivationQuote}
