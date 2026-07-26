@@ -821,14 +821,14 @@ function HeaderNav({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const adminBadge = isAdmin ? (
-    <div className='admin-badge-animate absolute -bottom-1 -right-1 inline-flex translate-x-[calc(1/3*100%+0.5rem)] translate-y-1/3 items-center gap-0.5 rounded-full border border-[rgba(88,101,242,0.4)] bg-[#5865F2] px-1.5 py-0.5 text-[6px] font-semibold uppercase tracking-[0.16em] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]'>
+    <div className='admin-badge-animate inline-flex items-center gap-0.5 rounded-full border border-[rgba(88,101,242,0.4)] bg-[#5865F2] px-1.5 py-0.5 text-[6px] font-semibold uppercase tracking-[0.16em] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]'>
       <Shield className='h-2 w-2' />
       Admin
     </div>
   ) : null;
 
   const brand = !logoBroken ? (
-    <div className='relative inline-flex'>
+    <div className='inline-flex flex-col items-start gap-1'>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src='/Paradigm Financial Logo-21.png'
@@ -839,7 +839,7 @@ function HeaderNav({
       {adminBadge}
     </div>
   ) : (
-    <div className='relative inline-flex'>
+    <div className='inline-flex flex-col items-start gap-1'>
       <div className='text-[1.05rem] font-semibold uppercase tracking-[0.38em] text-[var(--vf-text)]'>
         Paradigm Financial
       </div>
@@ -3822,183 +3822,264 @@ function escapeXml(value: string) {
 }
 
 function leaderboardPostSvg(post: LeaderboardPostCard) {
-  // Helper to format AP as dollar string
   const fmtAp = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 
-  // Podium entries (top 3)
   const e1 = post.entries[0];
   const e2 = post.entries[1];
   const e3 = post.entries[2];
 
-  // Grid entries (ranks 4+), up to 9 more to fill two columns of up to ~5 rows each
   const gridEntries = post.entries.slice(3, 13);
-
-  // Split grid into left column (even indices) and right column (odd indices)
-  const leftCol = gridEntries.filter((_, i) => i % 2 === 0);
+  const leftCol  = gridEntries.filter((_, i) => i % 2 === 0);
   const rightCol = gridEntries.filter((_, i) => i % 2 === 1);
   const rowCount = Math.max(leftCol.length, rightCol.length);
 
-  const gridStartY = 810;
-  const rowH = 54;
+  // Period label e.g. "WEEKLY", "DAILY", "MONTHLY"
+  const periodType = post.title.replace(/\s*post\s*/i, "").toUpperCase();
 
+  // ── Layout ──────────────────────────────────────────────────────────────
+  // Podium geometry (x = left edge, w = width, h = height, cx = center x)
+  const p1 = { x: 390, w: 300, h: 198, cx: 540, r: 82 };
+  const p2 = { x: 78,  w: 262, h: 152, cx: 209, r: 62 };
+  const p3 = { x: 740, w: 262, h: 114, cx: 871, r: 62 };
+
+  const podiumBottomY = 830;
+  const p1top = podiumBottomY - p1.h; // 632
+  const p2top = podiumBottomY - p2.h; // 678
+  const p3top = podiumBottomY - p3.h; // 716
+
+  // Avatar vertical centers (sit just above podium top)
+  const cy1 = p1top - p1.r - 10; // 540
+  const cy2 = p2top - p2.r - 10; // 606
+  const cy3 = p3top - p3.r - 10; // 644
+
+  // Info text below podium
+  const infoStartY = podiumBottomY + 22;
+  const gridStartY = infoStartY + 172;
+  const rowH       = 56;
+
+  const totalH = gridStartY + rowCount * rowH + 280;
+
+  // ── Grid rows (ranks 4+) ──────────────────────────────────────────────
   const gridRows = Array.from({ length: rowCount }, (_, i) => {
-    const y = gridStartY + i * rowH;
-    const lEntry = leftCol[i];
-    const rEntry = rightCol[i];
-    const separatorY = y + rowH - 4;
-    const mid = y + Math.round(rowH / 2) + 8;
-    const leftSvg = lEntry
-      ? `
-      <text x="86" y="${mid}" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${lEntry.rank}</text>
-      <text x="132" y="${mid}" fill="#DBDEE1" font-size="22" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(lEntry.shortName)}</text>
-      <text x="370" y="${mid}" fill="#949BA4" font-size="15" font-family="Arial, sans-serif" font-style="italic" text-anchor="end">${lEntry.salesCount} ${lEntry.salesCount === 1 ? "sale" : "sales"}</text>
-      <text x="516" y="${mid}" fill="#ffffff" font-size="22" font-family="Arial, sans-serif" font-weight="900" font-style="italic" text-anchor="end">${fmtAp(lEntry.ap)}</text>
-    `
+    const y    = gridStartY + i * rowH;
+    const mid  = y + Math.round(rowH / 2) + 8;
+    const l    = leftCol[i];
+    const r    = rightCol[i];
+    const lSvg = l ? `
+      <text x="88"  y="${mid}" fill="#B8860B" font-size="20" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${l.rank}</text>
+      <text x="130" y="${mid}" fill="#1a1a1a" font-size="20" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(l.shortName)}</text>
+      <text x="370" y="${mid}" fill="#888888" font-size="14" font-family="Arial, sans-serif" text-anchor="end">${l.salesCount} ${l.salesCount === 1 ? "sale" : "sales"}</text>
+      <text x="514" y="${mid}" fill="#1a1a1a" font-size="20" font-family="Arial, sans-serif" font-weight="900" font-style="italic" text-anchor="end">${fmtAp(l.ap)}</text>` : "";
+    const rSvg = r ? `
+      <text x="556" y="${mid}" fill="#B8860B" font-size="20" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${r.rank}</text>
+      <text x="598" y="${mid}" fill="#1a1a1a" font-size="20" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(r.shortName)}</text>
+      <text x="838" y="${mid}" fill="#888888" font-size="14" font-family="Arial, sans-serif" text-anchor="end">${r.salesCount} ${r.salesCount === 1 ? "sale" : "sales"}</text>
+      <text x="982" y="${mid}" fill="#1a1a1a" font-size="20" font-family="Arial, sans-serif" font-weight="900" font-style="italic" text-anchor="end">${fmtAp(r.ap)}</text>` : "";
+    const sep = i < rowCount - 1
+      ? `<line x1="72" y1="${y + rowH - 1}" x2="1008" y2="${y + rowH - 1}" stroke="rgba(0,0,0,0.07)" stroke-width="1"/>`
       : "";
-    const rightSvg = rEntry
-      ? `
-      <text x="558" y="${mid}" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${rEntry.rank}</text>
-      <text x="602" y="${mid}" fill="#DBDEE1" font-size="22" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(rEntry.shortName)}</text>
-      <text x="840" y="${mid}" fill="#949BA4" font-size="15" font-family="Arial, sans-serif" font-style="italic" text-anchor="end">${rEntry.salesCount} ${rEntry.salesCount === 1 ? "sale" : "sales"}</text>
-      <text x="988" y="${mid}" fill="#ffffff" font-size="22" font-family="Arial, sans-serif" font-weight="900" font-style="italic" text-anchor="end">${fmtAp(rEntry.ap)}</text>
-    `
-      : "";
-    const sep =
-      i < rowCount - 1
-        ? `<line x1="72" y1="${y + rowH - 1}" x2="1008" y2="${y + rowH - 1}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`
-        : "";
-    return leftSvg + rightSvg + sep;
+    return lSvg + rSvg + sep;
   }).join("");
 
-  // Podium avatar helper
-  const avatar = (
-    cx: number,
-    cy: number,
-    r: number,
-    initials: string,
-    ringColor: string,
-    badgeRank: number,
-  ) => {
-    const badgeCy = cy + r - 4;
-    const badgeColor = badgeRank === 1 ? "#F15025" : badgeRank === 2 ? "#5865F2" : "rgba(205,127,79,0.9)";
+  // ── Avatar circle helper ──────────────────────────────────────────────
+  const avatar = (cx: number, cy: number, r: number, initials: string, rank: number) => {
+    const isFirst  = rank === 1;
+    const ringFill = isFirst ? "url(#goldRing)" : "url(#silverRing)";
+    const bgFill   = isFirst ? "url(#av1Bg)" : "url(#av23Bg)";
+    const textFill = isFirst ? "#111111" : "#333333";
+    const badgeFill = isFirst ? "url(#goldRing)" : "#555555";
+    const badgeText = isFirst ? "#111111" : "#ffffff";
+    const badgeCy   = cy + r - 2;
     return `
-      <circle cx="${cx}" cy="${cy}" r="${r + 6}" fill="${ringColor}" />
-      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#1e2124" />
-      <text x="${cx}" y="${cy + (r > 70 ? 16 : 12)}" text-anchor="middle" fill="#ffffff" font-size="${r > 70 ? 44 : 34}" font-family="Arial, sans-serif" font-weight="700">${escapeXml(initials)}</text>
-      <circle cx="${cx}" cy="${badgeCy}" r="18" fill="${badgeColor}" />
-      <text x="${cx}" y="${badgeCy + 6}" text-anchor="middle" fill="#ffffff" font-size="16" font-family="Arial, sans-serif" font-weight="700">${badgeRank}</text>
-    `;
+      ${isFirst ? `<circle cx="${cx}" cy="${cy}" r="${r + 22}" fill="url(#goldAura)" />` : ""}
+      <circle cx="${cx}" cy="${cy}" r="${r + 8}" fill="${ringFill}" />
+      <circle cx="${cx}" cy="${cy}" r="${r}"     fill="${bgFill}" />
+      <text x="${cx}" y="${cy + (isFirst ? 17 : 13)}" text-anchor="middle" fill="${textFill}"
+        font-size="${isFirst ? 44 : 34}" font-family="Arial, sans-serif" font-weight="900">${escapeXml(initials)}</text>
+      <rect x="${cx - 17}" y="${badgeCy - 14}" width="34" height="26" rx="7" fill="${badgeFill}"/>
+      <text x="${cx}" y="${badgeCy + 5}" text-anchor="middle" fill="${badgeText}"
+        font-size="14" font-family="Arial, sans-serif" font-weight="900">${rank}</text>`;
   };
 
-  // Name card helper — includes sales count so cards don't look empty
-  const nameCard = (
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    name: string,
-    ap: number,
-    salesCount: number,
-    borderColor: string,
-    apColor: string,
-    isFirst = false,
-  ) => `
-    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18" fill="#161819" stroke="${borderColor}" stroke-width="1.5"/>
-    <text x="${x + w / 2}" y="${y + 38}" text-anchor="middle" fill="#DBDEE1" font-size="${isFirst ? 28 : 24}" font-family="Arial, sans-serif" font-weight="800" font-style="italic">${escapeXml(name)}</text>
-    <text x="${x + w / 2}" y="${y + 64}" text-anchor="middle" fill="#949BA4" font-size="13" font-family="Arial, sans-serif" letter-spacing="3">TOTAL AP</text>
-    ${
-      isFirst
-        ? `
-      <text x="${x + w / 2}" y="${y + 108}" text-anchor="middle" fill="${apColor}" font-size="46" font-family="Arial, sans-serif" font-weight="900" font-style="italic"
-        filter="url(#apGlow)">${fmtAp(ap)}</text>
-    `
-        : `
-      <text x="${x + w / 2}" y="${y + 104}" text-anchor="middle" fill="${apColor}" font-size="30" font-family="Arial, sans-serif" font-weight="800" font-style="italic">${fmtAp(ap)}</text>
-    `
-    }
-    <text x="${x + w / 2}" y="${y + 130}" text-anchor="middle" fill="#949BA4" font-size="15" font-family="Arial, sans-serif" font-style="italic">${salesCount} ${salesCount === 1 ? "sale" : "sales"}</text>
-  `;
+  // ── Info text (name + stats) below podium ────────────────────────────
+  const info = (cx: number, y: number, name: string, ap: number, sales: number, isFirst: boolean) => {
+    const nSize  = isFirst ? 26 : 22;
+    const apSize = isFirst ? 46 : 32;
+    const apFill = isFirst ? "url(#goldGrad)" : "#1a1a1a";
+    return `
+      <text x="${cx}" y="${y + 34}"  text-anchor="middle" fill="#111111" font-size="${nSize}"
+        font-family="Arial, sans-serif" font-weight="900" font-style="italic">${escapeXml(name)}</text>
+      <text x="${cx}" y="${y + 60}"  text-anchor="middle" fill="#999999" font-size="12"
+        font-family="Arial, sans-serif" font-weight="700" letter-spacing="3">TOTAL AP</text>
+      <text x="${cx}" y="${y + 60 + apSize + 6}" text-anchor="middle" fill="${apFill}" font-size="${apSize}"
+        font-family="Arial, sans-serif" font-weight="900" font-style="italic">${fmtAp(ap)}</text>
+      <text x="${cx}" y="${y + 60 + apSize + 32}" text-anchor="middle" fill="#999999" font-size="14"
+        font-family="Arial, sans-serif">${sales} ${sales === 1 ? "sale" : "sales"}</text>`;
+  };
 
-  const totalH = gridStartY + rowCount * rowH + 260; // footer 116 + tagline + bottom pad
+  // ── Footer ────────────────────────────────────────────────────────────
+  const footerY = gridStartY + rowCount * rowH + 36;
+  const footerH = 124;
+  const footerCy = footerY + footerH / 2;
+
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="${totalH}" viewBox="0 0 1080 ${totalH}">
       <defs>
-        <linearGradient id="bg" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="#0d0f11" />
-          <stop offset="100%" stop-color="#111214" />
+        <linearGradient id="bgGrad" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%"   stop-color="#f5f3ef"/>
+          <stop offset="100%" stop-color="#e9e6df"/>
         </linearGradient>
-        <linearGradient id="accentGrad" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stop-color="#F15025" />
-          <stop offset="100%" stop-color="#ff8a67" />
+        <linearGradient id="goldGrad" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%"   stop-color="#F5D060"/>
+          <stop offset="45%"  stop-color="#C8921A"/>
+          <stop offset="100%" stop-color="#8A6010"/>
         </linearGradient>
-        <filter id="apGlow" x="-20%" y="-30%" width="140%" height="160%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur1"/>
-          <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur2"/>
-          <feMerge>
-            <feMergeNode in="blur2"/>
-            <feMergeNode in="blur1"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
+        <linearGradient id="goldRing" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%"   stop-color="#F0D060"/>
+          <stop offset="50%"  stop-color="#C8921A"/>
+          <stop offset="100%" stop-color="#E0B030"/>
+        </linearGradient>
+        <linearGradient id="silverRing" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%"   stop-color="#e4e4e2"/>
+          <stop offset="100%" stop-color="#9a9a98"/>
+        </linearGradient>
+        <linearGradient id="podium1" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%"   stop-color="#ede0a8"/>
+          <stop offset="100%" stop-color="#c8a030"/>
+        </linearGradient>
+        <linearGradient id="podium23" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%"   stop-color="#f2f2f0"/>
+          <stop offset="100%" stop-color="#cacac6"/>
+        </linearGradient>
+        <radialGradient id="goldAura" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stop-color="#FFD700" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="#FFD700" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="av1Bg" cx="38%" cy="28%" r="72%">
+          <stop offset="0%"   stop-color="#ffffff"/>
+          <stop offset="100%" stop-color="#f0ede6"/>
+        </radialGradient>
+        <radialGradient id="av23Bg" cx="38%" cy="28%" r="72%">
+          <stop offset="0%"   stop-color="#eeecea"/>
+          <stop offset="100%" stop-color="#d4d2ce"/>
+        </radialGradient>
       </defs>
 
       <!-- Background -->
-      <rect width="1080" height="${totalH}" fill="url(#bg)" />
+      <rect width="1080" height="${totalH}" fill="url(#bgGrad)"/>
 
-      <!-- Top orange accent bar -->
-      <rect x="0" y="0" width="1080" height="6" fill="url(#accentGrad)" />
+      <!-- Corner brush strokes -->
+      <path d="M-70,0 Q220,-28 440,82 Q390,162 70,196 Q-25,204 -70,156 Z"  fill="rgba(110,104,92,0.20)"/>
+      <path d="M-50,12 Q170,0 380,72 Q210,116 -50,96 Z"                     fill="rgba(90,84,74,0.13)"/>
+      <path d="M1150,0 Q860,-28 640,82 Q690,162 1010,196 Q1105,204 1150,156 Z" fill="rgba(110,104,92,0.20)"/>
+      <path d="M1130,12 Q910,0 700,72 Q870,116 1130,96 Z"                    fill="rgba(90,84,74,0.13)"/>
+      <path d="M-50,${totalH} Q130,${totalH - 110} 360,${totalH - 52} L300,${totalH} Z" fill="rgba(90,84,74,0.11)"/>
+      <path d="M1130,${totalH} Q950,${totalH - 110} 720,${totalH - 52} L780,${totalH} Z" fill="rgba(90,84,74,0.11)"/>
 
-      <!-- Logo circle -->
-      <circle cx="540" cy="108" r="56" fill="rgba(241,80,37,0.12)" stroke="#F15025" stroke-width="2" />
-      <g transform="translate(540, 108)">
-        <polygon points="0,-26 -14,-4 14,-4" stroke="rgba(255,255,255,0.9)" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
-        <polygon points="-14,-4 -20,8 20,8 14,-4" stroke="rgba(255,255,255,0.9)" stroke-width="2" fill="none" stroke-linejoin="round"/>
-        <polygon points="-20,8 -28,22 28,22 20,8" stroke="rgba(255,255,255,0.9)" stroke-width="2" fill="none" stroke-linejoin="round"/>
-        <polyline points="-22,34 -16,27 -10,34" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
-        <polyline points="-4,34 2,27 8,34" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
+      <!-- Paradigm logo -->
+      <g transform="translate(540,72)">
+        <polygon points="0,-30 -17,-4 17,-4" stroke="#111111" stroke-width="2.8" fill="none" stroke-linejoin="round"/>
+        <line x1="-17" y1="-4" x2="-23" y2="9" stroke="#111111" stroke-width="2.8"/>
+        <line x1="17"  y1="-4" x2="23"  y2="9" stroke="#111111" stroke-width="2.8"/>
+        <line x1="-23" y1="9"  x2="23"  y2="9" stroke="#111111" stroke-width="2.8"/>
       </g>
+      <text x="540" y="120" text-anchor="middle" fill="#111111" font-size="15"
+        font-family="Arial, sans-serif" font-weight="800" letter-spacing="6">PARADIGM</text>
+      <text x="540" y="141" text-anchor="middle" fill="#444444" font-size="13"
+        font-family="Arial, sans-serif" font-weight="400" letter-spacing="6">FINANCIAL</text>
 
-      <!-- Company name -->
-      <text x="540" y="200" text-anchor="middle" fill="#F15025" font-size="22" font-family="Arial, sans-serif" font-weight="800" font-style="italic" letter-spacing="8">PARADIGM FINANCIAL</text>
+      <!-- LEADERBOARD title -->
+      <text x="540" y="236" text-anchor="middle" fill="#0d0d0d" font-size="98"
+        font-family="Arial Black, Arial, sans-serif" font-weight="900" font-style="italic" letter-spacing="-1">LEADERBOARD</text>
 
-      <!-- Main title -->
-      <text x="540" y="264" text-anchor="middle" fill="#ffffff" font-size="68" font-family="Arial, sans-serif" font-weight="900" font-style="italic">${escapeXml(post.title.replace(" post", "").toUpperCase())}</text>
+      <!-- Gold accent strokes flanking period label -->
+      <rect x="90"  y="248" width="88" height="7" rx="3.5" fill="url(#goldGrad)" transform="rotate(-3,134,251)"/>
+      <rect x="78"  y="262" width="64" height="5" rx="2.5" fill="url(#goldGrad)" opacity="0.7" transform="rotate(-3,110,264)"/>
+      <rect x="902" y="248" width="88" height="7" rx="3.5" fill="url(#goldGrad)" transform="rotate(3,946,251)"/>
+      <rect x="918" y="262" width="64" height="5" rx="2.5" fill="url(#goldGrad)" opacity="0.7" transform="rotate(3,950,264)"/>
 
-      <!-- Date range pill -->
-      <rect x="390" y="280" width="300" height="40" rx="20" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-      <text x="540" y="306" text-anchor="middle" fill="#949BA4" font-size="18" font-family="Arial, sans-serif">${escapeXml(post.periodLabel)}</text>
+      <!-- Period type (WEEKLY / DAILY / MONTHLY) -->
+      <text x="540" y="308" text-anchor="middle" fill="url(#goldGrad)" font-size="68"
+        font-family="Arial Black, Arial, sans-serif" font-weight="900" letter-spacing="10">${escapeXml(periodType)}</text>
 
-      <!-- Crown above #1 -->
-      <text x="540" y="415" text-anchor="middle" font-size="52">&#x1F451;</text>
+      <!-- Date range -->
+      <line x1="162" y1="334" x2="346" y2="334" stroke="#aaaaaa" stroke-width="1.2"/>
+      <text x="540" y="340" text-anchor="middle" fill="#555555" font-size="19"
+        font-family="Arial, sans-serif" font-weight="600" letter-spacing="2">${escapeXml(post.periodLabel).toUpperCase()}</text>
+      <line x1="734" y1="334" x2="918" y2="334" stroke="#aaaaaa" stroke-width="1.2"/>
 
-      <!-- Podium avatars -->
-      ${e2 ? avatar(205, 516, 68, e2.initials, "#5865F2", 2) : ""}
-      ${e1 ? avatar(540, 488, 86, e1.initials, "#F15025", 1) : ""}
-      ${e3 ? avatar(875, 516, 68, e3.initials, "rgba(205,127,79,0.8)", 3) : ""}
+      <!-- Crowns -->
+      ${e1 ? `<text x="${p1.cx}" y="${cy1 - p1.r + 18}" text-anchor="middle" font-size="58">&#x1F451;</text>` : ""}
+      ${e2 ? `<text x="${p2.cx}" y="${cy2 - p2.r + 16}" text-anchor="middle" font-size="44">&#x1F451;</text>` : ""}
+      ${e3 ? `<text x="${p3.cx}" y="${cy3 - p3.r + 16}" text-anchor="middle" font-size="44">&#x1F451;</text>` : ""}
 
-      <!-- Name cards -->
-      ${e2 ? nameCard(72, 610, 266, 152, e2.shortName, e2.ap, e2.salesCount, "rgba(255,255,255,0.12)", "#ffffff") : ""}
-      ${e1 ? nameCard(358, 594, 364, 172, e1.shortName, e1.ap, e1.salesCount, "#F15025", "#F15025", true) : ""}
-      ${e3 ? nameCard(742, 610, 266, 152, e3.shortName, e3.ap, e3.salesCount, "rgba(255,255,255,0.12)", "#ffffff") : ""}
+      <!-- Podium blocks -->
+      ${e2 ? `
+        <rect x="${p2.x}" y="${p2top}" width="${p2.w}" height="${p2.h}" rx="8" fill="url(#podium23)"/>
+        <rect x="${p2.x}" y="${p2top}" width="${p2.w}" height="5" rx="3" fill="rgba(255,255,255,0.75)"/>
+        <text x="${p2.cx}" y="${p2top + p2.h - 8}" text-anchor="middle" fill="rgba(0,0,0,0.12)"
+          font-size="80" font-family="Arial Black, sans-serif" font-weight="900">2</text>` : ""}
+      ${e1 ? `
+        <rect x="${p1.x}" y="${p1top}" width="${p1.w}" height="${p1.h}" rx="8" fill="url(#podium1)"/>
+        <rect x="${p1.x}" y="${p1top}" width="${p1.w}" height="5" rx="3" fill="rgba(255,255,255,0.8)"/>
+        <text x="${p1.cx}" y="${p1top + p1.h - 8}" text-anchor="middle" fill="rgba(0,0,0,0.12)"
+          font-size="100" font-family="Arial Black, sans-serif" font-weight="900">1</text>` : ""}
+      ${e3 ? `
+        <rect x="${p3.x}" y="${p3top}" width="${p3.w}" height="${p3.h}" rx="8" fill="url(#podium23)"/>
+        <rect x="${p3.x}" y="${p3top}" width="${p3.w}" height="5" rx="3" fill="rgba(255,255,255,0.75)"/>
+        <text x="${p3.cx}" y="${p3top + p3.h - 8}" text-anchor="middle" fill="rgba(0,0,0,0.12)"
+          font-size="68" font-family="Arial Black, sans-serif" font-weight="900">3</text>` : ""}
 
-      <!-- Grid section divider -->
-      <line x1="72" y1="796" x2="1008" y2="796" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
-      <!-- Vertical column divider -->
-      <line x1="532" y1="${gridStartY}" x2="532" y2="${gridStartY + rowCount * rowH - 4}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+      <!-- Avatars (draw #2 and #3 first so #1 renders on top) -->
+      ${e2 ? avatar(p2.cx, cy2, p2.r, e2.initials, 2) : ""}
+      ${e3 ? avatar(p3.cx, cy3, p3.r, e3.initials, 3) : ""}
+      ${e1 ? avatar(p1.cx, cy1, p1.r, e1.initials, 1) : ""}
 
-      <!-- Grid rows -->
-      ${gridRows}
+      <!-- Name + stats below podium -->
+      ${e2 ? info(p2.cx, infoStartY, e2.shortName, e2.ap, e2.salesCount, false) : ""}
+      ${e1 ? info(p1.cx, infoStartY, e1.shortName, e1.ap, e1.salesCount, true)  : ""}
+      ${e3 ? info(p3.cx, infoStartY, e3.shortName, e3.ap, e3.salesCount, false) : ""}
 
-      <!-- Footer stats bar — positioned dynamically so no orphan gap -->
-      <rect x="72" y="${gridStartY + rowCount * rowH + 32}" width="936" height="116" rx="22" fill="#1a1b1e" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
-      <line x1="540" y1="${gridStartY + rowCount * rowH + 44}" x2="540" y2="${gridStartY + rowCount * rowH + 136}" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
-      <text x="306" y="${gridStartY + rowCount * rowH + 76}" text-anchor="middle" fill="#949BA4" font-size="16" font-family="Arial, sans-serif" letter-spacing="4">TEAM TOTAL AP</text>
-      <text x="306" y="${gridStartY + rowCount * rowH + 118}" text-anchor="middle" fill="#F15025" font-size="38" font-family="Arial, sans-serif" font-weight="700">${fmtAp(post.totalAp)}</text>
-      <text x="774" y="${gridStartY + rowCount * rowH + 76}" text-anchor="middle" fill="#949BA4" font-size="16" font-family="Arial, sans-serif" letter-spacing="4">WRITING AGENTS</text>
-      <text x="774" y="${gridStartY + rowCount * rowH + 118}" text-anchor="middle" fill="#ffffff" font-size="38" font-family="Arial, sans-serif" font-weight="700">${post.writingAgents}</text>
+      <!-- Grid section (ranks 4+) -->
+      ${rowCount > 0 ? `
+        <line x1="72"  y1="${gridStartY - 22}" x2="1008" y2="${gridStartY - 22}" stroke="rgba(0,0,0,0.10)" stroke-width="1"/>
+        <line x1="532" y1="${gridStartY}"       x2="532"  y2="${gridStartY + rowCount * rowH - 6}" stroke="rgba(0,0,0,0.07)" stroke-width="1"/>
+        ${gridRows}` : ""}
+
+      <!-- Footer stats bar -->
+      <rect x="72" y="${footerY}" width="936" height="${footerH}" rx="22"
+        fill="rgba(0,0,0,0.055)" stroke="rgba(0,0,0,0.11)" stroke-width="1.5"/>
+      <line x1="540" y1="${footerY + 18}" x2="540" y2="${footerY + footerH - 18}"
+        stroke="rgba(0,0,0,0.11)" stroke-width="1.5"/>
+      <!-- $ icon -->
+      <circle cx="162" cy="${footerCy}" r="26" stroke="url(#goldGrad)" stroke-width="2.5" fill="none"/>
+      <text x="162" y="${footerCy + 9}" text-anchor="middle" fill="url(#goldGrad)"
+        font-size="24" font-family="Arial, sans-serif" font-weight="900">$</text>
+      <!-- Team AP label + value -->
+      <text x="210" y="${footerCy - 14}" fill="#777777" font-size="13"
+        font-family="Arial, sans-serif" font-weight="700" letter-spacing="3">TEAM TOTAL AP</text>
+      <text x="210" y="${footerCy + 28}" fill="url(#goldGrad)" font-size="36"
+        font-family="Arial, sans-serif" font-weight="900">${fmtAp(post.totalAp)}</text>
+      <!-- People icon -->
+      <circle cx="702" cy="${footerCy - 8}" r="9"  fill="none" stroke="url(#goldGrad)" stroke-width="2"/>
+      <path d="M688,${footerCy + 6} Q688,${footerCy - 2} 702,${footerCy - 2} Q716,${footerCy - 2} 716,${footerCy + 6} L716,${footerCy + 18} L688,${footerCy + 18} Z"
+        fill="none" stroke="url(#goldGrad)" stroke-width="2" stroke-linejoin="round"/>
+      <!-- Writing agents label + value -->
+      <text x="748" y="${footerCy - 14}" fill="#777777" font-size="13"
+        font-family="Arial, sans-serif" font-weight="700" letter-spacing="3">WRITING AGENTS</text>
+      <text x="748" y="${footerCy + 28}" fill="url(#goldGrad)" font-size="36"
+        font-family="Arial, sans-serif" font-weight="900">${post.writingAgents}</text>
 
       <!-- Tagline -->
-      <text x="540" y="${gridStartY + rowCount * rowH + 210}" text-anchor="middle" fill="#F15025" font-size="18" font-family="Arial, sans-serif" letter-spacing="3">&#9670; PROTECT FAMILIES &#183; CHANGE LIVES &#183; BUILD LEGACY &#9670;</text>
+      <line x1="72"  y1="${footerY + footerH + 52}" x2="1008" y2="${footerY + footerH + 52}" stroke="rgba(0,0,0,0.10)" stroke-width="1"/>
+      <line x1="360" y1="${footerY + footerH + 52}" x2="360"  y2="${footerY + footerH + 108}" stroke="rgba(0,0,0,0.14)" stroke-width="1"/>
+      <line x1="720" y1="${footerY + footerH + 52}" x2="720"  y2="${footerY + footerH + 108}" stroke="rgba(0,0,0,0.14)" stroke-width="1"/>
+      <text x="216" y="${footerY + footerH + 90}" text-anchor="middle" fill="#333333"
+        font-size="15" font-family="Arial, sans-serif" font-weight="700" letter-spacing="3">ONE TEAM.</text>
+      <text x="540" y="${footerY + footerH + 90}" text-anchor="middle" fill="#333333"
+        font-size="15" font-family="Arial, sans-serif" font-weight="700" letter-spacing="3">ONE MISSION.</text>
+      <text x="864" y="${footerY + footerH + 90}" text-anchor="middle" fill="#333333"
+        font-size="15" font-family="Arial, sans-serif" font-weight="700" letter-spacing="3">ONE CHAMPION.</text>
     </svg>
   `.trim();
 }
