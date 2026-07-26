@@ -247,7 +247,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   pages: {
     signIn: "/login",
-    error: "/auth/error",
+    error: "/login",
   },
   callbacks: {
     async signIn({ user, account, profile }) {
@@ -270,7 +270,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             const member = (await memberRes.json()) as { roles: string[] };
             if (!member.roles.includes(ACTIVE_AGENT_ROLE_ID)) {
               console.error("[auth] signIn denied — missing active agent role", { email: user.email ?? null });
-              return "/auth/error?error=AccessDenied";
+              return "/login?error=no_active_agent_role";
             }
           } else {
             // 404 means not in the guild at all
@@ -318,7 +318,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email ?? null,
           discordUserId: discord.userId,
         });
-        return "/auth/error?error=Configuration";
+        return "/login?error=provisioning_failed";
       }
 
       // const agent = await resolveAgentByEmail(user.email);
