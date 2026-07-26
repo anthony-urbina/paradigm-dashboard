@@ -265,6 +265,7 @@ function ProgressRing({
 }
 
 const timeRangeOptions: { value: TimeRange; label: string }[] = [
+  { value: "7d", label: "7D" },
   { value: "30d", label: "30D" },
   { value: "90d", label: "90D" },
   { value: "180d", label: "180D" },

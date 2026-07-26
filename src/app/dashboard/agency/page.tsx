@@ -5,7 +5,7 @@ import { getAgencyData, getCompGuideData, type TimeRange } from "@/lib/data";
 
 function normalizeRange(value: string | string[] | undefined): TimeRange {
   const candidate = Array.isArray(value) ? value[0] : value;
-  return candidate === "90d" || candidate === "180d" || candidate === "365d" ? candidate : "30d";
+  return candidate === "7d" || candidate === "90d" || candidate === "180d" || candidate === "365d" ? candidate : "30d";
 }
 
 export default async function DashboardAgencyPage({

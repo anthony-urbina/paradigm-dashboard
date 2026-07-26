@@ -60,7 +60,7 @@ export type TeamAccessData = {
   directAgents: number;
 };
 
-export type TimeRange = "30d" | "90d" | "180d" | "365d";
+export type TimeRange = "7d" | "30d" | "90d" | "180d" | "365d";
 
 type AgentNode = {
   id: string;
@@ -263,7 +263,7 @@ function resolveCommissionProduct(carrier: string, product: string, clientAge?: 
 
 function getRangeStart(range: TimeRange): string {
   const now = new Date();
-  const daysBack = range === "30d" ? 29 : range === "90d" ? 89 : range === "180d" ? 179 : 364;
+  const daysBack = range === "7d" ? 6 : range === "30d" ? 29 : range === "90d" ? 89 : range === "180d" ? 179 : 364;
   const start = new Date(now);
   start.setDate(now.getDate() - daysBack);
   return start.toISOString();
@@ -271,14 +271,14 @@ function getRangeStart(range: TimeRange): string {
 
 function getPrevRangeStart(range: TimeRange): string {
   const now = new Date();
-  const days = range === "30d" ? 30 : range === "90d" ? 90 : range === "180d" ? 180 : 365;
+  const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : range === "180d" ? 180 : 365;
   const start = new Date(now);
   start.setDate(now.getDate() - days * 2);
   return start.toISOString();
 }
 
 function getRangeLabel(range: TimeRange): string {
-  return range === "30d" ? "Last 30 days" : range === "90d" ? "Last 90 days" : range === "180d" ? "Last 180 days" : "Last 365 days";
+  return range === "7d" ? "Last 7 days" : range === "30d" ? "Last 30 days" : range === "90d" ? "Last 90 days" : range === "180d" ? "Last 180 days" : "Last 365 days";
 }
 
 function buildChildrenMap(agents: AgentNode[]) {

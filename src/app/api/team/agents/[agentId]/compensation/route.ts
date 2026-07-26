@@ -5,7 +5,7 @@ import { getCurrentAgent } from "@/lib/current-agent";
 import { getTeamAgentCompensation, type TimeRange } from "@/lib/data";
 
 function normalizeRange(value: string | null): TimeRange {
-  return value === "90d" || value === "180d" || value === "365d" ? value : "30d";
+  return value === "7d" || value === "90d" || value === "180d" || value === "365d" ? value : "30d";
 }
 
 export async function GET(
