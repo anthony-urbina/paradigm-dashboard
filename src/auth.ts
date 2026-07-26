@@ -258,7 +258,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       // Guild membership + active-agent role check
       const GUILD_ID = "1336793736671137863";
-      const ACTIVE_AGENT_ROLE_ID = "1339711849070985407";
+      const ALLOWED_ROLE_IDS = new Set([
+        "1343473605777821707",
+        "1343473938126344262",
+        "1339711849070985407",
+      ]);
       const DEV_DISCORD_USER_ID = "302261992477949952";
       if (account?.provider === "discord" && account.access_token) {
         const isDevOverride = account.providerAccountId === DEV_DISCORD_USER_ID;
@@ -268,7 +272,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
           if (memberRes.ok) {
             const member = (await memberRes.json()) as { roles: string[] };
-            if (!member.roles.includes(ACTIVE_AGENT_ROLE_ID)) {
+            if (!member.roles.some((r) => ALLOWED_ROLE_IDS.has(r))) {
               console.error("[auth] signIn denied — missing active agent role", { email: user.email ?? null });
               return "/login?error=no_active_agent_role";
             }
