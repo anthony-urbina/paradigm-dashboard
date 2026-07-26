@@ -6345,42 +6345,39 @@ export function ProfilePage({
       </Panel>
 
       <Panel className='overflow-hidden p-0'>
-        <div className='border-b border-[var(--vf-border)] bg-[linear-gradient(135deg,rgba(88,101,242,0.16),rgba(241,80,37,0.08))] px-6 py-6'>
-          <div className='flex flex-wrap items-start justify-between gap-4'>
-            <div className='flex items-center gap-4'>
-              <div className='flex h-14 w-14 items-center justify-center rounded-2xl bg-[#5865F2] text-white shadow-[0_12px_24px_rgba(88,101,242,0.25)]'>
-                <DiscordIcon className='h-7 w-7' />
+        <div className='border-b border-[var(--vf-border)] bg-[linear-gradient(135deg,rgba(88,101,242,0.16),rgba(241,80,37,0.08))] px-5 py-5 sm:px-6 sm:py-6'>
+          <div className='flex items-start gap-4'>
+            <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5865F2] text-white shadow-[0_12px_24px_rgba(88,101,242,0.25)] sm:h-14 sm:w-14'>
+              <DiscordIcon className='h-6 w-6 sm:h-7 sm:w-7' />
+            </div>
+            <div className='min-w-0'>
+              <div className='flex flex-wrap items-center gap-2'>
+                <h2 className='text-xl font-semibold text-[var(--vf-text)] sm:text-3xl'>Connect Discord</h2>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em]",
+                    profile.discord.userId
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-[var(--vf-border)] bg-[var(--vf-surface)] text-[var(--vf-muted)]",
+                  )}
+                >
+                  {profile.discord.userId ? (
+                    <ShieldCheck className='h-3.5 w-3.5' />
+                  ) : (
+                    <Link2 className='h-3.5 w-3.5' />
+                  )}
+                  {profile.discord.userId ? "Connected" : "Not connected"}
+                </span>
               </div>
-              <div>
-                <div className='flex flex-wrap items-center gap-3'>
-                  <h2 className='text-3xl font-semibold text-[var(--vf-text)]'>Connect Discord</h2>
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em]",
-                      profile.discord.userId
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-[var(--vf-border)] bg-[var(--vf-surface)] text-[var(--vf-muted)]",
-                    )}
-                  >
-                    {profile.discord.userId ? (
-                      <ShieldCheck className='h-3.5 w-3.5' />
-                    ) : (
-                      <Link2 className='h-3.5 w-3.5' />
-                    )}
-                    {profile.discord.userId ? "Connected" : "Not connected"}
-                  </span>
-                </div>
-                <p className='mt-2 text-base text-[var(--vf-muted)] whitespace-nowrap'>
-                  Your Discord account is your identity on this platform. Sales data, rankings, and activity
-                  are all tied to it.
-                </p>
-              </div>
+              <p className='mt-2 text-sm text-[var(--vf-muted)] sm:text-base'>
+                Your Discord account is your identity on this platform. Sales data, rankings, and activity are all tied to it.
+              </p>
             </div>
           </div>
         </div>
 
-        <div className='px-6 py-6'>
-          <div className='rounded-[24px] border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5'>
+        <div className='px-4 py-4 sm:px-6 sm:py-6'>
+          <div className='rounded-[24px] border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4 sm:p-5'>
             <div className='text-sm uppercase tracking-[0.16em] text-[var(--vf-muted)]'>Linked account</div>
             <div className='mt-4 flex items-center gap-4'>
               {profile.discord.avatarUrl ? (
