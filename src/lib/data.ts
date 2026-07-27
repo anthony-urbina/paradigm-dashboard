@@ -818,7 +818,7 @@ export async function getAgencyData(range: TimeRange = "30d", currentAgentId?: s
   const subtreeWritersByAgent = new Map<string, Set<string>>();
   const subtreeSalesCountByAgent = new Map<string, number>();
 
-  function computeAgencySubtree(agentId: string) {
+  function computeAgencySubtree(agentId: string, visiting = new Set<string>()) {
     if (subtreeApByAgent.has(agentId)) {
       return {
         ap: subtreeApByAgent.get(agentId)!,
@@ -827,13 +827,19 @@ export async function getAgencyData(range: TimeRange = "30d", currentAgentId?: s
       };
     }
 
+    // Cycle guard — skip any node already on the current call path
+    if (visiting.has(agentId)) {
+      return { ap: 0, writers: new Set<string>(), salesCount: 0 };
+    }
+    visiting.add(agentId);
+
     const own = ownSalesByAgent.get(agentId) ?? { ap: 0, salesCount: 0 };
     const writers = new Set<string>(own.salesCount > 0 ? [agentId] : []);
     let ap = own.ap;
     let salesCount = own.salesCount;
 
     for (const child of childrenByUpline.get(agentId) ?? []) {
-      const childStats = computeAgencySubtree(child.id);
+      const childStats = computeAgencySubtree(child.id, visiting);
       ap += childStats.ap;
       salesCount += childStats.salesCount;
       for (const writer of childStats.writers) writers.add(writer);
