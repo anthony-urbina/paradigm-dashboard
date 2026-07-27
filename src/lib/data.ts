@@ -1,4 +1,4 @@
-import { format, startOfDay, startOfMonth, startOfWeek } from "date-fns";
+import { endOfMonth, endOfWeek, format, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 
 import { createServiceClient } from "./supabase";
 
@@ -173,6 +173,7 @@ export type LeaderboardPostEntry = {
   name: string;
   shortName: string;
   initials: string;
+  imageUrl: string | null;
   ap: number;
   salesCount: number;
 };
@@ -364,7 +365,12 @@ function shortNameForLeaderboard(name: string) {
   return `${parts[0]} ${parts[parts.length - 1][0] ?? ""}.`;
 }
 
-function toLeaderboardPostEntries(sales: SalesRow[], agentNameById: Map<string, string>, limit?: number): LeaderboardPostEntry[] {
+function toLeaderboardPostEntries(
+  sales: SalesRow[],
+  agentNameById: Map<string, string>,
+  agentImageById: Map<string, string | null>,
+  limit?: number,
+): LeaderboardPostEntry[] {
   const byAgent = new Map<string, { ap: number; salesCount: number }>();
 
   for (const sale of sales) {
@@ -375,14 +381,13 @@ function toLeaderboardPostEntries(sales: SalesRow[], agentNameById: Map<string, 
   }
 
   const ranked = Array.from(byAgent.entries())
-    .map(([agentId, totals]) => {
-      const name = agentNameById.get(agentId) ?? "Unknown agent";
-      return {
-        name,
-        ap: totals.ap,
-        salesCount: totals.salesCount,
-      };
-    })
+    .map(([agentId, totals]) => ({
+      agentId,
+      name: agentNameById.get(agentId) ?? "Unknown agent",
+      imageUrl: agentImageById.get(agentId) ?? null,
+      ap: totals.ap,
+      salesCount: totals.salesCount,
+    }))
     .sort((a, b) => b.ap - a.ap);
 
   const sliced = typeof limit === "number" ? ranked.slice(0, limit) : ranked;
@@ -392,6 +397,7 @@ function toLeaderboardPostEntries(sales: SalesRow[], agentNameById: Map<string, 
     name: entry.name,
     shortName: shortNameForLeaderboard(entry.name),
     initials: initialsForName(entry.name),
+    imageUrl: entry.imageUrl,
     ap: roundCurrency(entry.ap),
     salesCount: entry.salesCount,
   }));
@@ -1002,7 +1008,9 @@ export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
   const now = new Date();
   const dayStart = startOfDay(now);
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
   const monthStart = startOfMonth(now);
+  const monthEnd = endOfMonth(now);
   const earliestStart = new Date(Math.min(dayStart.getTime(), weekStart.getTime(), monthStart.getTime()));
 
   const [{ data: salesData, error: salesError }, { data: agentsData, error: agentsError }] = await Promise.all([
@@ -1011,14 +1019,16 @@ export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
       .select("agent_id, ap, sold_at")
       .gte("sold_at", earliestStart.toISOString())
       .order("sold_at", { ascending: false }),
-    supabase.from("agents").select("id, name"),
+    supabase.from("agents").select("id, name, profile_image_url, discord_avatar_url"),
   ]);
 
   if (salesError || agentsError) {
     return { cards: [] };
   }
 
-  const agentNameById = new Map(((agentsData ?? []) as { id: string; name: string }[]).map((agent) => [agent.id, agent.name]));
+  const agentsRaw = (agentsData ?? []) as { id: string; name: string; profile_image_url: string | null; discord_avatar_url: string | null }[];
+  const agentNameById  = new Map(agentsRaw.map((a) => [a.id, a.name]));
+  const agentImageById = new Map(agentsRaw.map((a) => [a.id, a.profile_image_url ?? a.discord_avatar_url]));
   const sales = (salesData ?? []) as SalesRow[];
 
   const dailySales = sales.filter((sale) => new Date(sale.sold_at) >= dayStart);
@@ -1037,7 +1047,7 @@ export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
     title,
     periodLabel,
     shareLabel: "ready to share on Instagram (1080×1350)",
-    entries: toLeaderboardPostEntries(sourceSales, agentNameById, limit),
+    entries: toLeaderboardPostEntries(sourceSales, agentNameById, agentImageById, limit),
     totalAp: roundCurrency(sourceSales.reduce((sum, sale) => sum + Number(sale.ap), 0)),
     writingAgents: new Set(sourceSales.filter((sale) => sale.agent_id).map((sale) => sale.agent_id)).size,
     ready: sourceSales.length > 0,
@@ -1057,7 +1067,7 @@ export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
       buildCard(
         "weekly",
         "Weekly leaderboard post",
-        `${format(weekStart, "MMM d")} – ${format(now, "MMM d, yyyy")}`,
+        `${format(weekStart, "MMMM d")} – ${format(weekEnd, "MMMM d, yyyy")}`,
         weeklySales,
         "No sales have been submitted in this weekly window yet.",
         12,
@@ -1065,7 +1075,7 @@ export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
       buildCard(
         "monthly",
         "Monthly leaderboard post",
-        format(now, "MMMM yyyy"),
+        `${format(monthStart, "MMMM d")} – ${format(monthEnd, "MMMM d, yyyy")}`,
         monthlySales,
         "No sales have been submitted in this monthly window yet.",
         20,
