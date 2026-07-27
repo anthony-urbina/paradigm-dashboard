@@ -9,7 +9,7 @@ export default async function DashboardGoalsPage() {
   const [data, teamAccess] = agentId
     ? await Promise.all([getGoalsData(agentId), getTeamAccessData(agentId)])
     : await Promise.all([
-        Promise.resolve({ salesGoal: null, teamGoal: null, teamGrowth: null }),
+        Promise.resolve({ salesGoal: null, teamGoal: null, teamGrowth: null, teamCount: 0 }),
         Promise.resolve({ teamUnlocked: false, directAgents: 0 }),
       ]);
   return <GoalsPage {...data} teamUnlocked={teamAccess.teamUnlocked} />;

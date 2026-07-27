@@ -1836,8 +1836,10 @@ export function WelcomePage({
 
 function TeamGrowthEditor({
   teamGrowth,
+  teamCount,
 }: {
   teamGrowth: { count: number; target: number; pct: number; deadline: string } | null;
+  teamCount: number;
 }) {
   const router = useRouter();
   const [target, setTarget] = useState(String(teamGrowth?.target ?? ""));
@@ -1970,7 +1972,7 @@ function TeamGrowthEditor({
         </div>
       </form>
       <div className='mt-3 text-sm text-[var(--vf-muted)]'>
-        Total agents in your downline: {teamGrowth?.count ?? 0}
+        Total agents in your downline: {teamCount}
       </div>
     </Panel>
   );
@@ -1980,10 +1982,11 @@ type GoalsProps = {
   salesGoal: GoalProgress | null;
   teamGoal: GoalProgress | null;
   teamGrowth: { count: number; target: number; pct: number; deadline: string } | null;
+  teamCount: number;
   teamUnlocked: boolean;
 };
 
-export function GoalsPage({ salesGoal, teamGoal, teamGrowth, teamUnlocked }: GoalsProps) {
+export function GoalsPage({ salesGoal, teamGoal, teamGrowth, teamCount, teamUnlocked }: GoalsProps) {
   return (
     <div className='space-y-6'>
       <PageTitle
@@ -2135,7 +2138,7 @@ export function GoalsPage({ salesGoal, teamGoal, teamGrowth, teamUnlocked }: Goa
           </Panel>
         )}
 
-        <TeamGrowthEditor teamGrowth={teamGrowth} />
+        <TeamGrowthEditor teamGrowth={teamGrowth} teamCount={teamCount} />
       </div>
     </div>
   );

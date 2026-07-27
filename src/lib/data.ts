@@ -569,7 +569,7 @@ export async function getGoalsData(agentId: string) {
       }
     : null;
 
-  return { salesGoal, teamGoal, teamGrowth };
+  return { salesGoal, teamGoal, teamGrowth, teamCount };
 }
 
 // ─── Team page ───────────────────────────────────────────────
