@@ -3,14 +3,12 @@ import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import type { LeaderboardPostCard } from "@/lib/data";
 
-// Read the Paradigm logo once at module load (sync is fine at startup)
 function getLogoDataUrl(): string {
   const logoPath = path.join(process.cwd(), "public", "paradigm-logo.png");
   const buf = fs.readFileSync(logoPath);
   return `data:image/png;base64,${buf.toString("base64")}`;
 }
 
-// Fetch a remote image and return a base64 data URL (returns null on failure)
 async function toDataUrl(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
@@ -26,56 +24,67 @@ async function toDataUrl(url: string): Promise<string | null> {
 
 function buildPromptText(post: LeaderboardPostCard, hasRefPhotos: boolean): string {
   const fmtAp = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
-  const periodType = post.title.replace(/\s*post\s*/i, "").toUpperCase();
+  // Use the card key so it's always "DAILY", "WEEKLY", or "MONTHLY"
+  const periodType = post.key.toUpperCase();
 
   const top3 = post.entries.slice(0, 3);
   const podiumLines = top3.map((e) => {
-    const pos   = e.rank === 1 ? "CENTER (tallest gold/marble podium)" : e.rank === 2 ? "LEFT (medium silver/white podium)" : "RIGHT (shortest silver/white podium)";
-    const ring  = e.rank === 1 ? "thick gold ring border and golden glow halo" : "silver ring border";
-    const crown = e.rank === 1 ? "gold crown" : "silver crown";
-    const apCol = e.rank === 1 ? "large gold text" : "bold black text";
-    const avatar = hasRefPhotos && e.imageUrl
-      ? `Use the reference photo provided above for this person's face inside the circle.`
-      : `Show initials "${e.initials}" in bold inside the circle.`;
-    return `  #${e.rank} — ${pos}: Circle avatar with ${ring}. ${avatar} ${crown} above circle. Below podium: "${e.shortName}" bold italic, "TOTAL AP" label in small gray, ${fmtAp(e.ap)} in ${apCol}, "${e.salesCount} ${e.salesCount === 1 ? "sale" : "sales"}" in gray.`;
+    const pos    = e.rank === 1 ? "CENTER (tallest podium)" : e.rank === 2 ? "LEFT (second podium)" : "RIGHT (shortest podium)";
+    const ring   = e.rank === 1 ? "thick gold ring border with a golden particle/sparkle glow halo radiating outward" : "silver ring border";
+    const crownD = e.rank === 1 ? "large ornate gold crown (5 points, jeweled)" : "small simple silver crown (3 points)";
+    const apCol  = e.rank === 1 ? "large gold metallic gradient text" : "large bold dark text";
+    const avatarDesc = hasRefPhotos && e.imageUrl
+      ? `Use the reference photo provided for this person inside the circle.`
+      : `Show initials "${e.initials}" in large bold black text inside the circle.`;
+    return `  #${e.rank} — ${pos}: Circle avatar with ${ring}. ${avatarDesc} ${crownD} centered above the circle. Below the podium block: "${e.shortName}" in bold italic uppercase, "TOTAL AP" in small gray letter-spaced caps, ${fmtAp(e.ap)} in ${apCol}, "${e.salesCount} ${e.salesCount === 1 ? "sale" : "sales"}" in small gray.`;
   }).join("\n");
 
   const restSection = post.entries.slice(3).length > 0
-    ? `\nADDITIONAL RANKINGS (two-column list below the podium):\n${post.entries.slice(3).map((e) => `  #${e.rank} ${e.shortName} — ${fmtAp(e.ap)}, ${e.salesCount} ${e.salesCount === 1 ? "sale" : "sales"}`).join("\n")}`
+    ? `\n\nRANKS 4 AND BELOW — two-column list below the podium info:\n${post.entries.slice(3).map((e) => `  #${e.rank} ${e.shortName} — ${fmtAp(e.ap)}, ${e.salesCount} ${e.salesCount === 1 ? "sale" : "sales"}`).join("\n")}`
     : "";
 
-  return `Create a professional sports-inspired leaderboard graphic for Paradigm Financial insurance agency. Portrait orientation (2:3 ratio), suitable for Instagram.
+  return `Create a professional sports-inspired leaderboard graphic for Paradigm Financial insurance agency. Portrait orientation (2:3 ratio), suitable for Instagram. Size: 1024×1536.
 
-STYLE: Off-white/cream textured background with dark gray grunge paint brush stroke splatters in the upper-left and upper-right corners. Bold athletic typography. Gold and silver metallic accents. Clean, high-contrast, premium social media graphic.
+═══ OVERALL STYLE ═══
+• Background: Off-white / warm cream (#F5F3EE). Heavy dark-charcoal grunge paint-splatter brush strokes in the upper-left and upper-right corners — dramatic, rough, paint-splat texture that bleeds off the edge. The splatters should be very dark (near-black charcoal) and cover a large portion of the upper corners, with scattered ink-drop dots along their edges. The rest of the background stays clean cream.
+• Typography: bold athletic sans-serif. "LEADERBOARD" uses a rough brush-script / grunge style — jagged, hand-painted letterforms with visible texture and rough edges (like a sports team logo font). All other text is clean bold sans-serif.
+• Color palette: gold (#C8921A to #F7D94C gradient, metallic), silver (#9a9a98 to #e6e6e4 gradient, metallic), near-black (#0A0A0A) for title, cream background.
+• Overall feel: premium Instagram sports graphic — high contrast, bold, clean.
 
-LAYOUT (top to bottom):
+═══ LAYOUT (top to bottom, strictly in this order) ═══
 
-1. HEADER: Use the exact Paradigm Financial logo image provided above, centered at the top. Do not redraw or substitute it.
+1. LOGO — centered at very top. Use the attached Paradigm Financial logo image exactly as-is. Do not redraw it.
 
-2. MAIN TITLE: "LEADERBOARD" — very large, bold, italic, black, athletic/brush-script style.
+2. MAIN TITLE — "LEADERBOARD" in very large (dominant) rough brush-script / grunge italic font, near-black, centered. The letters should look painted/textured, not clean.
 
-3. SUBTITLE: "${periodType}" — large gold metallic gradient text. Gold brushstroke accent marks flanking the word on each side.
+3. PERIOD LABEL — "${periodType}" in large clean bold sans-serif, gold metallic gradient (#F7D94C → #C8921A → #8A5F10 top to bottom), centered. Flanked on each side by 3–4 short diagonal gold brush-stroke slash marks (like hatching), arranged in a stacked slightly-angled group. These slash marks sit to the LEFT and RIGHT of the "${periodType}" word.
 
-4. DATE: "${post.periodLabel.toUpperCase()}" — small bold black centered text with thin horizontal lines extending left and right.
+4. DATE — "${post.periodLabel.toUpperCase()}" in small bold dark centered text. Thin horizontal lines extending left and right from the date text.
 
-5. PODIUM (three positions, classic award-podium layout):
+5. PODIUM SECTION — classic three-tier award podium:
+
 ${podiumLines}
-   CRITICAL PODIUM HEIGHT RULES — follow exactly:
-   - #1 CENTER podium is by far the tallest — roughly 3× the height of the #3 podium. It dominates the center.
-   - #2 LEFT podium is only slightly taller than #3 — perhaps 20–30% taller at most. It should look nearly the same height as #3, NOT close to #1's height.
-   - #3 RIGHT podium is the shortest.
-   - There must be a very large, obvious height gap between #1 and both #2 and #3. The #2 and #3 podiums should look like short steps compared to the towering #1 podium.
-   - All three podium blocks share the same bottom edge. Ghost rank numbers inside each block. Gold rank badge for #1, dark gray for #2 and #3.
-${restSection}
 
-6. FOOTER BAR — lightly shaded rounded rectangle:
-   LEFT: Gold circle with "$" + "TEAM TOTAL AP" in small gray caps + "${fmtAp(post.totalAp)}" in large gold.
-   VERTICAL DIVIDER.
-   RIGHT: Person silhouette icon + "WRITING AGENTS" in small gray caps + "${post.writingAgents}" in large gold.
+   CRITICAL PODIUM HEIGHT RULES (must follow exactly):
+   - #1 CENTER podium block: by far the tallest — approximately 3× the height of #3. Gold/marble gradient (cream-gold to warm gold). Ghost "1" numeral inside the block.
+   - #2 LEFT podium block: only slightly taller than #3 (≈20% taller). Silver/white gradient. Ghost "2" numeral inside.
+   - #3 RIGHT podium block: shortest. Silver/white gradient. Ghost "3" numeral inside.
+   - All three blocks share the exact same bottom edge. The gap between #1 and #2/#3 must be dramatic and obvious.
+   - Rank badge: gold rounded-rectangle badge with rank number at the bottom of each avatar ring (#1 gold badge, #2 and #3 dark gray badges).${restSection}
 
-7. BOTTOM TAGLINE: "ONE TEAM." | "ONE MISSION." | "ONE CHAMPION." separated by vertical lines. Small bold dark uppercase.
+6. FOOTER BAR — lightly shaded rounded-rectangle with a subtle border, full width:
+   LEFT HALF: Gold circle outline with "$" symbol inside + "TEAM TOTAL AP" in small gray letter-spaced caps above + "${fmtAp(post.totalAp)}" in large gold metallic text below.
+   VERTICAL DIVIDER LINE in center.
+   RIGHT HALF: Group-of-people silhouette icon (gold/dark) + "WRITING AGENTS" in small gray letter-spaced caps above + "${post.writingAgents}" in large gold metallic text below.
 
-Render all text exactly as specified. Use exact names and numbers. Professional, bold, Instagram-ready.`;
+7. BOTTOM TAGLINE — three sections separated by thin vertical lines:
+   [target/bullseye icon]  ONE TEAM.  |  [people icon]  ONE MISSION.  |  [trophy icon]  ONE CHAMPION.
+   Small bold dark uppercase text with matching icons.
+
+═══ EXACT NUMBERS AND NAMES ═══
+Render all text, names, and numbers exactly as specified above. No paraphrasing or substitution.
+
+Professional, bold, Instagram-ready. Make it look like a premium sports championship graphic.`;
 }
 
 type ContentPart =
@@ -99,7 +108,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No data to generate from" }, { status: 400 });
   }
 
-  // Fetch profile pictures for the top 3 entries in parallel
+  // Fetch profile photos for top 3 in parallel
   const top3 = post.entries.slice(0, 3);
   const fetchedImages = await Promise.all(
     top3.map(async (entry) => {
@@ -111,29 +120,27 @@ export async function POST(req: NextRequest) {
 
   const hasRefPhotos = fetchedImages.some((f) => f.dataUrl !== null);
 
-  // Build multi-modal content array
   const content: ContentPart[] = [];
 
-  // Always include the exact Paradigm logo first
+  // Logo first
   content.push({
     type: "input_text",
-    text: "IMPORTANT — OFFICIAL LOGO: The image below is the exact Paradigm Financial logo. You MUST reproduce it precisely at the top center of the graphic. Do not redraw, simplify, or substitute it with anything else. Copy it faithfully:",
+    text: "IMPORTANT — OFFICIAL LOGO: The image below is the exact Paradigm Financial logo. Reproduce it precisely at the top center. Do not redraw, simplify, or substitute it:",
   });
   content.push({ type: "input_image", image_url: getLogoDataUrl() });
 
-  // Prepend each profile photo with a label so the model knows who it's for
+  // Profile photos with labels
   for (const { entry, dataUrl } of fetchedImages) {
     if (!dataUrl) continue;
     content.push({
       type: "input_text",
-      text: `Reference profile photo for rank #${entry.rank} — ${entry.name} (initials "${entry.initials}"). Use this person's face/likeness inside their avatar circle on the leaderboard:`,
+      text: `Reference profile photo for rank #${entry.rank} — ${entry.name} (initials "${entry.initials}"). Place this person's face inside their avatar circle:`,
     });
     content.push({ type: "input_image", image_url: dataUrl });
   }
 
   content.push({ type: "input_text", text: buildPromptText(post, hasRefPhotos) });
 
-  // Use the Responses API which supports multi-modal input + image generation tool
   const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {

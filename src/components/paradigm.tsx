@@ -186,7 +186,17 @@ function Panel({ children, className }: { children: React.ReactNode; className?:
   );
 }
 
-function Avatar({ name, imageUrl, small = false, ring = false }: { name: string; imageUrl?: string | null; small?: boolean; ring?: boolean }) {
+function Avatar({
+  name,
+  imageUrl,
+  small = false,
+  ring = false,
+}: {
+  name: string;
+  imageUrl?: string | null;
+  small?: boolean;
+  ring?: boolean;
+}) {
   if (imageUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -1559,7 +1569,6 @@ type LatestSaleData = {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-
 function LatestSaleBanner({ initial }: { initial: LatestSaleData | null }) {
   const { data } = useSWR<LatestSaleData | null>("/api/sales/latest", fetcher, {
     refreshInterval: 15_000,
@@ -1582,10 +1591,13 @@ function LatestSaleBanner({ initial }: { initial: LatestSaleData | null }) {
   useEffect(() => {
     if (!data) return;
     if (!displayed || data.id !== displayed.id) {
-      if (!displayed) { setDisplayed(data); return; }
+      if (!displayed) {
+        setDisplayed(data);
+        return;
+      }
       triggerUpdate(data);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.id]);
 
   if (!displayed) return null;
@@ -1607,7 +1619,11 @@ function LatestSaleBanner({ initial }: { initial: LatestSaleData | null }) {
             <div className='shrink-0 text-xs font-semibold uppercase tracking-[0.2em]'>Latest Sale</div>
             {displayed.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={displayed.imageUrl} alt={displayed.agentName} className='h-9 w-9 shrink-0 rounded-full object-cover sm:h-10 sm:w-10' />
+              <img
+                src={displayed.imageUrl}
+                alt={displayed.agentName}
+                className='h-9 w-9 shrink-0 rounded-full object-cover sm:h-10 sm:w-10'
+              />
             ) : (
               <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[rgba(0,0,0,0.2)] text-sm font-semibold text-white sm:h-10 sm:w-10'>
                 {displayed.initials}
@@ -1627,7 +1643,14 @@ function LatestSaleBanner({ initial }: { initial: LatestSaleData | null }) {
 
 type WelcomeProps = {
   agentName: string;
-  latestSale: { id: string; agentName: string; initials: string; carrier: string; ap: number; imageUrl: string | null } | null;
+  latestSale: {
+    id: string;
+    agentName: string;
+    initials: string;
+    carrier: string;
+    ap: number;
+    imageUrl: string | null;
+  } | null;
   salesGoal: GoalProgress | null;
   teamGoal: GoalProgress | null;
   weeklyLeaders: LeaderboardEntry[];
@@ -1971,9 +1994,7 @@ function TeamGrowthEditor({
           />
         </div>
       </form>
-      <div className='mt-3 text-sm text-[var(--vf-muted)]'>
-        Total agents in your downline: {teamCount}
-      </div>
+      <div className='mt-3 text-sm text-[var(--vf-muted)]'>Total agents in your downline: {teamCount}</div>
     </Panel>
   );
 }
@@ -2138,7 +2159,10 @@ export function GoalsPage({ salesGoal, teamGoal, teamGrowth, teamCount, teamUnlo
           </Panel>
         )}
 
-        <TeamGrowthEditor teamGrowth={teamGrowth} teamCount={teamCount} />
+        <TeamGrowthEditor
+          teamGrowth={teamGrowth}
+          teamCount={teamCount}
+        />
       </div>
     </div>
   );
@@ -2523,7 +2547,9 @@ export function TeamPage({
                     <div
                       className={cn(
                         "relative w-full rounded-t-xl",
-                        index === growthBars.length - 1 ? "bg-[var(--vf-blurple)]" : "bg-[var(--vf-surface-2)]",
+                        index === growthBars.length - 1
+                          ? "bg-[var(--vf-blurple)]"
+                          : "bg-[var(--vf-surface-2)]",
                       )}
                       style={{ height: `${height}%` }}
                     />
@@ -3858,271 +3884,355 @@ function escapeXml(value: string) {
     .replaceAll("'", "&apos;");
 }
 
-function leaderboardPostSvg(post: LeaderboardPostCard) {
+// ── Patrick Hand SC font (embedded as base64 so it works in SVG data URLs + canvas) ──
+let _amaticCache: string | null | undefined;
+async function fetchAmaticFontStyle(): Promise<string | null> {
+  if (_amaticCache !== undefined) return _amaticCache;
+  try {
+    // Self-hosted in /public/fonts — avoids CORS, User-Agent, and CSS-parsing issues
+    const res = await fetch("/fonts/patrick-hand-sc.woff2");
+    if (!res.ok) {
+      _amaticCache = null;
+      return null;
+    }
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const b64 = btoa(binary);
+    _amaticCache = `@font-face{font-family:'Patrick Hand SC';font-weight:400;src:url('data:font/woff2;base64,${b64}') format('woff2');}`;
+    return _amaticCache;
+  } catch {
+    _amaticCache = null;
+    return null;
+  }
+}
+
+// ── Leaderboard background constants ────────────────────────────────────────
+// The SVGMaker design (leaderboard-bg.svg) is rendered to canvas at this size.
+// All overlay coordinates below are in this same 1080x1620 space.
+const LB_W = 1080; // 3% smaller than 1080
+const LB_H = 1620; // 3% smaller than 1620
+
+// Avatar circle positions — tune these if photos land off-center
+const LB_AV = [
+  null, // index 0 unused
+  { cx: 535, cy: 840, r: 116 }, // rank 1: large gold center avatar
+  { cx: 215, cy: 868, r: 96 }, // rank 2: left silver avatar
+  { cx: 865, cy: 868, r: 96 }, // rank 3: right silver avatar
+] as const;
+
+// Text positions below each avatar (tune after first render)
+const LB_NAME_Y = [null, 1085, 1095, 1095] as const; // agent name
+const LB_AP_Y = [null, 1215, 1215, 1215] as const; // AP dollar value
+const LB_SALES_Y = [null, 1255, 1255, 1255] as const; // "X sales"
+
+// Period label overlay — covers baked-in "WEEKLY" text with dynamic DAILY/WEEKLY/MONTHLY
+const LB_PERIOD_ERASE_Y = 450;
+const LB_PERIOD_ERASE_X = 325;
+const LB_PERIOD_ERASE_W = 420;
+const LB_PERIOD_ERASE_H = 120;
+const LB_PERIOD_Y = 542;
+
+// Date overlay — covers the baked-in date path with a blank strip + our text
+const LB_DATE_Y = 600;
+const LB_DATE_ERASE_Y = 575;
+const LB_DATE_ERASE_H = 50;
+
+// Ranks 4+ grid — sits in the blank area between podium and footer
+const LB_GRID_Y = 900;
+const LB_ROW_H = 52;
+
+// Footer value overlay positions
+const LB_FOOTER_AP_X = 345;
+const LB_FOOTER_AGENTS_X = 760;
+const LB_FOOTER_VAL_Y = 1428;
+
+function leaderboardPostSvg(
+  post: LeaderboardPostCard,
+  imageDataUrls: Record<number, string> = {},
+  bgDataUrl?: string | null,
+  fontStyle?: string | null,
+) {
   const fmtAp = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 
   const e1 = post.entries[0];
   const e2 = post.entries[1];
   const e3 = post.entries[2];
 
+  // Ranks 4–13 in a 2-column grid
   const gridEntries = post.entries.slice(3, 13);
-  const leftCol  = gridEntries.filter((_, i) => i % 2 === 0);
+  const leftCol = gridEntries.filter((_, i) => i % 2 === 0);
   const rightCol = gridEntries.filter((_, i) => i % 2 === 1);
   const rowCount = Math.max(leftCol.length, rightCol.length);
 
-  // Period label e.g. "WEEKLY", "DAILY", "MONTHLY"
-  const periodType = post.title.replace(/\s*post\s*/i, "").toUpperCase();
-
-  // ── Layout ──────────────────────────────────────────────────────────────
-  // Podium geometry (x = left edge, w = width, h = height, cx = center x)
-  const p1 = { x: 390, w: 300, h: 198, cx: 540, r: 82 };
-  const p2 = { x: 78,  w: 262, h: 152, cx: 209, r: 62 };
-  const p3 = { x: 740, w: 262, h: 114, cx: 871, r: 62 };
-
-  const podiumBottomY = 830;
-  const p1top = podiumBottomY - p1.h; // 632
-  const p2top = podiumBottomY - p2.h; // 678
-  const p3top = podiumBottomY - p3.h; // 716
-
-  // Avatar vertical centers (sit just above podium top)
-  const cy1 = p1top - p1.r - 10; // 540
-  const cy2 = p2top - p2.r - 10; // 606
-  const cy3 = p3top - p3.r - 10; // 644
-
-  // Info text below podium
-  const infoStartY = podiumBottomY + 22;
-  const gridStartY = infoStartY + 172;
-  const rowH       = 56;
-
-  const totalH = gridStartY + rowCount * rowH + 280;
-
-  // ── Grid rows (ranks 4+) ──────────────────────────────────────────────
   const gridRows = Array.from({ length: rowCount }, (_, i) => {
-    const y    = gridStartY + i * rowH;
-    const mid  = y + Math.round(rowH / 2) + 8;
-    const l    = leftCol[i];
-    const r    = rightCol[i];
-    const lSvg = l ? `
-      <text x="88"  y="${mid}" fill="#B8860B" font-size="20" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${l.rank}</text>
-      <text x="130" y="${mid}" fill="#1a1a1a" font-size="20" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(l.shortName)}</text>
-      <text x="370" y="${mid}" fill="#888888" font-size="14" font-family="Arial, sans-serif" text-anchor="end">${l.salesCount} ${l.salesCount === 1 ? "sale" : "sales"}</text>
-      <text x="514" y="${mid}" fill="#1a1a1a" font-size="20" font-family="Arial, sans-serif" font-weight="900" font-style="italic" text-anchor="end">${fmtAp(l.ap)}</text>` : "";
-    const rSvg = r ? `
-      <text x="556" y="${mid}" fill="#B8860B" font-size="20" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${r.rank}</text>
-      <text x="598" y="${mid}" fill="#1a1a1a" font-size="20" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(r.shortName)}</text>
-      <text x="838" y="${mid}" fill="#888888" font-size="14" font-family="Arial, sans-serif" text-anchor="end">${r.salesCount} ${r.salesCount === 1 ? "sale" : "sales"}</text>
-      <text x="982" y="${mid}" fill="#1a1a1a" font-size="20" font-family="Arial, sans-serif" font-weight="900" font-style="italic" text-anchor="end">${fmtAp(r.ap)}</text>` : "";
-    const sep = i < rowCount - 1
-      ? `<line x1="72" y1="${y + rowH - 1}" x2="1008" y2="${y + rowH - 1}" stroke="rgba(0,0,0,0.07)" stroke-width="1"/>`
+    const y = LB_GRID_Y + i * LB_ROW_H;
+    const mid = y + Math.round(LB_ROW_H / 2) + 7;
+    const l = leftCol[i];
+    const r = rightCol[i];
+    const bg = i % 2 === 0 ? "rgba(0,0,0,0.03)" : "none";
+    const lSvg = l
+      ? `
+      <text x="88"  y="${mid}" fill="#B8860B" font-size="19" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${l.rank}</text>
+      <text x="126" y="${mid}" fill="#111111" font-size="19" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(l.shortName)}</text>
+      <text x="360" y="${mid}" fill="#888888" font-size="13" font-family="Arial, sans-serif" text-anchor="end">${l.salesCount} ${l.salesCount === 1 ? "sale" : "sales"}</text>
+      <text x="500" y="${mid}" fill="#111111" font-size="19" font-family="Arial, sans-serif" font-weight="900" text-anchor="end">${fmtAp(l.ap)}</text>`
       : "";
-    return lSvg + rSvg + sep;
+    const rSvg = r
+      ? `
+      <text x="554" y="${mid}" fill="#B8860B" font-size="19" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${r.rank}</text>
+      <text x="592" y="${mid}" fill="#111111" font-size="19" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(r.shortName)}</text>
+      <text x="828" y="${mid}" fill="#888888" font-size="13" font-family="Arial, sans-serif" text-anchor="end">${r.salesCount} ${r.salesCount === 1 ? "sale" : "sales"}</text>
+      <text x="968" y="${mid}" fill="#111111" font-size="19" font-family="Arial, sans-serif" font-weight="900" text-anchor="end">${fmtAp(r.ap)}</text>`
+      : "";
+    return `<rect x="72" y="${y}" width="936" height="${LB_ROW_H - 1}" fill="${bg}"/>${lSvg}${rSvg}`;
   }).join("");
 
-  // ── Avatar circle helper ──────────────────────────────────────────────
-  const avatar = (cx: number, cy: number, r: number, initials: string, rank: number) => {
-    const isFirst  = rank === 1;
-    const ringFill = isFirst ? "url(#goldRing)" : "url(#silverRing)";
-    const bgFill   = isFirst ? "url(#av1Bg)" : "url(#av23Bg)";
-    const textFill = isFirst ? "#111111" : "#333333";
-    const badgeFill = isFirst ? "url(#goldRing)" : "#555555";
-    const badgeText = isFirst ? "#111111" : "#ffffff";
-    const badgeCy   = cy + r - 2;
-    return `
-      ${isFirst ? `<circle cx="${cx}" cy="${cy}" r="${r + 22}" fill="url(#goldAura)" />` : ""}
-      <circle cx="${cx}" cy="${cy}" r="${r + 8}" fill="${ringFill}" />
-      <circle cx="${cx}" cy="${cy}" r="${r}"     fill="${bgFill}" />
-      <text x="${cx}" y="${cy + (isFirst ? 17 : 13)}" text-anchor="middle" fill="${textFill}"
-        font-size="${isFirst ? 44 : 34}" font-family="Arial, sans-serif" font-weight="900">${escapeXml(initials)}</text>
-      <rect x="${cx - 17}" y="${badgeCy - 14}" width="34" height="26" rx="7" fill="${badgeFill}"/>
-      <text x="${cx}" y="${badgeCy + 5}" text-anchor="middle" fill="${badgeText}"
-        font-size="14" font-family="Arial, sans-serif" font-weight="900">${rank}</text>`;
-  };
+  // clipPaths for photo avatars
+  const clipPaths = ([1, 2, 3] as const)
+    .filter((rank) => imageDataUrls[rank])
+    .map((rank) => {
+      const a = LB_AV[rank]!;
+      return `<clipPath id="avClip${rank}"><circle cx="${a.cx}" cy="${a.cy}" r="${a.r}"/></clipPath>`;
+    })
+    .join("");
 
-  // ── Info text (name + stats) below podium ────────────────────────────
-  const info = (cx: number, y: number, name: string, ap: number, sales: number, isFirst: boolean) => {
-    const nSize  = isFirst ? 26 : 22;
-    const apSize = isFirst ? 46 : 32;
-    const apFill = isFirst ? "url(#goldGrad)" : "#1a1a1a";
-    return `
-      <text x="${cx}" y="${y + 34}"  text-anchor="middle" fill="#111111" font-size="${nSize}"
-        font-family="Arial, sans-serif" font-weight="900" font-style="italic">${escapeXml(name)}</text>
-      <text x="${cx}" y="${y + 60}"  text-anchor="middle" fill="#999999" font-size="12"
-        font-family="Arial, sans-serif" font-weight="700" letter-spacing="3">TOTAL AP</text>
-      <text x="${cx}" y="${y + 60 + apSize + 6}" text-anchor="middle" fill="${apFill}" font-size="${apSize}"
-        font-family="Arial, sans-serif" font-weight="900" font-style="italic">${fmtAp(ap)}</text>
-      <text x="${cx}" y="${y + 60 + apSize + 32}" text-anchor="middle" fill="#999999" font-size="14"
-        font-family="Arial, sans-serif">${sales} ${sales === 1 ? "sale" : "sales"}</text>`;
+  // Photo overlay per avatar slot
+  const avatarOverlay = (entry: LeaderboardPostCard["entries"][number]) => {
+    const a = LB_AV[entry.rank as 1 | 2 | 3]!;
+    const dataUrl = imageDataUrls[entry.rank];
+    if (!dataUrl) return "";
+    return `<image href="${dataUrl}" x="${a.cx - a.r}" y="${a.cy - a.r}" width="${a.r * 2}" height="${a.r * 2}"
+      clip-path="url(#avClip${entry.rank})" preserveAspectRatio="xMidYMid slice"/>`;
   };
-
-  // ── Footer ────────────────────────────────────────────────────────────
-  const footerY = gridStartY + rowCount * rowH + 36;
-  const footerH = 124;
-  const footerCy = footerY + footerH / 2;
 
   return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="${totalH}" viewBox="0 0 1080 ${totalH}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="${LB_W}" height="${LB_H}" viewBox="0 0 ${LB_W} ${LB_H}">
       <defs>
-        <linearGradient id="bgGrad" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%"   stop-color="#f5f3ef"/>
-          <stop offset="100%" stop-color="#e9e6df"/>
-        </linearGradient>
+        ${fontStyle ? `<style>${fontStyle}</style>` : ""}
         <linearGradient id="goldGrad" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%"   stop-color="#F5D060"/>
           <stop offset="45%"  stop-color="#C8921A"/>
           <stop offset="100%" stop-color="#8A6010"/>
         </linearGradient>
-        <linearGradient id="goldRing" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%"   stop-color="#F0D060"/>
-          <stop offset="50%"  stop-color="#C8921A"/>
-          <stop offset="100%" stop-color="#E0B030"/>
-        </linearGradient>
-        <linearGradient id="silverRing" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%"   stop-color="#e4e4e2"/>
-          <stop offset="100%" stop-color="#9a9a98"/>
-        </linearGradient>
-        <linearGradient id="podium1" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%"   stop-color="#ede0a8"/>
-          <stop offset="100%" stop-color="#c8a030"/>
-        </linearGradient>
-        <linearGradient id="podium23" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%"   stop-color="#f2f2f0"/>
-          <stop offset="100%" stop-color="#cacac6"/>
-        </linearGradient>
-        <radialGradient id="goldAura" cx="50%" cy="50%" r="50%">
-          <stop offset="0%"   stop-color="#FFD700" stop-opacity="0.28"/>
-          <stop offset="100%" stop-color="#FFD700" stop-opacity="0"/>
-        </radialGradient>
-        <radialGradient id="av1Bg" cx="38%" cy="28%" r="72%">
-          <stop offset="0%"   stop-color="#ffffff"/>
-          <stop offset="100%" stop-color="#f0ede6"/>
-        </radialGradient>
-        <radialGradient id="av23Bg" cx="38%" cy="28%" r="72%">
-          <stop offset="0%"   stop-color="#eeecea"/>
-          <stop offset="100%" stop-color="#d4d2ce"/>
-        </radialGradient>
+        ${clipPaths}
       </defs>
 
-      <!-- Background -->
-      <rect width="1080" height="${totalH}" fill="url(#bgGrad)"/>
+      <!-- Cream base so transparent areas of the background SVG show this color -->
+      <rect width="${LB_W}" height="${LB_H}" fill="#F2F0EA"/>
 
-      <!-- Corner brush strokes -->
-      <path d="M-70,0 Q220,-28 440,82 Q390,162 70,196 Q-25,204 -70,156 Z"  fill="rgba(110,104,92,0.20)"/>
-      <path d="M-50,12 Q170,0 380,72 Q210,116 -50,96 Z"                     fill="rgba(90,84,74,0.13)"/>
-      <path d="M1150,0 Q860,-28 640,82 Q690,162 1010,196 Q1105,204 1150,156 Z" fill="rgba(110,104,92,0.20)"/>
-      <path d="M1130,12 Q910,0 700,72 Q870,116 1130,96 Z"                    fill="rgba(90,84,74,0.13)"/>
-      <path d="M-50,${totalH} Q130,${totalH - 110} 360,${totalH - 52} L300,${totalH} Z" fill="rgba(90,84,74,0.11)"/>
-      <path d="M1130,${totalH} Q950,${totalH - 110} 720,${totalH - 52} L780,${totalH} Z" fill="rgba(90,84,74,0.11)"/>
+      <!-- Profile photos drawn before background so SVG's transparent circles reveal them -->
+      ${e2 ? avatarOverlay(e2) : ""}
+      ${e3 ? avatarOverlay(e3) : ""}
+      ${e1 ? avatarOverlay(e1) : ""}
 
-      <!-- Paradigm logo -->
-      <g transform="translate(540,72)">
-        <polygon points="0,-30 -17,-4 17,-4" stroke="#111111" stroke-width="2.8" fill="none" stroke-linejoin="round"/>
-        <line x1="-17" y1="-4" x2="-23" y2="9" stroke="#111111" stroke-width="2.8"/>
-        <line x1="17"  y1="-4" x2="23"  y2="9" stroke="#111111" stroke-width="2.8"/>
-        <line x1="-23" y1="9"  x2="23"  y2="9" stroke="#111111" stroke-width="2.8"/>
-      </g>
-      <text x="540" y="120" text-anchor="middle" fill="#111111" font-size="15"
-        font-family="Arial, sans-serif" font-weight="800" letter-spacing="6">PARADIGM</text>
-      <text x="540" y="141" text-anchor="middle" fill="#444444" font-size="13"
-        font-family="Arial, sans-serif" font-weight="400" letter-spacing="6">FINANCIAL</text>
+      <!-- Full SVGMaker background (pre-rendered PNG with transparent avatar holes) -->
+      ${
+        bgDataUrl
+          ? `<image href="${bgDataUrl}" x="0" y="0" width="${LB_W}" height="${LB_H}" preserveAspectRatio="none"/>`
+          : `<rect width="${LB_W}" height="${LB_H}" fill="#f5f3ef"/>`
+      }
 
-      <!-- LEADERBOARD title -->
-      <text x="540" y="236" text-anchor="middle" fill="#0d0d0d" font-size="98"
-        font-family="Arial Black, Arial, sans-serif" font-weight="900" font-style="italic" letter-spacing="-1">LEADERBOARD</text>
+      <!-- Erase baked-in "WEEKLY" label, overlay dynamic period -->
+      <rect x="${LB_PERIOD_ERASE_X}" y="${LB_PERIOD_ERASE_Y}" width="${LB_PERIOD_ERASE_W}" height="${LB_PERIOD_ERASE_H}" fill="#F2F0EA" />
+      <text x="540" y="${LB_PERIOD_Y}" text-anchor="middle"
+        transform="matrix(1 0 0 1.15 0 ${Math.round(LB_PERIOD_Y * -0.15)})"
+        font-size="${post.key === "monthly" ? 88 : 95}" font-family="Arial, sans-serif" font-weight="900" letter-spacing="4"
+        fill="url(#goldGrad)">${escapeXml(post.key.toUpperCase())}</text>
 
-      <!-- Gold accent strokes flanking period label -->
-      <rect x="90"  y="248" width="88" height="7" rx="3.5" fill="url(#goldGrad)" transform="rotate(-3,134,251)"/>
-      <rect x="78"  y="262" width="64" height="5" rx="2.5" fill="url(#goldGrad)" opacity="0.7" transform="rotate(-3,110,264)"/>
-      <rect x="902" y="248" width="88" height="7" rx="3.5" fill="url(#goldGrad)" transform="rotate(3,946,251)"/>
-      <rect x="918" y="262" width="64" height="5" rx="2.5" fill="url(#goldGrad)" opacity="0.7" transform="rotate(3,950,264)"/>
+      <!-- Erase baked-in date path, overlay dynamic date -->
+      <rect x="100" y="${LB_DATE_ERASE_Y}" width="880" height="${LB_DATE_ERASE_H}" fill="#F2F0EA"/>
+      <text x="540" y="${LB_DATE_Y}" text-anchor="middle" fill="#1a1a1a"
+        font-size="24" font-family="Arial, sans-serif" font-weight="700" letter-spacing="2">${escapeXml(post.periodLabel.toUpperCase())}</text>
 
-      <!-- Period type (WEEKLY / DAILY / MONTHLY) -->
-      <text x="540" y="308" text-anchor="middle" fill="url(#goldGrad)" font-size="68"
-        font-family="Arial Black, Arial, sans-serif" font-weight="900" letter-spacing="10">${escapeXml(periodType)}</text>
+      <!-- Initials fallback when no photo -->
+      ${
+        e1 && !imageDataUrls[1]
+          ? `<text x="${LB_AV[1].cx}" y="${LB_AV[1].cy + 17}" text-anchor="middle" fill="#333"
+        font-size="46" font-family="Arial, sans-serif" font-weight="900">${escapeXml(e1.initials)}</text>`
+          : ""
+      }
+      ${
+        e2 && !imageDataUrls[2]
+          ? `<text x="${LB_AV[2].cx}" y="${LB_AV[2].cy + 13}" text-anchor="middle" fill="#333"
+        font-size="34" font-family="Arial, sans-serif" font-weight="900">${escapeXml(e2.initials)}</text>`
+          : ""
+      }
+      ${
+        e3 && !imageDataUrls[3]
+          ? `<text x="${LB_AV[3].cx}" y="${LB_AV[3].cy + 13}" text-anchor="middle" fill="#333"
+        font-size="34" font-family="Arial, sans-serif" font-weight="900">${escapeXml(e3.initials)}</text>`
+          : ""
+      }
 
-      <!-- Date range -->
-      <line x1="162" y1="334" x2="346" y2="334" stroke="#aaaaaa" stroke-width="1.2"/>
-      <text x="540" y="340" text-anchor="middle" fill="#555555" font-size="19"
-        font-family="Arial, sans-serif" font-weight="600" letter-spacing="2">${escapeXml(post.periodLabel).toUpperCase()}</text>
-      <line x1="734" y1="334" x2="918" y2="334" stroke="#aaaaaa" stroke-width="1.2"/>
+      <!-- Names below each avatar (Patrick Hand SC) -->
+      ${
+        e1
+          ? `<text x="${LB_AV[1].cx}" y="${LB_NAME_Y[1]}" text-anchor="middle" fill="#111111"
+        stroke="#111111" stroke-width="2" paint-order="stroke fill"
+        font-size="60" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${escapeXml(e1.shortName)}</text>`
+          : ""
+      }
+      ${
+        e2
+          ? `<text x="${LB_AV[2].cx}" y="${LB_NAME_Y[2]}" text-anchor="middle" fill="#111111"
+        stroke="#111111" stroke-width="1.5" paint-order="stroke fill"
+        font-size="51" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${escapeXml(e2.shortName)}</text>`
+          : ""
+      }
+      ${
+        e3
+          ? `<text x="${LB_AV[3].cx}" y="${LB_NAME_Y[3]}" text-anchor="middle" fill="#111111"
+        stroke="#111111" stroke-width="1.5" paint-order="stroke fill"
+        font-size="51" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${escapeXml(e3.shortName)}</text>`
+          : ""
+      }
 
-      <!-- Crowns -->
-      ${e1 ? `<text x="${p1.cx}" y="${cy1 - p1.r + 18}" text-anchor="middle" font-size="58">&#x1F451;</text>` : ""}
-      ${e2 ? `<text x="${p2.cx}" y="${cy2 - p2.r + 16}" text-anchor="middle" font-size="44">&#x1F451;</text>` : ""}
-      ${e3 ? `<text x="${p3.cx}" y="${cy3 - p3.r + 16}" text-anchor="middle" font-size="44">&#x1F451;</text>` : ""}
+      <!-- AP values (gold for #1, dark for #2/#3) -->
+      ${
+        e1
+          ? `<text x="${LB_AV[1].cx}" y="${LB_AP_Y[1]}" text-anchor="middle" fill="url(#goldGrad)"
+        stroke="#C8921A" stroke-width="2" paint-order="stroke fill"
+        font-size="64" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${fmtAp(e1.ap)}</text>`
+          : ""
+      }
+      ${
+        e2
+          ? `<text x="${LB_AV[2].cx}" y="${LB_AP_Y[2]}" text-anchor="middle" fill="#1a1a1a"
+        stroke="#1a1a1a" stroke-width="2" paint-order="stroke fill"
+        font-size="64" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${fmtAp(e2.ap)}</text>`
+          : ""
+      }
+      ${
+        e3
+          ? `<text x="${LB_AV[3].cx}" y="${LB_AP_Y[3]}" text-anchor="middle" fill="#1a1a1a"
+        stroke="#1a1a1a" stroke-width="2" paint-order="stroke fill"
+        font-size="64" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${fmtAp(e3.ap)}</text>`
+          : ""
+      }
 
-      <!-- Podium blocks -->
-      ${e2 ? `
-        <rect x="${p2.x}" y="${p2top}" width="${p2.w}" height="${p2.h}" rx="8" fill="url(#podium23)"/>
-        <rect x="${p2.x}" y="${p2top}" width="${p2.w}" height="5" rx="3" fill="rgba(255,255,255,0.75)"/>
-        <text x="${p2.cx}" y="${p2top + p2.h - 8}" text-anchor="middle" fill="rgba(0,0,0,0.12)"
-          font-size="80" font-family="Arial Black, sans-serif" font-weight="900">2</text>` : ""}
-      ${e1 ? `
-        <rect x="${p1.x}" y="${p1top}" width="${p1.w}" height="${p1.h}" rx="8" fill="url(#podium1)"/>
-        <rect x="${p1.x}" y="${p1top}" width="${p1.w}" height="5" rx="3" fill="rgba(255,255,255,0.8)"/>
-        <text x="${p1.cx}" y="${p1top + p1.h - 8}" text-anchor="middle" fill="rgba(0,0,0,0.12)"
-          font-size="100" font-family="Arial Black, sans-serif" font-weight="900">1</text>` : ""}
-      ${e3 ? `
-        <rect x="${p3.x}" y="${p3top}" width="${p3.w}" height="${p3.h}" rx="8" fill="url(#podium23)"/>
-        <rect x="${p3.x}" y="${p3top}" width="${p3.w}" height="5" rx="3" fill="rgba(255,255,255,0.75)"/>
-        <text x="${p3.cx}" y="${p3top + p3.h - 8}" text-anchor="middle" fill="rgba(0,0,0,0.12)"
-          font-size="68" font-family="Arial Black, sans-serif" font-weight="900">3</text>` : ""}
+      <!-- Sales counts -->
+      ${
+        e1
+          ? `<text x="${LB_AV[1].cx}" y="${LB_SALES_Y[1]}" text-anchor="middle" fill="#000000"
+        stroke-width="1" paint-order="stroke fill"
+        font-size="31" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${e1.salesCount} ${e1.salesCount === 1 ? "sale" : "sales"}</text>`
+          : ""
+      }
+      ${
+        e2
+          ? `<text x="${LB_AV[2].cx}" y="${LB_SALES_Y[2]}" text-anchor="middle" fill="#000000"
+        stroke-width="1" paint-order="stroke fill"
+        font-size="31" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${e2.salesCount} ${e2.salesCount === 1 ? "sale" : "sales"}</text>`
+          : ""
+      }
+      ${
+        e3
+          ? `<text x="${LB_AV[3].cx}" y="${LB_SALES_Y[3]}" text-anchor="middle" fill="#000000"
+        stroke-width="1" paint-order="stroke fill"
+        font-size="31" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${e3.salesCount} ${e3.salesCount === 1 ? "sale" : "sales"}</text>`
+          : ""
+      }
 
-      <!-- Avatars (draw #2 and #3 first so #1 renders on top) -->
-      ${e2 ? avatar(p2.cx, cy2, p2.r, e2.initials, 2) : ""}
-      ${e3 ? avatar(p3.cx, cy3, p3.r, e3.initials, 3) : ""}
-      ${e1 ? avatar(p1.cx, cy1, p1.r, e1.initials, 1) : ""}
+      <!-- Ranks 4+ grid (in the blank area between podium and footer) -->
+      ${
+        rowCount > 0
+          ? `
+        <line x1="72" y1="${LB_GRID_Y - 8}" x2="1008" y2="${LB_GRID_Y - 8}" stroke="rgba(0,0,0,0.09)" stroke-width="1"/>
+        <line x1="532" y1="${LB_GRID_Y}" x2="532" y2="${LB_GRID_Y + rowCount * LB_ROW_H}" stroke="rgba(0,0,0,0.07)" stroke-width="1"/>
+        <line x1="72" y1="${LB_GRID_Y + rowCount * LB_ROW_H + 8}" x2="1008" y2="${LB_GRID_Y + rowCount * LB_ROW_H + 8}" stroke="rgba(0,0,0,0.09)" stroke-width="1"/>
+      `
+          : ""
+      }
 
-      <!-- Name + stats below podium -->
-      ${e2 ? info(p2.cx, infoStartY, e2.shortName, e2.ap, e2.salesCount, false) : ""}
-      ${e1 ? info(p1.cx, infoStartY, e1.shortName, e1.ap, e1.salesCount, true)  : ""}
-      ${e3 ? info(p3.cx, infoStartY, e3.shortName, e3.ap, e3.salesCount, false) : ""}
-
-      <!-- Grid section (ranks 4+) -->
-      ${rowCount > 0 ? `
-        <line x1="72"  y1="${gridStartY - 22}" x2="1008" y2="${gridStartY - 22}" stroke="rgba(0,0,0,0.10)" stroke-width="1"/>
-        <line x1="532" y1="${gridStartY}"       x2="532"  y2="${gridStartY + rowCount * rowH - 6}" stroke="rgba(0,0,0,0.07)" stroke-width="1"/>
-        ${gridRows}` : ""}
-
-      <!-- Footer stats bar -->
-      <rect x="72" y="${footerY}" width="936" height="${footerH}" rx="22"
-        fill="rgba(0,0,0,0.055)" stroke="rgba(0,0,0,0.11)" stroke-width="1.5"/>
-      <line x1="540" y1="${footerY + 18}" x2="540" y2="${footerY + footerH - 18}"
-        stroke="rgba(0,0,0,0.11)" stroke-width="1.5"/>
-      <!-- $ icon -->
-      <circle cx="162" cy="${footerCy}" r="26" stroke="url(#goldGrad)" stroke-width="2.5" fill="none"/>
-      <text x="162" y="${footerCy + 9}" text-anchor="middle" fill="url(#goldGrad)"
-        font-size="24" font-family="Arial, sans-serif" font-weight="900">$</text>
-      <!-- Team AP label + value -->
-      <text x="210" y="${footerCy - 14}" fill="#777777" font-size="13"
-        font-family="Arial, sans-serif" font-weight="700" letter-spacing="3">TEAM TOTAL AP</text>
-      <text x="210" y="${footerCy + 28}" fill="url(#goldGrad)" font-size="36"
-        font-family="Arial, sans-serif" font-weight="900">${fmtAp(post.totalAp)}</text>
-      <!-- People icon -->
-      <circle cx="702" cy="${footerCy - 8}" r="9"  fill="none" stroke="url(#goldGrad)" stroke-width="2"/>
-      <path d="M688,${footerCy + 6} Q688,${footerCy - 2} 702,${footerCy - 2} Q716,${footerCy - 2} 716,${footerCy + 6} L716,${footerCy + 18} L688,${footerCy + 18} Z"
-        fill="none" stroke="url(#goldGrad)" stroke-width="2" stroke-linejoin="round"/>
-      <!-- Writing agents label + value -->
-      <text x="748" y="${footerCy - 14}" fill="#777777" font-size="13"
-        font-family="Arial, sans-serif" font-weight="700" letter-spacing="3">WRITING AGENTS</text>
-      <text x="748" y="${footerCy + 28}" fill="url(#goldGrad)" font-size="36"
-        font-family="Arial, sans-serif" font-weight="900">${post.writingAgents}</text>
-
-      <!-- Tagline -->
-      <line x1="72"  y1="${footerY + footerH + 52}" x2="1008" y2="${footerY + footerH + 52}" stroke="rgba(0,0,0,0.10)" stroke-width="1"/>
-      <line x1="360" y1="${footerY + footerH + 52}" x2="360"  y2="${footerY + footerH + 108}" stroke="rgba(0,0,0,0.14)" stroke-width="1"/>
-      <line x1="720" y1="${footerY + footerH + 52}" x2="720"  y2="${footerY + footerH + 108}" stroke="rgba(0,0,0,0.14)" stroke-width="1"/>
-      <text x="216" y="${footerY + footerH + 90}" text-anchor="middle" fill="#333333"
-        font-size="15" font-family="Arial, sans-serif" font-weight="700" letter-spacing="3">ONE TEAM.</text>
-      <text x="540" y="${footerY + footerH + 90}" text-anchor="middle" fill="#333333"
-        font-size="15" font-family="Arial, sans-serif" font-weight="700" letter-spacing="3">ONE MISSION.</text>
-      <text x="864" y="${footerY + footerH + 90}" text-anchor="middle" fill="#333333"
-        font-size="15" font-family="Arial, sans-serif" font-weight="700" letter-spacing="3">ONE CHAMPION.</text>
+      <!-- Footer value overlays (on top of the SVG-drawn footer bar) -->
+      <text x="${LB_FOOTER_AP_X}" y="${LB_FOOTER_VAL_Y}" text-anchor="middle" fill="url(#goldGrad)"
+        stroke="#C8921A" stroke-width="1.5" paint-order="stroke fill"
+        font-size="53.82" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${fmtAp(post.totalAp)}</text>
+      <text x="${LB_FOOTER_AGENTS_X}" y="${LB_FOOTER_VAL_Y}" text-anchor="middle" fill="url(#goldGrad)"
+        stroke="#C8921A" stroke-width="1.5" paint-order="stroke fill"
+        font-size="53.82" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${post.writingAgents}</text>
+   
+   
     </svg>
   `.trim();
 }
 
+// ── Background pre-rendering ─────────────────────────────────────────────────
+let _bgCache: string | null | undefined; // bump to reset: v7
+async function fetchBgDataUrl(): Promise<string | null> {
+  if (_bgCache !== undefined) return _bgCache;
+  try {
+    const res = await fetch("/leaderboard-bg.svg");
+    if (!res.ok) {
+      _bgCache = null;
+      return null;
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = objectUrl;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = LB_W;
+      canvas.height = LB_H;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        _bgCache = null;
+        return null;
+      }
+      // Draw SVG onto transparent canvas — if the design has transparent circle
+      // cutouts, those stay transparent so photos drawn beneath show through.
+      ctx.drawImage(img, 0, 0, LB_W, LB_H);
+      _bgCache = canvas.toDataURL("image/png");
+      return _bgCache;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  } catch {
+    _bgCache = null;
+    return null;
+  }
+}
+
+async function fetchEntryImageDataUrls(
+  entries: LeaderboardPostCard["entries"],
+): Promise<Record<number, string>> {
+  const result: Record<number, string> = {};
+  await Promise.all(
+    entries.slice(0, 3).map(async (entry) => {
+      if (!entry.imageUrl) return;
+      try {
+        const res = await fetch(entry.imageUrl);
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        result[entry.rank] = dataUrl;
+      } catch {
+        /* skip if image fails to load */
+      }
+    }),
+  );
+  return result;
+}
+
 async function leaderboardPostPngBlob(post: LeaderboardPostCard) {
-  const svg = leaderboardPostSvg(post);
+  const [imageDataUrls, bgDataUrl, fontStyle] = await Promise.all([
+    fetchEntryImageDataUrls(post.entries),
+    fetchBgDataUrl(),
+    fetchAmaticFontStyle(),
+  ]);
+  const svg = leaderboardPostSvg(post, imageDataUrls, bgDataUrl, fontStyle);
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
 
@@ -4152,7 +4262,20 @@ async function leaderboardPostPngBlob(post: LeaderboardPostCard) {
 }
 
 function LeaderboardPostPreview({ post }: { post: LeaderboardPostCard }) {
-  const svgString = leaderboardPostSvg(post);
+  const [imageDataUrls, setImageDataUrls] = useState<Record<number, string>>({});
+  const [bgDataUrl, setBgDataUrl] = useState<string | null>(null);
+  const [fontStyle, setFontStyle] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchEntryImageDataUrls(post.entries).then(setImageDataUrls);
+  }, [post.entries]);
+
+  useEffect(() => {
+    fetchBgDataUrl().then(setBgDataUrl);
+    fetchAmaticFontStyle().then(setFontStyle);
+  }, []);
+
+  const svgString = leaderboardPostSvg(post, imageDataUrls, bgDataUrl, fontStyle);
   const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -4866,9 +4989,6 @@ export function AdminPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [sort, setSort] = useState<AdminSortConfig | null>(null);
-  const [aiImages, setAiImages] = useState<Record<string, string | null>>({});
-  const [aiGenerating, setAiGenerating] = useState<Record<string, boolean>>({});
-
   const pageSize = 10;
 
   const [subAgencies, setSubAgencies] = useState<SubAgency[]>(initialSubAgencies);
@@ -4892,152 +5012,7 @@ export function AdminPage({
     { label: "Leaderboard Posts", key: "leaderboardPosts" },
   ];
 
-  function buildLeaderboardPrompt(post: LeaderboardPostCard): string {
-    const fmtAp = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
-    const periodType = post.title.replace(/\s*post\s*/i, "").toUpperCase();
-    const top3 = post.entries.slice(0, 3);
-    const podiumLines = top3.map((e) => {
-      const pos   = e.rank === 1 ? "CENTER (tallest gold/marble podium)" : e.rank === 2 ? "LEFT (medium silver/white podium)" : "RIGHT (shortest silver/white podium)";
-      const ring  = e.rank === 1 ? "thick gold ring border and golden glow halo" : "silver ring border";
-      const crown = e.rank === 1 ? "gold crown" : "silver crown";
-      const apCol  = e.rank === 1 ? "large gold text" : "bold black text";
-      const avatar = e.imageUrl
-        ? `Use the attached profile photo for ${e.name} inside the circle.`
-        : `Show initials "${e.initials}" in bold inside the circle.`;
-      return `  #${e.rank} — ${pos}: Circle avatar with ${ring}. ${avatar} ${crown} above circle. Below podium: "${e.shortName}" bold italic, "TOTAL AP" label in small gray, ${fmtAp(e.ap)} in ${apCol}, "${e.salesCount} ${e.salesCount === 1 ? "sale" : "sales"}" in gray.`;
-    }).join("\n");
-    const restSection = post.entries.slice(3).length > 0
-      ? `\nADDITIONAL RANKINGS (two-column list below the podium):\n${post.entries.slice(3).map((e) => `  #${e.rank} ${e.shortName} — ${fmtAp(e.ap)}, ${e.salesCount} ${e.salesCount === 1 ? "sale" : "sales"}`).join("\n")}`
-      : "";
-    const imageAttachments = [
-      `• paradigm-logo.png — official Paradigm Financial logo (use exactly in header)`,
-      ...top3
-        .filter((e) => e.imageUrl)
-        .map((e) => {
-          const ext = e.imageUrl!.split("?")[0].split(".").pop() ?? "jpg";
-          return `• agent-${e.rank}-${e.initials.toLowerCase()}.${ext} — profile photo for #${e.rank} ${e.name}`;
-        }),
-    ];
-
-    return `=== HOW TO USE THIS PACKAGE ===
-Upload ALL of the following files (included in this ZIP) to ChatGPT, then paste this prompt.
-${imageAttachments.join("\n")}
-================================
-
-Create a professional sports-inspired leaderboard graphic for Paradigm Financial insurance agency. Portrait orientation (2:3 ratio), suitable for Instagram.
-
-STYLE: Off-white/cream textured background with dark gray grunge paint brush stroke splatters in the upper-left and upper-right corners. Bold athletic typography. Gold and silver metallic accents. Clean, high-contrast, premium social media graphic.
-
-LAYOUT (top to bottom):
-
-1. HEADER: Use the attached Paradigm Financial logo image exactly as-is, centered at the top. Do not redraw or approximate it.
-
-2. MAIN TITLE: "LEADERBOARD" — very large, bold, italic, black, athletic/brush-script style.
-
-3. SUBTITLE: "${periodType}" — large gold metallic gradient text. Gold brushstroke accent marks flanking the word on each side.
-
-4. DATE: "${post.periodLabel.toUpperCase()}" — small bold black centered text with thin horizontal lines extending left and right.
-
-5. PODIUM (three positions, classic award-podium layout):
-${podiumLines}
-   CRITICAL PODIUM HEIGHT RULES:
-   - #1 CENTER podium is by far the tallest — roughly 3× the height of the #3 podium. It dominates the center.
-   - #2 LEFT podium is only slightly taller than #3 — perhaps 20–30% taller at most. Nearly the same height as #3, NOT close to #1.
-   - #3 RIGHT podium is the shortest.
-   - Very large, obvious height gap between #1 and both #2 and #3.
-   - All three podium blocks share the same bottom edge. Ghost rank numbers inside each block. Gold rank badge for #1, dark gray for #2 and #3.
-${restSection}
-
-6. FOOTER BAR — lightly shaded rounded rectangle:
-   LEFT: Gold circle with "$" + "TEAM TOTAL AP" label in small gray caps + "${fmtAp(post.totalAp)}" in large gold.
-   VERTICAL DIVIDER.
-   RIGHT: Person silhouette icon + "WRITING AGENTS" label in small gray caps + "${post.writingAgents}" in large gold.
-
-7. BOTTOM TAGLINE: "ONE TEAM." | "ONE MISSION." | "ONE CHAMPION." separated by vertical lines. Small bold dark uppercase.
-
-Render all text exactly as specified. Use exact names and numbers. Professional, bold, Instagram-ready.`;
-  }
-
-  async function copyLeaderboardPrompt(post: LeaderboardPostCard) {
-    try {
-      await navigator.clipboard.writeText(buildLeaderboardPrompt(post));
-      toast.success("Prompt copied to clipboard");
-    } catch {
-      toast.error("Failed to copy prompt");
-    }
-  }
-
-  async function generateAiLeaderboardImage(post: LeaderboardPostCard) {
-    setAiGenerating((prev) => ({ ...prev, [post.key]: true }));
-    try {
-      const res = await fetch("/api/leaderboard-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(post),
-      });
-      if (!res.ok) {
-        const { error } = (await res.json()) as { error: string };
-        throw new Error(error ?? "Generation failed");
-      }
-      const { b64_json } = (await res.json()) as { b64_json: string };
-      setAiImages((prev) => ({ ...prev, [post.key]: b64_json }));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to generate image");
-    } finally {
-      setAiGenerating((prev) => ({ ...prev, [post.key]: false }));
-    }
-  }
-
-  async function downloadLeaderboardPackage(post: LeaderboardPostCard) {
-    try {
-      const JSZip = (await import("jszip")).default;
-      const zip = new JSZip();
-
-      // 1. Prompt text
-      zip.file("prompt.txt", buildLeaderboardPrompt(post));
-
-      // 2. Paradigm logo
-      const logoRes = await fetch("/paradigm-logo.png");
-      if (logoRes.ok) {
-        zip.file("paradigm-logo.png", await logoRes.arrayBuffer());
-      }
-
-      // 3. Agent profile photos for top 3
-      for (const entry of post.entries.slice(0, 3)) {
-        if (!entry.imageUrl) continue;
-        try {
-          const imgRes = await fetch(entry.imageUrl);
-          if (!imgRes.ok) continue;
-          const ext = entry.imageUrl.split("?")[0].split(".").pop() ?? "jpg";
-          const filename = `agent-${entry.rank}-${entry.initials.toLowerCase()}.${ext}`;
-          zip.file(filename, await imgRes.arrayBuffer());
-        } catch { /* skip on failure */ }
-      }
-
-      // 4. Download the zip
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url  = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href     = url;
-      link.download = `paradigm-${post.key}-leaderboard-package.zip`;
-      link.click();
-      URL.revokeObjectURL(url);
-      toast.success("Package downloaded — extract the ZIP, then upload all files to ChatGPT");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create package");
-    }
-  }
-
   async function downloadLeaderboardPost(post: LeaderboardPostCard) {
-    const b64 = aiImages[post.key];
-    if (b64) {
-      // Download the AI-generated image
-      const link = document.createElement("a");
-      link.href = `data:image/png;base64,${b64}`;
-      link.download = `paradigm-leaderboard-${post.key}.png`;
-      link.click();
-      return;
-    }
     try {
       const blob = await leaderboardPostPngBlob(post);
       const url = URL.createObjectURL(blob);
@@ -5058,16 +5033,8 @@ Render all text exactly as specified. Use exact names and numbers. Professional,
         toast.error("Image copy is not supported in this browser");
         return;
       }
-
-      const b64 = aiImages[post.key];
-      if (b64) {
-        const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-        const blob = new Blob([bytes], { type: "image/png" });
-        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-      } else {
-        const blob = await leaderboardPostPngBlob(post);
-        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-      }
+      const blob = await leaderboardPostPngBlob(post);
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
       toast.success("Leaderboard post copied");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to copy leaderboard post");
@@ -5535,25 +5502,30 @@ Render all text exactly as specified. Use exact names and numbers. Professional,
                                   {(() => {
                                     const isDev = agent.id === "ab3e26d9-b1c0-482f-a408-06a9205ee854";
                                     const isAdmin = agent.role === "admin";
-                                    if (isDev) return (
-                                      <span className='rounded-full bg-[rgba(88,101,242,0.15)] border border-[rgba(88,101,242,0.3)] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-[#5865F2]'>
-                                        Dev
-                                      </span>
-                                    );
-                                    if (isAdmin) return (
-                                      <span className='rounded-full bg-[#5865F2] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-white'>
-                                        Admin
-                                      </span>
-                                    );
-                                    if (agent.isNew) return (
-                                      <span className='rounded-full bg-[#3f9e50] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-white'>
-                                        New
-                                      </span>
-                                    );
+                                    if (isDev)
+                                      return (
+                                        <span className='rounded-full bg-[rgba(88,101,242,0.15)] border border-[rgba(88,101,242,0.3)] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-[#5865F2]'>
+                                          Dev
+                                        </span>
+                                      );
+                                    if (isAdmin)
+                                      return (
+                                        <span className='rounded-full bg-[#5865F2] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-white'>
+                                          Admin
+                                        </span>
+                                      );
+                                    if (agent.isNew)
+                                      return (
+                                        <span className='rounded-full bg-[#3f9e50] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-white'>
+                                          New
+                                        </span>
+                                      );
                                     return null;
                                   })()}
                                 </div>
-                                <div className='mt-0.5 truncate text-sm text-[var(--vf-muted)]'>{agent.email}</div>
+                                <div className='mt-0.5 truncate text-sm text-[var(--vf-muted)]'>
+                                  {agent.email}
+                                </div>
                               </div>
                             </div>
                           </td>
@@ -5701,114 +5673,59 @@ Render all text exactly as specified. Use exact names and numbers. Professional,
             </>
           )}
 
-          {tab === "leaderboardPosts" && (() => {
-            const anyGenerating = Object.values(aiGenerating).some(Boolean);
-            return (
-              <div className='space-y-4'>
-                {leaderboardPosts.cards.map((post) => {
-                  const aiImg     = aiImages[post.key] ?? null;
-                  const generating = aiGenerating[post.key] ?? false;
-                  const hasAiImg  = !!aiImg;
-                  const blockedByOther = anyGenerating && !generating;
-                  return (
-                    <Panel key={post.key} className='p-5'>
-                      <div className='flex flex-wrap items-center justify-between gap-4'>
-                        <div className='flex items-center gap-3'>
-                          <div className='flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--vf-surface)] text-[var(--vf-accent)]'>
-                            <ImageIcon className='h-4 w-4' />
-                          </div>
-                          <div>
-                            <h2 className='text-lg font-semibold text-[var(--vf-text)]'>{post.title}</h2>
-                            <p className='text-xs text-[var(--vf-muted)]'>{post.periodLabel}</p>
-                          </div>
-                        </div>
-
-                        <div className='flex items-center gap-2'>
-                          <button
-                            onClick={() => void generateAiLeaderboardImage(post)}
-                            disabled={!post.ready || generating || blockedByOther}
-                            className='inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-[var(--vf-accent)] px-4 py-2 text-sm font-semibold text-[var(--vf-accent-fg)] disabled:cursor-not-allowed disabled:opacity-40'
-                          >
-                            <Sparkles className={cn('h-4 w-4', generating && 'animate-spin')} />
-                            {generating ? 'Generating…' : hasAiImg ? 'Regenerate' : 'Generate'}
-                          </button>
-                          {post.ready && (
-                            <button
-                              onClick={() => void downloadLeaderboardPackage(post)}
-                              className='inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-semibold text-[var(--vf-text)]'
-                              title='Download a ZIP with the prompt + all images — upload everything to ChatGPT at once'
-                            >
-                              <Download className='h-4 w-4' />
-                              Download Package
-                            </button>
-                          )}
-                          {post.ready && (
-                            <button
-                              onClick={() => void copyLeaderboardPrompt(post)}
-                              className='inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-semibold text-[var(--vf-text)]'
-                              title='Copy just the prompt text'
-                            >
-                              <Copy className='h-4 w-4' />
-                              Copy Prompt
-                            </button>
-                          )}
-                          {hasAiImg && (
-                            <>
-                              <button
-                                onClick={() => void copyLeaderboardPost(post)}
-                                disabled={generating}
-                                className='inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-semibold text-[var(--vf-text)] disabled:cursor-not-allowed disabled:opacity-40'
-                              >
-                                <Copy className='h-4 w-4' />
-                                Copy
-                              </button>
-                              <button
-                                onClick={() => void downloadLeaderboardPost(post)}
-                                disabled={generating}
-                                className='inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-semibold text-[var(--vf-text)] disabled:cursor-not-allowed disabled:opacity-40'
-                              >
-                                <Download className='h-4 w-4' />
-                                Download
-                              </button>
-                            </>
-                          )}
-                        </div>
+          {tab === "leaderboardPosts" && (
+            <div className='space-y-5'>
+              {leaderboardPosts.cards.map((post) => (
+                <div
+                  key={post.key}
+                  className='py-2'
+                >
+                  <div className='flex flex-wrap items-start justify-between gap-4'>
+                    <div className='flex items-center gap-3'>
+                      <div className='flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--vf-surface)] text-[var(--vf-accent)]'>
+                        <ImageIcon className='h-5 w-5' />
                       </div>
-
-                      <div className='mt-4'>
-                        {generating && (
-                          <div className='flex items-center justify-center rounded-2xl border border-dashed border-[var(--vf-border)] bg-[var(--vf-surface)] py-16'>
-                            <div className='text-center'>
-                              <Sparkles className='mx-auto mb-3 h-7 w-7 animate-pulse text-[var(--vf-accent)]' />
-                              <p className='text-sm text-[var(--vf-muted)]'>Generating with AI…</p>
-                              <p className='mt-1 text-xs text-[var(--vf-muted)] opacity-60'>~15–30 seconds</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {!generating && hasAiImg && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={`data:image/png;base64,${aiImg}`}
-                            alt={`AI-generated ${post.title}`}
-                            className='mx-auto block w-full max-w-xs rounded-2xl shadow-xl'
-                          />
-                        )}
-
-                        {!generating && !hasAiImg && (
-                          <div className='rounded-2xl border border-dashed border-[var(--vf-border)] bg-[var(--vf-surface)] px-6 py-8 text-center text-sm text-[var(--vf-muted)]'>
-                            {post.ready
-                              ? <>Click <span className='font-semibold text-[var(--vf-text)]'>Generate</span> to create this leaderboard graphic.</>
-                              : post.emptyMessage}
-                          </div>
-                        )}
+                      <div>
+                        <h2 className='text-3xl font-semibold text-[var(--vf-text)]'>{post.title}</h2>
+                        <p className='mt-1 text-sm text-[var(--vf-muted)]'>
+                          {post.periodLabel} · {post.shareLabel}
+                        </p>
                       </div>
-                    </Panel>
-                  );
-                })}
-              </div>
-            );
-          })()}
+                    </div>
+
+                    <div className='flex flex-wrap items-center gap-2'>
+                      <button
+                        onClick={() => void copyLeaderboardPost(post)}
+                        disabled={!post.ready}
+                        className='inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--vf-text)] disabled:cursor-not-allowed disabled:opacity-50'
+                      >
+                        <Copy className='h-4 w-4' />
+                        Copy image
+                      </button>
+                      <button
+                        onClick={() => void downloadLeaderboardPost(post)}
+                        disabled={!post.ready}
+                        className='inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-[var(--vf-accent)] px-4 py-2.5 text-sm font-semibold text-[var(--vf-accent-fg)] disabled:cursor-not-allowed disabled:opacity-50'
+                      >
+                        <Download className='h-4 w-4' />
+                        Download PNG
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className='mt-6'>
+                    {post.ready ? (
+                      <LeaderboardPostPreview post={post} />
+                    ) : (
+                      <div className='rounded-[28px] border border-dashed border-[var(--vf-border)] bg-[var(--vf-surface)] px-6 py-10 text-center text-[var(--vf-muted)]'>
+                        {post.emptyMessage}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {tab === "subAgencies" && (
             <Panel className='p-6'>
@@ -6695,7 +6612,8 @@ export function ProfilePage({
                 </span>
               </div>
               <p className='mt-2 text-sm text-[var(--vf-muted)] sm:text-base'>
-                Your Discord account is your identity on this platform. Sales data, rankings, and activity are all tied to it.
+                Your Discord account is your identity on this platform. Sales data, rankings, and activity are
+                all tied to it.
               </p>
             </div>
           </div>
