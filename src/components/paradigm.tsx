@@ -55,6 +55,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { cn } from "@/lib/utils";
 import type {
@@ -708,6 +709,17 @@ function NavLinks({
   isAdmin: boolean;
   onNavigate?: () => void;
 }) {
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 1023px)");
+    const syncViewport = () => setIsMobileViewport(mediaQuery.matches);
+
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+    return () => mediaQuery.removeEventListener("change", syncViewport);
+  }, []);
+
   return (
     <nav className='mt-6 flex flex-col gap-0.5 px-2'>
       {navItems.map((item) => {
@@ -738,9 +750,37 @@ function NavLinks({
         );
 
         if (locked) {
+          if (isMobileViewport) {
+            return (
+              <Popover key={href}>
+                <PopoverTrigger
+                  render={
+                    <button
+                      type='button'
+                      className={itemClassName}
+                      aria-label='My Team is locked until you get your first downline'
+                    />
+                  }
+                >
+                  {inner}
+                </PopoverTrigger>
+                <PopoverContent
+                  align='start'
+                  sideOffset={10}
+                  className='border border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)]'
+                >
+                  <PopoverHeader>
+                    <PopoverTitle>My Team is locked</PopoverTitle>
+                    <PopoverDescription>Unlocked once you get your first downline.</PopoverDescription>
+                  </PopoverHeader>
+                </PopoverContent>
+              </Popover>
+            );
+          }
+
           return (
-            <Popover key={href}>
-              <PopoverTrigger
+            <Tooltip key={href}>
+              <TooltipTrigger
                 render={
                   <button
                     type='button'
@@ -750,18 +790,19 @@ function NavLinks({
                 }
               >
                 {inner}
-              </PopoverTrigger>
-              <PopoverContent
-                align='start'
+              </TooltipTrigger>
+              <TooltipContent
+                align='end'
+                side='top'
                 sideOffset={10}
                 className='border border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)]'
               >
-                <PopoverHeader>
-                  <PopoverTitle>My Team is locked</PopoverTitle>
-                  <PopoverDescription>Unlocked once you get your first downline.</PopoverDescription>
-                </PopoverHeader>
-              </PopoverContent>
-            </Popover>
+                <div className='flex flex-col gap-0.5 text-sm'>
+                  <div className='font-medium'>My Team is locked</div>
+                  <div className='text-[var(--vf-muted)]'>Unlocked once you get your first downline.</div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
           );
         }
 
@@ -4142,7 +4183,7 @@ function leaderboardPostSvg(
 }
 
 // ── Background pre-rendering ─────────────────────────────────────────────────
-let _bgCache: string | null | undefined; // bump to reset: v9
+let _bgCache: string | null | undefined; // bump to reset: v10
 async function fetchBgDataUrl(): Promise<string | null> {
   if (_bgCache !== undefined) return _bgCache;
   try {
