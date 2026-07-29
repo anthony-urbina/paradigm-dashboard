@@ -22,5 +22,5 @@ export default async function DashboardAgencyPage({
     getAgencyData(range, agent?.id),
     isAdmin ? getCompGuideData() : Promise.resolve([]),
   ]);
-  return <AgencyPage {...data} selectedRange={range} isAdmin={isAdmin} compGuide={compGuide} />;
+  return <AgencyPage {...data} selectedRange={range} isAdmin={isAdmin} compGuide={compGuide} agentCompPercentage={agent?.compPercentage ?? 80} />;
 }
