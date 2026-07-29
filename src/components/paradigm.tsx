@@ -866,9 +866,8 @@ function HeaderNav({
     </div>
   );
 
-  // Mobile: badge sits below logo in a column so it doesn't overflow
   const mobileBrand = !logoBroken ? (
-    <div className='inline-flex flex-col items-start gap-1'>
+    <div className='relative inline-flex'>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src='/Paradigm Financial Logo-21.png'
@@ -876,14 +875,14 @@ function HeaderNav({
         className='h-10 w-auto max-w-[135px] object-contain'
         onError={() => setLogoBroken(true)}
       />
-      {adminBadgeInline}
+      {adminBadgeAbsolute}
     </div>
   ) : (
-    <div className='inline-flex flex-col items-start gap-1'>
+    <div className='relative inline-flex'>
       <div className='text-[1.05rem] font-semibold uppercase tracking-[0.38em] text-[var(--vf-text)]'>
         Paradigm Financial
       </div>
-      {adminBadgeInline}
+      {adminBadgeAbsolute}
     </div>
   );
 
@@ -3653,6 +3652,7 @@ type AgencyProps = {
   rangeLabel: string;
   isAdmin: boolean;
   compGuide: CompGuideRecord[];
+  agentCompPercentage: number;
 };
 
 export function AgencyPage({
@@ -3663,6 +3663,7 @@ export function AgencyPage({
   rangeLabel,
   isAdmin,
   compGuide,
+  agentCompPercentage,
 }: AgencyProps) {
   const overview = (
     <>
@@ -3763,6 +3764,7 @@ export function AgencyPage({
                 const FFL_LEVELS = [
                   65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145,
                 ];
+                const agentFflLevel = Math.floor(agentCompPercentage / 5) * 5;
                 const CATEGORIES = ["Whole Life", "Term", "IUL / Annuity"] as const;
                 const renderTable = (category: string) => {
                   const rows = compGuide.filter((r) => r.category === category);
@@ -3780,7 +3782,7 @@ export function AgencyPage({
                             {FFL_LEVELS.map((lvl) => (
                               <th
                                 key={lvl}
-                                className={`px-3 py-3 text-center font-medium whitespace-nowrap${lvl === 80 ? " text-[var(--vf-accent)]" : ""}`}
+                                className={`px-3 py-3 text-center font-medium whitespace-nowrap${lvl === agentFflLevel ? " text-[var(--vf-accent)]" : ""}`}
                               >
                                 {lvl}%
                               </th>
@@ -3804,7 +3806,7 @@ export function AgencyPage({
                                 return (
                                   <td
                                     key={lvl}
-                                    className={`px-3 py-2 text-center${lvl === 80 ? " font-semibold text-[var(--vf-text)]" : " text-[var(--vf-muted)]"}`}
+                                    className={`px-3 py-2 text-center${lvl === agentFflLevel ? " font-semibold text-[var(--vf-text)]" : " text-[var(--vf-muted)]"}`}
                                   >
                                     {rate != null ? `${rate}%` : "—"}
                                   </td>
@@ -3884,28 +3886,26 @@ function escapeXml(value: string) {
     .replaceAll("'", "&apos;");
 }
 
-// ── Patrick Hand SC font (embedded as base64 so it works in SVG data URLs + canvas) ──
-let _amaticCache: string | null | undefined;
-async function fetchAmaticFontStyle(): Promise<string | null> {
-  if (_amaticCache !== undefined) return _amaticCache;
-  try {
-    // Self-hosted in /public/fonts — avoids CORS, User-Agent, and CSS-parsing issues
-    const res = await fetch("/fonts/patrick-hand-sc.woff2");
-    if (!res.ok) {
-      _amaticCache = null;
-      return null;
-    }
-    const buf = await res.arrayBuffer();
-    const bytes = new Uint8Array(buf);
-    let binary = "";
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    const b64 = btoa(binary);
-    _amaticCache = `@font-face{font-family:'Patrick Hand SC';font-weight:400;src:url('data:font/woff2;base64,${b64}') format('woff2');}`;
-    return _amaticCache;
-  } catch {
-    _amaticCache = null;
-    return null;
-  }
+// Vertical-stretch helper — applies a 1.15× y-scale anchored at the text baseline
+function stretch(y: number) {
+  return `matrix(1 0 0 1.15 0 ${Math.round(y * -0.15)})`;
+}
+
+let _bebasB64: string | null = null;
+async function fetchBebasNeueB64(): Promise<string> {
+  if (_bebasB64) return _bebasB64;
+  // 1. Fetch Google Fonts CSS to discover the woff2 URL
+  const css = await fetch(
+    "https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap",
+    { headers: { "User-Agent": "Mozilla/5.0" } },
+  ).then((r) => r.text());
+  const woff2Url = css.match(/url\((https:\/\/fonts\.gstatic\.com[^)]+\.woff2)\)/)?.[1];
+  if (!woff2Url) throw new Error("Bebas Neue woff2 URL not found in Google Fonts CSS");
+  // 2. Fetch the woff2 binary and convert to base64
+  const buf = await fetch(woff2Url).then((r) => r.arrayBuffer());
+  const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+  _bebasB64 = `data:font/woff2;base64,${b64}`;
+  return _bebasB64;
 }
 
 // ── Leaderboard background constants ────────────────────────────────────────
@@ -3923,71 +3923,33 @@ const LB_AV = [
 ] as const;
 
 // Text positions below each avatar (tune after first render)
-const LB_NAME_Y = [null, 1085, 1095, 1095] as const; // agent name
-const LB_AP_Y = [null, 1215, 1215, 1215] as const; // AP dollar value
-const LB_SALES_Y = [null, 1255, 1255, 1255] as const; // "X sales"
+const LB_NAME_Y           = [null, 1090, 1100, 1100] as const; // agent name
+const LB_TOTAL_AP_LABEL_Y = [null, 1138, 1148, 1148] as const; // "TOTAL AP" label
+const LB_AP_Y             = [null, 1212, 1222, 1222] as const; // AP dollar value
+const LB_SALES_Y          = [null, 1261, 1271, 1271] as const; // "X sales"
 
-// Period label overlay — covers baked-in "WEEKLY" text with dynamic DAILY/WEEKLY/MONTHLY
-const LB_PERIOD_ERASE_Y = 450;
-const LB_PERIOD_ERASE_X = 325;
-const LB_PERIOD_ERASE_W = 420;
-const LB_PERIOD_ERASE_H = 120;
+// Period / date overlay positions
 const LB_PERIOD_Y = 542;
-
-// Date overlay — covers the baked-in date path with a blank strip + our text
 const LB_DATE_Y = 600;
-const LB_DATE_ERASE_Y = 575;
-const LB_DATE_ERASE_H = 50;
-
-// Ranks 4+ grid — sits in the blank area between podium and footer
-const LB_GRID_Y = 900;
-const LB_ROW_H = 52;
 
 // Footer value overlay positions
 const LB_FOOTER_AP_X = 345;
 const LB_FOOTER_AGENTS_X = 760;
 const LB_FOOTER_VAL_Y = 1428;
 
+const F = "'Bebas Neue', Arial, sans-serif";
+
 function leaderboardPostSvg(
   post: LeaderboardPostCard,
   imageDataUrls: Record<number, string> = {},
   bgDataUrl?: string | null,
-  fontStyle?: string | null,
+  fontB64?: string | null,
 ) {
   const fmtAp = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 
   const e1 = post.entries[0];
   const e2 = post.entries[1];
   const e3 = post.entries[2];
-
-  // Ranks 4–13 in a 2-column grid
-  const gridEntries = post.entries.slice(3, 13);
-  const leftCol = gridEntries.filter((_, i) => i % 2 === 0);
-  const rightCol = gridEntries.filter((_, i) => i % 2 === 1);
-  const rowCount = Math.max(leftCol.length, rightCol.length);
-
-  const gridRows = Array.from({ length: rowCount }, (_, i) => {
-    const y = LB_GRID_Y + i * LB_ROW_H;
-    const mid = y + Math.round(LB_ROW_H / 2) + 7;
-    const l = leftCol[i];
-    const r = rightCol[i];
-    const bg = i % 2 === 0 ? "rgba(0,0,0,0.03)" : "none";
-    const lSvg = l
-      ? `
-      <text x="88"  y="${mid}" fill="#B8860B" font-size="19" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${l.rank}</text>
-      <text x="126" y="${mid}" fill="#111111" font-size="19" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(l.shortName)}</text>
-      <text x="360" y="${mid}" fill="#888888" font-size="13" font-family="Arial, sans-serif" text-anchor="end">${l.salesCount} ${l.salesCount === 1 ? "sale" : "sales"}</text>
-      <text x="500" y="${mid}" fill="#111111" font-size="19" font-family="Arial, sans-serif" font-weight="900" text-anchor="end">${fmtAp(l.ap)}</text>`
-      : "";
-    const rSvg = r
-      ? `
-      <text x="554" y="${mid}" fill="#B8860B" font-size="19" font-family="Arial, sans-serif" font-weight="900" font-style="italic">#${r.rank}</text>
-      <text x="592" y="${mid}" fill="#111111" font-size="19" font-family="Arial, sans-serif" font-weight="700" font-style="italic">${escapeXml(r.shortName)}</text>
-      <text x="828" y="${mid}" fill="#888888" font-size="13" font-family="Arial, sans-serif" text-anchor="end">${r.salesCount} ${r.salesCount === 1 ? "sale" : "sales"}</text>
-      <text x="968" y="${mid}" fill="#111111" font-size="19" font-family="Arial, sans-serif" font-weight="900" text-anchor="end">${fmtAp(r.ap)}</text>`
-      : "";
-    return `<rect x="72" y="${y}" width="936" height="${LB_ROW_H - 1}" fill="${bg}"/>${lSvg}${rSvg}`;
-  }).join("");
 
   // clipPaths for photo avatars
   const clipPaths = ([1, 2, 3] as const)
@@ -4010,7 +3972,7 @@ function leaderboardPostSvg(
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="${LB_W}" height="${LB_H}" viewBox="0 0 ${LB_W} ${LB_H}">
       <defs>
-        ${fontStyle ? `<style>${fontStyle}</style>` : ""}
+        ${fontB64 ? `<style>@font-face{font-family:'Bebas Neue';src:url('${fontB64}') format('woff2');}</style>` : ""}
         <linearGradient id="goldGrad" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%"   stop-color="#F5D060"/>
           <stop offset="45%"  stop-color="#C8921A"/>
@@ -4027,88 +3989,87 @@ function leaderboardPostSvg(
       ${e3 ? avatarOverlay(e3) : ""}
       ${e1 ? avatarOverlay(e1) : ""}
 
-      <!-- Full SVGMaker background (pre-rendered PNG with transparent avatar holes) -->
+      <!-- SVGMaker background -->
       ${
         bgDataUrl
           ? `<image href="${bgDataUrl}" x="0" y="0" width="${LB_W}" height="${LB_H}" preserveAspectRatio="none"/>`
           : `<rect width="${LB_W}" height="${LB_H}" fill="#f5f3ef"/>`
       }
 
-      <!-- Erase baked-in "WEEKLY" label, overlay dynamic period -->
-      <rect x="${LB_PERIOD_ERASE_X}" y="${LB_PERIOD_ERASE_Y}" width="${LB_PERIOD_ERASE_W}" height="${LB_PERIOD_ERASE_H}" fill="#F2F0EA" />
+      <!-- Period label (DAILY / WEEKLY / MONTHLY) -->
       <text x="540" y="${LB_PERIOD_Y}" text-anchor="middle"
-        transform="matrix(1 0 0 1.15 0 ${Math.round(LB_PERIOD_Y * -0.15)})"
-        font-size="${post.key === "monthly" ? 88 : 95}" font-family="Arial, sans-serif" font-weight="900" letter-spacing="4"
+        font-size="${post.key === "monthly" ? 82 : 95}" font-family="${F}" font-weight="900" letter-spacing="4"
         fill="url(#goldGrad)">${escapeXml(post.key.toUpperCase())}</text>
 
-      <!-- Erase baked-in date path, overlay dynamic date -->
-      <rect x="100" y="${LB_DATE_ERASE_Y}" width="880" height="${LB_DATE_ERASE_H}" fill="#F2F0EA"/>
+      <!-- Date range -->
       <text x="540" y="${LB_DATE_Y}" text-anchor="middle" fill="#1a1a1a"
-        font-size="24" font-family="Arial, sans-serif" font-weight="700" letter-spacing="2">${escapeXml(post.periodLabel.toUpperCase())}</text>
+        font-size="24" font-family="${F}" font-weight="700" letter-spacing="2">${escapeXml(post.periodLabel.toUpperCase())}</text>
 
       <!-- Initials fallback when no photo -->
       ${
         e1 && !imageDataUrls[1]
           ? `<text x="${LB_AV[1].cx}" y="${LB_AV[1].cy + 17}" text-anchor="middle" fill="#333"
-        font-size="46" font-family="Arial, sans-serif" font-weight="900">${escapeXml(e1.initials)}</text>`
+        font-size="46" font-family="${F}" font-weight="900">${escapeXml(e1.initials)}</text>`
           : ""
       }
       ${
         e2 && !imageDataUrls[2]
           ? `<text x="${LB_AV[2].cx}" y="${LB_AV[2].cy + 13}" text-anchor="middle" fill="#333"
-        font-size="34" font-family="Arial, sans-serif" font-weight="900">${escapeXml(e2.initials)}</text>`
+        font-size="34" font-family="${F}" font-weight="900">${escapeXml(e2.initials)}</text>`
           : ""
       }
       ${
         e3 && !imageDataUrls[3]
           ? `<text x="${LB_AV[3].cx}" y="${LB_AV[3].cy + 13}" text-anchor="middle" fill="#333"
-        font-size="34" font-family="Arial, sans-serif" font-weight="900">${escapeXml(e3.initials)}</text>`
+        font-size="34" font-family="${F}" font-weight="900">${escapeXml(e3.initials)}</text>`
           : ""
       }
 
-      <!-- Names below each avatar (Patrick Hand SC) -->
+      <!-- Names below each avatar -->
       ${
         e1
           ? `<text x="${LB_AV[1].cx}" y="${LB_NAME_Y[1]}" text-anchor="middle" fill="#111111"
-        stroke="#111111" stroke-width="2" paint-order="stroke fill"
-        font-size="60" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${escapeXml(e1.shortName)}</text>`
+        font-size="58" font-family="${F}" font-weight="600">${escapeXml(e1.shortName.toUpperCase())}</text>`
           : ""
       }
       ${
         e2
           ? `<text x="${LB_AV[2].cx}" y="${LB_NAME_Y[2]}" text-anchor="middle" fill="#111111"
-        stroke="#111111" stroke-width="1.5" paint-order="stroke fill"
-        font-size="51" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${escapeXml(e2.shortName)}</text>`
+        font-size="49" font-family="${F}" font-weight="600">${escapeXml(e2.shortName.toUpperCase())}</text>`
           : ""
       }
       ${
         e3
           ? `<text x="${LB_AV[3].cx}" y="${LB_NAME_Y[3]}" text-anchor="middle" fill="#111111"
-        stroke="#111111" stroke-width="1.5" paint-order="stroke fill"
-        font-size="51" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${escapeXml(e3.shortName)}</text>`
+        font-size="51" font-family="${F}" font-weight="600">${escapeXml(e3.shortName.toUpperCase())}</text>`
           : ""
       }
+
+      <!-- "TOTAL AP" labels -->
+      ${e1 ? `<text x="${LB_AV[1].cx}" y="${LB_TOTAL_AP_LABEL_Y[1]}" text-anchor="middle" fill="#555555"
+        font-size="22" font-family="${F}" font-weight="600" letter-spacing="2">TOTAL AP</text>` : ""}
+      ${e2 ? `<text x="${LB_AV[2].cx}" y="${LB_TOTAL_AP_LABEL_Y[2]}" text-anchor="middle" fill="#555555"
+        font-size="20" font-family="${F}" font-weight="600" letter-spacing="2">TOTAL AP</text>` : ""}
+      ${e3 ? `<text x="${LB_AV[3].cx}" y="${LB_TOTAL_AP_LABEL_Y[3]}" text-anchor="middle" fill="#555555"
+        font-size="20" font-family="${F}" font-weight="600" letter-spacing="2">TOTAL AP</text>` : ""}
 
       <!-- AP values (gold for #1, dark for #2/#3) -->
       ${
         e1
           ? `<text x="${LB_AV[1].cx}" y="${LB_AP_Y[1]}" text-anchor="middle" fill="url(#goldGrad)"
-        stroke="#C8921A" stroke-width="2" paint-order="stroke fill"
-        font-size="64" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${fmtAp(e1.ap)}</text>`
+        font-size="61" font-family="${F}" font-weight="900">${fmtAp(e1.ap)}</text>`
           : ""
       }
       ${
         e2
           ? `<text x="${LB_AV[2].cx}" y="${LB_AP_Y[2]}" text-anchor="middle" fill="#1a1a1a"
-        stroke="#1a1a1a" stroke-width="2" paint-order="stroke fill"
-        font-size="64" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${fmtAp(e2.ap)}</text>`
+        font-size="61" font-family="${F}" font-weight="900">${fmtAp(e2.ap)}</text>`
           : ""
       }
       ${
         e3
           ? `<text x="${LB_AV[3].cx}" y="${LB_AP_Y[3]}" text-anchor="middle" fill="#1a1a1a"
-        stroke="#1a1a1a" stroke-width="2" paint-order="stroke fill"
-        font-size="64" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${fmtAp(e3.ap)}</text>`
+        font-size="61" font-family="${F}" font-weight="900">${fmtAp(e3.ap)}</text>`
           : ""
       }
 
@@ -4116,51 +4077,40 @@ function leaderboardPostSvg(
       ${
         e1
           ? `<text x="${LB_AV[1].cx}" y="${LB_SALES_Y[1]}" text-anchor="middle" fill="#000000"
-        stroke-width="1" paint-order="stroke fill"
-        font-size="31" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${e1.salesCount} ${e1.salesCount === 1 ? "sale" : "sales"}</text>`
+        font-size="28" font-family="${F}" font-weight="700">${e1.salesCount} ${e1.salesCount === 1 ? "sale" : "sales"}</text>`
           : ""
       }
       ${
         e2
           ? `<text x="${LB_AV[2].cx}" y="${LB_SALES_Y[2]}" text-anchor="middle" fill="#000000"
-        stroke-width="1" paint-order="stroke fill"
-        font-size="31" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${e2.salesCount} ${e2.salesCount === 1 ? "sale" : "sales"}</text>`
+        font-size="28" font-family="${F}" font-weight="700">${e2.salesCount} ${e2.salesCount === 1 ? "sale" : "sales"}</text>`
           : ""
       }
       ${
         e3
           ? `<text x="${LB_AV[3].cx}" y="${LB_SALES_Y[3]}" text-anchor="middle" fill="#000000"
-        stroke-width="1" paint-order="stroke fill"
-        font-size="31" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${e3.salesCount} ${e3.salesCount === 1 ? "sale" : "sales"}</text>`
+        font-size="28" font-family="${F}" font-weight="700">${e3.salesCount} ${e3.salesCount === 1 ? "sale" : "sales"}</text>`
           : ""
       }
 
-      <!-- Ranks 4+ grid (in the blank area between podium and footer) -->
-      ${
-        rowCount > 0
-          ? `
-        <line x1="72" y1="${LB_GRID_Y - 8}" x2="1008" y2="${LB_GRID_Y - 8}" stroke="rgba(0,0,0,0.09)" stroke-width="1"/>
-        <line x1="532" y1="${LB_GRID_Y}" x2="532" y2="${LB_GRID_Y + rowCount * LB_ROW_H}" stroke="rgba(0,0,0,0.07)" stroke-width="1"/>
-        <line x1="72" y1="${LB_GRID_Y + rowCount * LB_ROW_H + 8}" x2="1008" y2="${LB_GRID_Y + rowCount * LB_ROW_H + 8}" stroke="rgba(0,0,0,0.09)" stroke-width="1"/>
-      `
-          : ""
-      }
-
-      <!-- Footer value overlays (on top of the SVG-drawn footer bar) -->
+      <!-- Footer stats -->
+      <text x="${LB_FOOTER_AP_X}" y="${LB_FOOTER_VAL_Y - 50}" text-anchor="middle" fill="#555555"
+        font-size="36" font-family="${F}" font-weight="700" letter-spacing="1">TEAM TOTAL AP</text>
       <text x="${LB_FOOTER_AP_X}" y="${LB_FOOTER_VAL_Y}" text-anchor="middle" fill="url(#goldGrad)"
-        stroke="#C8921A" stroke-width="1.5" paint-order="stroke fill"
-        font-size="53.82" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${fmtAp(post.totalAp)}</text>
+        font-size="51" font-family="${F}" font-weight="900">${fmtAp(post.totalAp)}</text>
+
+      <line x1="540" y1="${LB_FOOTER_VAL_Y - 90}" x2="540" y2="${LB_FOOTER_VAL_Y + 8}" stroke="rgba(0,0,0,0.15)" stroke-width="1"/>
+
+      <text x="${LB_FOOTER_AGENTS_X}" y="${LB_FOOTER_VAL_Y - 50}" text-anchor="middle" fill="#555555"
+        font-size="36" font-family="${F}" font-weight="700" letter-spacing="1">WRITING AGENTS</text>
       <text x="${LB_FOOTER_AGENTS_X}" y="${LB_FOOTER_VAL_Y}" text-anchor="middle" fill="url(#goldGrad)"
-        stroke="#C8921A" stroke-width="1.5" paint-order="stroke fill"
-        font-size="53.82" font-family="'Patrick Hand SC', Arial, sans-serif" font-weight="400">${post.writingAgents}</text>
-   
-   
+        font-size="51" font-family="${F}" font-weight="900">${post.writingAgents}</text>
     </svg>
   `.trim();
 }
 
 // ── Background pre-rendering ─────────────────────────────────────────────────
-let _bgCache: string | null | undefined; // bump to reset: v7
+let _bgCache: string | null | undefined; // bump to reset: v9
 async function fetchBgDataUrl(): Promise<string | null> {
   if (_bgCache !== undefined) return _bgCache;
   try {
@@ -4227,12 +4177,12 @@ async function fetchEntryImageDataUrls(
 }
 
 async function leaderboardPostPngBlob(post: LeaderboardPostCard) {
-  const [imageDataUrls, bgDataUrl, fontStyle] = await Promise.all([
+  const [imageDataUrls, bgDataUrl, fontB64] = await Promise.all([
     fetchEntryImageDataUrls(post.entries),
     fetchBgDataUrl(),
-    fetchAmaticFontStyle(),
+    fetchBebasNeueB64(),
   ]);
-  const svg = leaderboardPostSvg(post, imageDataUrls, bgDataUrl, fontStyle);
+  const svg = leaderboardPostSvg(post, imageDataUrls, bgDataUrl, fontB64);
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
 
@@ -4264,18 +4214,17 @@ async function leaderboardPostPngBlob(post: LeaderboardPostCard) {
 function LeaderboardPostPreview({ post }: { post: LeaderboardPostCard }) {
   const [imageDataUrls, setImageDataUrls] = useState<Record<number, string>>({});
   const [bgDataUrl, setBgDataUrl] = useState<string | null>(null);
-  const [fontStyle, setFontStyle] = useState<string | null>(null);
-
+  const [fontB64, setFontB64] = useState<string | null>(null);
   useEffect(() => {
     fetchEntryImageDataUrls(post.entries).then(setImageDataUrls);
   }, [post.entries]);
 
   useEffect(() => {
     fetchBgDataUrl().then(setBgDataUrl);
-    fetchAmaticFontStyle().then(setFontStyle);
+    fetchBebasNeueB64().then(setFontB64).catch(() => null);
   }, []);
 
-  const svgString = leaderboardPostSvg(post, imageDataUrls, bgDataUrl, fontStyle);
+  const svgString = leaderboardPostSvg(post, imageDataUrls, bgDataUrl, fontB64);
   const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
   return (
     // eslint-disable-next-line @next/next/no-img-element
