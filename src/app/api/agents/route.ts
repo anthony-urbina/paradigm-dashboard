@@ -14,6 +14,7 @@ const createAgentSchema = z.object({
 
 const updateAgentSchema = z.object({
   id: z.string().uuid(),
+  name: z.string().trim().min(1).optional(),
   role: z.enum(["admin", "agent"]).optional(),
   uplineId: z.string().uuid().nullable().optional(),
   compPercentage: z.coerce.number().min(0).max(200).optional(),
@@ -137,7 +138,14 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "A valid agent update is required" }, { status: 400 });
   }
 
-  const update: { role?: "admin" | "agent"; upline_id?: string | null; comp_percentage?: number; email?: string } = {};
+  const update: {
+    name?: string;
+    role?: "admin" | "agent";
+    upline_id?: string | null;
+    comp_percentage?: number;
+    email?: string;
+  } = {};
+  if (parsed.data.name !== undefined) update.name = parsed.data.name;
   if (parsed.data.role !== undefined) update.role = parsed.data.role;
   if (parsed.data.uplineId !== undefined) update.upline_id = parsed.data.uplineId;
   if (parsed.data.compPercentage !== undefined) update.comp_percentage = parsed.data.compPercentage;

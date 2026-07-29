@@ -42,7 +42,7 @@ import useSWR from "swr";
 import { AnimatePresence, motion } from "motion/react";
 
 import { DatePicker } from "@/components/ui/date-picker";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
@@ -4862,6 +4862,7 @@ function UplineSelect({
   uplineOptions,
   disabled,
   onChange,
+  triggerClassName,
 }: {
   agentId: string;
   uplineId: string | null;
@@ -4869,11 +4870,9 @@ function UplineSelect({
   uplineOptions: { id: string; name: string }[];
   disabled: boolean;
   onChange: (value: string | null) => void;
+  triggerClassName?: string;
 }) {
-  const [search, setSearch] = useState("");
-  const filtered = uplineOptions
-    .filter((o) => o.id !== agentId)
-    .filter((o) => o.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = uplineOptions.filter((o) => o.id !== agentId);
   const adminControlCls =
     "h-[52px] w-[220px] rounded-xl border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
 
@@ -4881,31 +4880,20 @@ function UplineSelect({
     <Select
       value={uplineId ?? "unassigned"}
       onValueChange={(v) => {
-        setSearch("");
         onChange(v === "unassigned" ? null : v);
       }}
       disabled={disabled}
     >
-      <SelectTrigger className={adminControlCls}>
+      <SelectTrigger className={cn(adminControlCls, triggerClassName)}>
         <span>
           {uplineId ? (uplineOptions.find((o) => o.id === uplineId)?.name ?? uplineName) : "Unassigned"}
         </span>
       </SelectTrigger>
       <SelectContent
-        className='w-[280px] max-h-[300px] p-2'
-        align='end'
+        className='max-h-[300px] w-[var(--radix-popper-anchor-width)] p-2'
+        align='start'
         alignItemWithTrigger={false}
       >
-        <div className='pb-2'>
-          <input
-            autoFocus
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.stopPropagation()}
-            placeholder='Search agents...'
-            className='w-full rounded-lg bg-[rgba(255,255,255,0.07)] px-3 py-2 text-sm text-[var(--vf-text)] outline-none placeholder:text-[var(--vf-muted)]'
-          />
-        </div>
         <SelectItem
           value='unassigned'
           className='rounded-lg px-3 py-2.5 text-sm'
@@ -4945,9 +4933,17 @@ export function AdminPage({
   const [inviteList, setInviteList] = useState("agent1@paradigmfinancial.com\nagent2@paradigmfinancial.com");
   const [inviting, setInviting] = useState(false);
   const [savingAgentId, setSavingAgentId] = useState<string | null>(null);
-  const [deleteAgentPending, setDeleteAgentPending] = useState<{ id: string; name: string } | null>(null);
+  const [deleteAgentPending, setDeleteAgentPending] = useState<{
+    id: string;
+    name: string;
+    restoreEditAgent?: AdminAgentRecord;
+  } | null>(null);
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
-  const [focusedAgentId, setFocusedAgentId] = useState<string | null>(null);
+  const [editAgent, setEditAgent] = useState<AdminAgentRecord | null>(null);
+  const [editAgentName, setEditAgentName] = useState("");
+  const [editAgentRole, setEditAgentRole] = useState<"admin" | "agent">("agent");
+  const [editAgentCompPercentage, setEditAgentCompPercentage] = useState("");
+  const [editAgentUplineId, setEditAgentUplineId] = useState<string | null>(null);
   const [agentFilter, setAgentFilter] = useState<"All" | "New" | "Unassigned">("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -4968,6 +4964,8 @@ export function AdminPage({
   const [editSaName, setEditSaName] = useState("");
   const [editSaLogoFile, setEditSaLogoFile] = useState<File | null>(null);
   const [savingEditSa, setSavingEditSa] = useState(false);
+  const modalFieldCls =
+    "min-h-[56px] w-full rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 text-base text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
 
   const sidebarItems: { label: string; key: "management" | "leaderboardPosts" | "subAgencies" }[] = [
     { label: "Management", key: "management" },
@@ -5243,7 +5241,7 @@ export function AdminPage({
 
   async function updateAgent(
     agentId: string,
-    payload: { role?: "admin" | "agent"; uplineId?: string | null; compPercentage?: number },
+    payload: { name?: string; role?: "admin" | "agent"; uplineId?: string | null; compPercentage?: number },
   ) {
     setSavingAgentId(agentId);
     try {
@@ -5256,14 +5254,70 @@ export function AdminPage({
       const result = (await response.json()) as { error?: string };
       if (!response.ok) {
         toast.error(result.error ?? "Failed to update agent");
-        return;
+        return false;
       }
 
       toast.success("Agent updated");
       router.refresh();
+      return true;
     } finally {
       setSavingAgentId(null);
     }
+  }
+
+  function openEditAgent(agent: AdminAgentRecord) {
+    setEditAgent(agent);
+    setEditAgentName(agent.name);
+    setEditAgentRole(agent.role === "admin" ? "admin" : "agent");
+    setEditAgentCompPercentage(String(agent.compPercentage));
+    setEditAgentUplineId(agent.uplineId);
+  }
+
+  function closeEditAgent() {
+    setEditAgent(null);
+    setEditAgentName("");
+    setEditAgentRole("agent");
+    setEditAgentCompPercentage("");
+    setEditAgentUplineId(null);
+  }
+
+  function closeDeleteAgentPending() {
+    if (deleteAgentPending?.restoreEditAgent) {
+      openEditAgent(deleteAgentPending.restoreEditAgent);
+    }
+    setDeleteAgentPending(null);
+  }
+
+  async function submitEditAgent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editAgent) return;
+
+    const trimmedName = editAgentName.trim();
+    if (!trimmedName) {
+      toast.error("Agent name is required");
+      return;
+    }
+
+    const nextCompPercentage = Number(editAgentCompPercentage);
+    if (!Number.isFinite(nextCompPercentage) || nextCompPercentage < 0 || nextCompPercentage > 200) {
+      toast.error("Comp must be a number between 0 and 200");
+      return;
+    }
+
+    const payload: { name?: string; role?: "admin" | "agent"; uplineId?: string | null; compPercentage?: number } = {};
+
+    if (trimmedName !== editAgent.name) payload.name = trimmedName;
+    if (editAgentRole !== editAgent.role) payload.role = editAgentRole;
+    if (nextCompPercentage !== editAgent.compPercentage) payload.compPercentage = nextCompPercentage;
+    if (editAgentUplineId !== editAgent.uplineId) payload.uplineId = editAgentUplineId;
+
+    if (Object.keys(payload).length === 0) {
+      closeEditAgent();
+      return;
+    }
+
+    const updated = await updateAgent(editAgent.id, payload);
+    if (updated) closeEditAgent();
   }
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -5494,104 +5548,24 @@ export function AdminPage({
                           </td>
                           <td className='px-4 py-3 text-[var(--vf-text)]'>{agent.lifetimeAP}</td>
                           <td className='px-4 py-3 text-[var(--vf-text)]'>{agent.lifetimeSales}</td>
+                          <td className='px-4 py-3 text-[var(--vf-text)]'>{agent.compPercentage}%</td>
                           <td className='px-4 py-3 text-[var(--vf-text)]'>
-                            <div
-                              className={cn(
-                                "relative inline-flex h-[36px] w-[130px] items-center rounded-xl border bg-[var(--vf-surface)] px-3 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors",
-                                focusedAgentId === agent.id
-                                  ? "border-[var(--vf-accent)]"
-                                  : "border-[var(--vf-surface-2)]",
-                              )}
-                            >
-                              <input
-                                type='number'
-                                min={0}
-                                max={200}
-                                step='5'
-                                defaultValue={agent.compPercentage}
-                                disabled={savingAgentId === agent.id}
-                                onKeyDown={(event) => {
-                                  if (event.key === "Enter") event.currentTarget.blur();
-                                }}
-                                onFocus={(e) => {
-                                  e.currentTarget.select();
-                                  setFocusedAgentId(agent.id);
-                                }}
-                                onBlur={(event) => {
-                                  setFocusedAgentId(null);
-                                  const nextValue = Number(event.target.value);
-                                  if (!Number.isFinite(nextValue) || nextValue === agent.compPercentage) {
-                                    event.target.value = agent.compPercentage.toString();
-                                    return;
-                                  }
-                                  void updateAgent(agent.id, { compPercentage: nextValue });
-                                }}
-                                className='h-full w-full bg-transparent pr-16 text-sm text-[var(--vf-text)] outline-none'
-                              />
-                              <span
-                                className={cn(
-                                  "pointer-events-none absolute text-sm text-[var(--vf-muted)] transition-all duration-150",
-                                  focusedAgentId === agent.id ? "right-8" : "right-3",
-                                )}
-                              >
-                                %
-                              </span>
-                              <div
-                                className={cn(
-                                  "pointer-events-none absolute right-2 flex items-center rounded border px-1.5 py-0.5 transition-all duration-150",
-                                  focusedAgentId === agent.id
-                                    ? "border-[var(--vf-border)] bg-[var(--vf-surface-2)] opacity-100 translate-x-0"
-                                    : "opacity-0 translate-x-1",
-                                )}
-                              >
-                                <span className='text-[9px] font-medium text-[var(--vf-muted)]'>↵</span>
-                              </div>
+                            {agent.role === "admin" ? "Admin" : "Agent"}
+                          </td>
+                          <td className='px-4 py-3 text-[var(--vf-text)]'>
+                            <div className='max-w-[220px] truncate'>
+                              {agent.uplineName || <span className='text-[var(--vf-muted)]'>Unassigned</span>}
                             </div>
                           </td>
-                          <td className='px-4 py-3 text-[var(--vf-text)]'>
-                            <Select
-                              value={agent.role}
-                              onValueChange={(value) =>
-                                updateAgent(agent.id, { role: value as "admin" | "agent" })
-                              }
-                              disabled={savingAgentId === agent.id}
+                          <td className='px-4 py-3 text-right'>
+                            <button
+                              onClick={() => openEditAgent(agent)}
+                              className='inline-flex items-center gap-2 rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-3 py-2 text-sm font-medium text-[var(--vf-text)] transition hover:bg-[var(--vf-surface-2)]'
                             >
-                              <SelectTrigger className='h-[52px] w-[220px] rounded-xl border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
-                                <span>{agent.role === "admin" ? "Admin" : "Agent"}</span>
-                              </SelectTrigger>
-                              <SelectContent
-                                align='start'
-                                side='bottom'
-                                sideOffset={8}
-                                alignItemWithTrigger={false}
-                                className='w-[220px] p-2'
-                              >
-                                <SelectItem
-                                  value='admin'
-                                  className='rounded-lg px-3 py-2.5 text-base'
-                                >
-                                  Admin
-                                </SelectItem>
-                                <SelectItem
-                                  value='agent'
-                                  className='rounded-lg px-3 py-2.5 text-base'
-                                >
-                                  Agent
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
+                              <Pencil className='h-4 w-4' />
+                              Edit
+                            </button>
                           </td>
-                          <td className='px-4 py-3 text-[var(--vf-text)]'>
-                            <UplineSelect
-                              agentId={agent.id}
-                              uplineId={agent.uplineId}
-                              uplineName={agent.uplineName}
-                              uplineOptions={uplineOptions}
-                              disabled={savingAgentId === agent.id}
-                              onChange={(value) => updateAgent(agent.id, { uplineId: value })}
-                            />
-                          </td>
-                          <td className='px-4 py-3' />
                         </tr>
                       ))}
                       {paginatedAgents.length === 0 && (
@@ -6112,9 +6086,155 @@ export function AdminPage({
       </div>
 
       <Dialog
+        open={!!editAgent}
+        onOpenChange={(open) => {
+          if (!open) closeEditAgent();
+        }}
+      >
+        <DialogContent className='max-h-[85vh] overflow-y-auto border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)] sm:max-w-2xl'>
+          <DialogHeader>
+            <DialogTitle className='flex items-center gap-2 text-2xl font-semibold'>
+              <Pencil className='h-5 w-5 text-[var(--vf-accent)]' />
+              Edit agent
+            </DialogTitle>
+            <DialogDescription className='text-[var(--vf-muted)]'>
+              Update this agent&apos;s name, comp, access level, and upline from one place.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editAgent && (
+            <form
+              className='mt-4 space-y-5'
+              onSubmit={submitEditAgent}
+            >
+              <div className='grid gap-5 sm:grid-cols-2'>
+                <div className='sm:col-span-2'>
+                  <label className='mb-2 block text-sm text-[var(--vf-muted)]'>Agent name</label>
+                  <input
+                    type='text'
+                    value={editAgentName}
+                    onChange={(event) => setEditAgentName(event.target.value)}
+                    disabled={savingAgentId === editAgent.id}
+                    className={cn(
+                      modalFieldCls,
+                      "outline-none transition focus:border-[var(--vf-accent)] disabled:opacity-60",
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className='mb-2 block text-sm text-[var(--vf-muted)]'>Comp percentage</label>
+                  <div className='relative'>
+                    <input
+                      type='number'
+                      min={0}
+                      max={200}
+                      step='5'
+                      value={editAgentCompPercentage}
+                      onChange={(event) => setEditAgentCompPercentage(event.target.value)}
+                      disabled={savingAgentId === editAgent.id}
+                      className={cn(
+                        modalFieldCls,
+                        "pr-10 outline-none transition focus:border-[var(--vf-accent)] disabled:opacity-60",
+                      )}
+                    />
+                    <span className='pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[var(--vf-muted)]'>
+                      %
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <label className='mb-2 block text-sm text-[var(--vf-muted)]'>Access</label>
+                  <Select
+                    value={editAgentRole}
+                    onValueChange={(value) => setEditAgentRole(value as "admin" | "agent")}
+                    disabled={savingAgentId === editAgent.id}
+                  >
+                    <SelectTrigger
+                      className={cn(
+                        modalFieldCls,
+                        "data-[size=default]:h-auto",
+                      )}
+                    >
+                      <span>{editAgentRole === "admin" ? "Admin" : "Agent"}</span>
+                    </SelectTrigger>
+                    <SelectContent
+                      align='start'
+                      side='bottom'
+                      sideOffset={8}
+                      alignItemWithTrigger={false}
+                      className='w-[var(--radix-popper-anchor-width)] p-2'
+                    >
+                      <SelectItem
+                        value='admin'
+                        className='rounded-lg px-3 py-2.5 text-base'
+                      >
+                        Admin
+                      </SelectItem>
+                      <SelectItem
+                        value='agent'
+                        className='rounded-lg px-3 py-2.5 text-base'
+                      >
+                        Agent
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className='sm:col-span-2'>
+                  <label className='mb-2 block text-sm text-[var(--vf-muted)]'>Upline</label>
+                  <UplineSelect
+                    agentId={editAgent.id}
+                    uplineId={editAgentUplineId}
+                    uplineName={uplineOptions.find((option) => option.id === editAgentUplineId)?.name ?? ""}
+                    uplineOptions={uplineOptions}
+                    disabled={savingAgentId === editAgent.id}
+                    onChange={(value) => setEditAgentUplineId(value)}
+                    triggerClassName='min-h-[56px] w-full rounded-2xl data-[size=default]:h-auto'
+                  />
+                </div>
+              </div>
+
+              <div className='flex flex-wrap items-center justify-between gap-3 border-t border-[var(--vf-border)] pt-5'>
+                <button
+                  type='button'
+                  onClick={() => {
+                    setDeleteAgentPending({
+                      id: editAgent.id,
+                      name: editAgent.name,
+                      restoreEditAgent: editAgent,
+                    });
+                    closeEditAgent();
+                  }}
+                  disabled={deletingAgentId === editAgent.id || savingAgentId === editAgent.id}
+                  className='rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-200 transition hover:bg-red-500/20 disabled:opacity-60'
+                >
+                  Delete agent
+                </button>
+                <div className='flex items-center gap-3'>
+                  <button
+                    type='button'
+                    onClick={closeEditAgent}
+                    className='rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-medium text-[var(--vf-text)] hover:bg-[var(--vf-surface-2)]'
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type='submit'
+                    disabled={savingAgentId === editAgent.id}
+                    className='rounded-xl bg-[var(--vf-accent)] px-4 py-2 text-sm font-semibold text-[var(--vf-accent-fg)] disabled:opacity-60'
+                  >
+                    {savingAgentId === editAgent.id ? "Saving..." : "Save changes"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
         open={!!deleteAgentPending}
         onOpenChange={(open) => {
-          if (!open) setDeleteAgentPending(null);
+          if (!open) closeDeleteAgentPending();
         }}
       >
         <DialogContent className='max-w-sm border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)]'>
@@ -6123,12 +6243,15 @@ export function AdminPage({
           </DialogHeader>
           <p className='text-sm text-[var(--vf-muted)]'>
             Are you sure you want to delete{" "}
-            <span className='font-medium text-[var(--vf-text)]'>"{deleteAgentPending?.name}"</span>? This will
+            <span className='font-medium text-[var(--vf-text)]'>&quot;{deleteAgentPending?.name}&quot;</span>? This will
             permanently remove them and all associated data. This cannot be undone.
+          </p>
+          <p className='mt-2 text-xs text-[var(--vf-muted)]'>
+            This is a confirmation step for the delete action from the edit modal.
           </p>
           <div className='mt-2 flex justify-end gap-3'>
             <button
-              onClick={() => setDeleteAgentPending(null)}
+              onClick={closeDeleteAgentPending}
               className='rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-medium text-[var(--vf-text)] hover:bg-[var(--vf-surface-2)]'
             >
               Cancel
