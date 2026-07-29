@@ -832,15 +832,15 @@ function HeaderNav({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const adminBadgeAbsolute = isAdmin ? (
-    <div className='admin-badge-animate absolute -bottom-1 -right-1 inline-flex translate-x-[calc(1/3*100%+0.5rem)] translate-y-1/3 items-center gap-0.5 rounded-full border border-[rgba(88,101,242,0.4)] bg-[#5865F2] px-1.5 py-0.5 text-[6px] font-semibold uppercase tracking-[0.16em] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]'>
-      <Shield className='h-2 w-2' />
+    <div className='admin-badge-animate absolute -bottom-1 -right-1 inline-flex translate-x-[calc(1/3*100%+0.5rem)] translate-y-1/3 items-center gap-0.5 rounded-full border border-[rgba(88,101,242,0.4)] bg-[#5865F2] px-1.25 py-0.5 text-[5px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]'>
+      <Shield className='h-1.5 w-1.5' />
       Admin
     </div>
   ) : null;
 
   const adminBadgeInline = isAdmin ? (
-    <div className='admin-badge-animate inline-flex items-center gap-0.5 rounded-full border border-[rgba(88,101,242,0.4)] bg-[#5865F2] px-1.5 py-0.5 text-[6px] font-semibold uppercase tracking-[0.16em] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]'>
-      <Shield className='h-2 w-2' />
+    <div className='admin-badge-animate inline-flex items-center gap-0.5 rounded-full border border-[rgba(88,101,242,0.4)] bg-[#5865F2] px-1.25 py-0.5 text-[5px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]'>
+      <Shield className='h-1.5 w-1.5' />
       Admin
     </div>
   ) : null;
@@ -866,7 +866,27 @@ function HeaderNav({
     </div>
   );
 
-  const mobileBrand = !logoBroken ? (
+  const mobileHeaderBrand = !logoBroken ? (
+    <div className='relative inline-flex'>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src='/Paradigm Financial Logo-21.png'
+        alt='Paradigm Financial logo'
+        className='h-9 w-auto max-w-[122px] object-contain'
+        onError={() => setLogoBroken(true)}
+      />
+      {adminBadgeAbsolute}
+    </div>
+  ) : (
+    <div className='relative inline-flex'>
+      <div className='text-[1.05rem] font-semibold uppercase tracking-[0.38em] text-[var(--vf-text)]'>
+        Paradigm Financial
+      </div>
+      {adminBadgeAbsolute}
+    </div>
+  );
+
+  const mobileDrawerBrand = !logoBroken ? (
     <div className='relative inline-flex'>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -902,7 +922,7 @@ function HeaderNav({
             href='/dashboard'
             className='flex min-w-0 items-center gap-3'
           >
-            {mobileBrand}
+            {mobileHeaderBrand}
           </Link>
           <Link
             href='/dashboard/profile'
@@ -938,9 +958,9 @@ function HeaderNav({
           <Link
             href='/dashboard'
             onClick={() => setMenuOpen(false)}
-            className='flex items-center gap-3'
+            className='flex w-full items-center justify-center'
           >
-            {mobileBrand}
+            {mobileDrawerBrand}
           </Link>
           <NavLinks
             pathname={pathname}
@@ -4928,6 +4948,7 @@ export function AdminPage({
 }: AdminProps) {
   const router = useRouter();
   const [tab, setTab] = useState<"management" | "leaderboardPosts" | "subAgencies">("management");
+  const adminTabStorageKey = "paradigm-admin-tab";
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteList, setInviteList] = useState("agent1@paradigmfinancial.com\nagent2@paradigmfinancial.com");
@@ -4972,6 +4993,17 @@ export function AdminPage({
     { label: "Sub-agencies", key: "subAgencies" },
     { label: "Leaderboard Posts", key: "leaderboardPosts" },
   ];
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(adminTabStorageKey);
+    if (saved === "management" || saved === "subAgencies" || saved === "leaderboardPosts") {
+      setTab(saved);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(adminTabStorageKey, tab);
+  }, [adminTabStorageKey, tab]);
 
   async function downloadLeaderboardPost(post: LeaderboardPostCard) {
     try {
