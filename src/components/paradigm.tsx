@@ -3922,7 +3922,7 @@ const LB_SALES_Y = [null, 1261, 1271, 1271] as const; // "X sales"
 
 // Period / date overlay positions
 const LB_PERIOD_Y = 542;
-const LB_DATE_Y = 600;
+const LB_DATE_Y = 595;
 
 // Footer value overlay positions
 const LB_FOOTER_AP_X = 345;
@@ -3995,7 +3995,7 @@ function leaderboardPostSvg(
 
       <!-- Date range -->
       <text x="540" y="${LB_DATE_Y}" text-anchor="middle" fill="#1a1a1a"
-        font-size="26" font-family="${F}" font-weight="700" letter-spacing="2">${escapeXml(post.periodLabel.toUpperCase())}</text>
+        font-size="28" font-family="${F}" font-weight="700" letter-spacing="2">${escapeXml(post.periodLabel.toUpperCase())}</text>
 
       <!-- Initials fallback when no photo -->
       ${
