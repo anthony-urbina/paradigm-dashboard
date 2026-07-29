@@ -3894,15 +3894,7 @@ function stretch(y: number) {
 let _bebasB64: string | null = null;
 async function fetchBebasNeueB64(): Promise<string> {
   if (_bebasB64) return _bebasB64;
-  // 1. Fetch Google Fonts CSS to discover the woff2 URL
-  const css = await fetch(
-    "https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap",
-    { headers: { "User-Agent": "Mozilla/5.0" } },
-  ).then((r) => r.text());
-  const woff2Url = css.match(/url\((https:\/\/fonts\.gstatic\.com[^)]+\.woff2)\)/)?.[1];
-  if (!woff2Url) throw new Error("Bebas Neue woff2 URL not found in Google Fonts CSS");
-  // 2. Fetch the woff2 binary and convert to base64
-  const buf = await fetch(woff2Url).then((r) => r.arrayBuffer());
+  const buf = await fetch("/fonts/bebas-neue.woff2").then((r) => r.arrayBuffer());
   const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
   _bebasB64 = `data:font/woff2;base64,${b64}`;
   return _bebasB64;
@@ -3923,10 +3915,10 @@ const LB_AV = [
 ] as const;
 
 // Text positions below each avatar (tune after first render)
-const LB_NAME_Y           = [null, 1090, 1100, 1100] as const; // agent name
+const LB_NAME_Y = [null, 1090, 1100, 1100] as const; // agent name
 const LB_TOTAL_AP_LABEL_Y = [null, 1138, 1148, 1148] as const; // "TOTAL AP" label
-const LB_AP_Y             = [null, 1212, 1222, 1222] as const; // AP dollar value
-const LB_SALES_Y          = [null, 1261, 1271, 1271] as const; // "X sales"
+const LB_AP_Y = [null, 1212, 1222, 1222] as const; // AP dollar value
+const LB_SALES_Y = [null, 1261, 1271, 1271] as const; // "X sales"
 
 // Period / date overlay positions
 const LB_PERIOD_Y = 542;
@@ -3934,7 +3926,7 @@ const LB_DATE_Y = 600;
 
 // Footer value overlay positions
 const LB_FOOTER_AP_X = 345;
-const LB_FOOTER_AGENTS_X = 760;
+const LB_FOOTER_AGENTS_X = 830;
 const LB_FOOTER_VAL_Y = 1428;
 
 const F = "'Bebas Neue', Arial, sans-serif";
@@ -3998,12 +3990,12 @@ function leaderboardPostSvg(
 
       <!-- Period label (DAILY / WEEKLY / MONTHLY) -->
       <text x="540" y="${LB_PERIOD_Y}" text-anchor="middle"
-        font-size="${post.key === "monthly" ? 82 : 95}" font-family="${F}" font-weight="900" letter-spacing="4"
+        font-size="105" font-family="${F}" font-weight="900" letter-spacing="4"
         fill="url(#goldGrad)">${escapeXml(post.key.toUpperCase())}</text>
 
       <!-- Date range -->
       <text x="540" y="${LB_DATE_Y}" text-anchor="middle" fill="#1a1a1a"
-        font-size="24" font-family="${F}" font-weight="700" letter-spacing="2">${escapeXml(post.periodLabel.toUpperCase())}</text>
+        font-size="26" font-family="${F}" font-weight="700" letter-spacing="2">${escapeXml(post.periodLabel.toUpperCase())}</text>
 
       <!-- Initials fallback when no photo -->
       ${
@@ -4046,30 +4038,42 @@ function leaderboardPostSvg(
       }
 
       <!-- "TOTAL AP" labels -->
-      ${e1 ? `<text x="${LB_AV[1].cx}" y="${LB_TOTAL_AP_LABEL_Y[1]}" text-anchor="middle" fill="#555555"
-        font-size="22" font-family="${F}" font-weight="600" letter-spacing="2">TOTAL AP</text>` : ""}
-      ${e2 ? `<text x="${LB_AV[2].cx}" y="${LB_TOTAL_AP_LABEL_Y[2]}" text-anchor="middle" fill="#555555"
-        font-size="20" font-family="${F}" font-weight="600" letter-spacing="2">TOTAL AP</text>` : ""}
-      ${e3 ? `<text x="${LB_AV[3].cx}" y="${LB_TOTAL_AP_LABEL_Y[3]}" text-anchor="middle" fill="#555555"
-        font-size="20" font-family="${F}" font-weight="600" letter-spacing="2">TOTAL AP</text>` : ""}
+      ${
+        e1
+          ? `<text x="${LB_AV[1].cx}" y="${LB_TOTAL_AP_LABEL_Y[1]}" text-anchor="middle" fill="#555555"
+        font-size="28" font-family="${F}" font-weight="600" letter-spacing="2">TOTAL AP</text>`
+          : ""
+      }
+      ${
+        e2
+          ? `<text x="${LB_AV[2].cx}" y="${LB_TOTAL_AP_LABEL_Y[2]}" text-anchor="middle" fill="#555555"
+        font-size="25" font-family="${F}" font-weight="600" letter-spacing="2">TOTAL AP</text>`
+          : ""
+      }
+      ${
+        e3
+          ? `<text x="${LB_AV[3].cx}" y="${LB_TOTAL_AP_LABEL_Y[3]}" text-anchor="middle" fill="#555555"
+        font-size="25" font-family="${F}" font-weight="600" letter-spacing="2">TOTAL AP</text>`
+          : ""
+      }
 
       <!-- AP values (gold for #1, dark for #2/#3) -->
       ${
         e1
           ? `<text x="${LB_AV[1].cx}" y="${LB_AP_Y[1]}" text-anchor="middle" fill="url(#goldGrad)"
-        font-size="61" font-family="${F}" font-weight="900">${fmtAp(e1.ap)}</text>`
+        font-size="67" font-family="${F}" font-weight="900">${fmtAp(e1.ap)}</text>`
           : ""
       }
       ${
         e2
           ? `<text x="${LB_AV[2].cx}" y="${LB_AP_Y[2]}" text-anchor="middle" fill="#1a1a1a"
-        font-size="61" font-family="${F}" font-weight="900">${fmtAp(e2.ap)}</text>`
+        font-size="67" font-family="${F}" font-weight="900">${fmtAp(e2.ap)}</text>`
           : ""
       }
       ${
         e3
           ? `<text x="${LB_AV[3].cx}" y="${LB_AP_Y[3]}" text-anchor="middle" fill="#1a1a1a"
-        font-size="61" font-family="${F}" font-weight="900">${fmtAp(e3.ap)}</text>`
+        font-size="67" font-family="${F}" font-weight="900">${fmtAp(e3.ap)}</text>`
           : ""
       }
 
@@ -4105,6 +4109,14 @@ function leaderboardPostSvg(
         font-size="36" font-family="${F}" font-weight="700" letter-spacing="1">WRITING AGENTS</text>
       <text x="${LB_FOOTER_AGENTS_X}" y="${LB_FOOTER_VAL_Y}" text-anchor="middle" fill="url(#goldGrad)"
         font-size="51" font-family="${F}" font-weight="900">${post.writingAgents}</text>
+
+      <!-- Tagline -->
+      <text x="220" y="${LB_FOOTER_VAL_Y + 120}" text-anchor="middle" fill="#111111"
+        font-size="33" font-family="${F}" font-weight="600" letter-spacing="2">ONE TEAM</text>
+      <text x="560" y="${LB_FOOTER_VAL_Y + 120}" text-anchor="middle" fill="#111111"
+        font-size="33" font-family="${F}" font-weight="600" letter-spacing="2">ONE MISSION</text>
+      <text x="890" y="${LB_FOOTER_VAL_Y + 120}" text-anchor="middle" fill="#111111"
+        font-size="33" font-family="${F}" font-weight="600" letter-spacing="2">ONE CHAMPION</text>
     </svg>
   `.trim();
 }
@@ -4221,7 +4233,9 @@ function LeaderboardPostPreview({ post }: { post: LeaderboardPostCard }) {
 
   useEffect(() => {
     fetchBgDataUrl().then(setBgDataUrl);
-    fetchBebasNeueB64().then(setFontB64).catch(() => null);
+    fetchBebasNeueB64()
+      .then(setFontB64)
+      .catch(() => null);
   }, []);
 
   const svgString = leaderboardPostSvg(post, imageDataUrls, bgDataUrl, fontB64);
