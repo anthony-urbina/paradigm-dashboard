@@ -3982,7 +3982,7 @@ const LB_AP_Y = [null, 1212, 1222, 1222] as const; // AP dollar value
 const LB_SALES_Y = [null, 1261, 1271, 1271] as const; // "X sales"
 
 // Period / date overlay positions
-const LB_PERIOD_Y = 542;
+const LB_PERIOD_Y = 546;
 const LB_DATE_Y = 595;
 
 // Footer value overlay positions
@@ -4051,7 +4051,7 @@ function leaderboardPostSvg(
 
       <!-- Period label (DAILY / WEEKLY / MONTHLY) -->
       <text x="540" y="${LB_PERIOD_Y}" text-anchor="middle"
-        font-size="105" font-family="${F}" font-weight="900" letter-spacing="4"
+        font-size="112" font-family="${F}" font-weight="900" letter-spacing="4"
         fill="url(#goldGrad)">${escapeXml(post.key.toUpperCase())}</text>
 
       <!-- Date range -->
