@@ -14,6 +14,7 @@ const SALES_INGEST_API_KEY = process.env.SALES_INGEST_API_KEY;
 const ingestSchema = z.object({
   discord_user_id: z.string(),
   sale: z.object({
+    id: z.string().optional(),
     carrier: z.string(),
     ap: z.number().positive(),
     client_age: z.number().int().min(0).max(120).optional(),
@@ -80,15 +81,16 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   const { error: insertError } = await supabase.from("sales").insert({
-    agent_id:       agentRow?.id ?? null,
+    agent_id:        agentRow?.id ?? null,
     discord_user_id,
-    carrier:        sale.carrier,
-    ap:             sale.ap,
-    client_age:     sale.client_age ?? null,
-    state:          sale.state ?? null,
-    product_type:   sale.product_type ?? null,
-    product:        sale.product ?? null,
-    lead_type:      sale.lead_type ?? null,
+    discord_sale_id: sale.id ?? null,
+    carrier:         sale.carrier,
+    ap:              sale.ap,
+    client_age:      sale.client_age ?? null,
+    state:           sale.state ?? null,
+    product_type:    sale.product_type ?? null,
+    product:         sale.product ?? null,
+    lead_type:       sale.lead_type ?? null,
   });
 
   if (insertError) {
