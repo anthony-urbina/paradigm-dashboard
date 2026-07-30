@@ -887,6 +887,7 @@ export async function getAgencyData(range: TimeRange = "30d", currentAgentId?: s
         writingAgents: stats.writers.size,
         salesCount: stats.salesCount,
         hasDownline: subtreeSize > 0,
+        imageUrl: agent.profile_image_url ?? agent.discord_avatar_url ?? null,
       };
     })
     .filter((agent) => agent.teamAP > 0 && agent.hasDownline)
@@ -894,15 +895,15 @@ export async function getAgencyData(range: TimeRange = "30d", currentAgentId?: s
     .slice(0, 10)
     .map((agent, i) => {
       const sa = subAgencyByRootId.get(agent.id);
-      const displayName = sa ? sa.name : agent.name;
-      const subtitlePrefix = sa ? `${agent.name}'s Team · ` : "";
+      const displayName = sa ? sa.name : `${agent.name}'s Team`;
       return {
         rank: i + 1,
         name: displayName,
-        subtitle: `${subtitlePrefix}${agent.writingAgents} ${agent.writingAgents === 1 ? "writing agent" : "writing agents"} · ${agent.salesCount} ${agent.salesCount === 1 ? "sale" : "sales"}`,
+        subtitle: `${agent.writingAgents} ${agent.writingAgents === 1 ? "writing agent" : "writing agents"} · ${agent.salesCount} ${agent.salesCount === 1 ? "sale" : "sales"}`,
         value: fmt(agent.teamAP),
         tone: tone(i + 1),
         logoUrl: sa?.logo_url ?? null,
+        imageUrl: sa?.logo_url ? null : agent.imageUrl,
       };
     });
 
