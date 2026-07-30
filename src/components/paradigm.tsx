@@ -873,6 +873,13 @@ function HeaderNav({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const adminBadgeAbsolute = isAdmin ? (
+    <div className='admin-badge-animate absolute -bottom-1 -right-1 inline-flex translate-x-[calc(1/3*100%+0.5rem)] translate-y-1/3 items-center gap-0.5 rounded-full border border-[rgba(88,101,242,0.4)] bg-[#5865F2] px-1.5 py-0.5 text-[6px] font-semibold uppercase tracking-[0.16em] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]'>
+      <Shield className='h-2 w-2' />
+      Admin
+    </div>
+  ) : null;
+
+  const mobileHeaderAdminBadge = isAdmin ? (
     <div className='admin-badge-animate absolute -bottom-1 -right-1 inline-flex translate-x-[calc(1/3*100%+0.5rem)] translate-y-1/3 items-center gap-0.5 rounded-full border border-[rgba(88,101,242,0.4)] bg-[#5865F2] px-1.25 py-0.5 text-[5px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]'>
       <Shield className='h-1.5 w-1.5' />
       Admin
@@ -880,8 +887,8 @@ function HeaderNav({
   ) : null;
 
   const adminBadgeInline = isAdmin ? (
-    <div className='admin-badge-animate inline-flex items-center gap-0.5 rounded-full border border-[rgba(88,101,242,0.4)] bg-[#5865F2] px-1.25 py-0.5 text-[5px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]'>
-      <Shield className='h-1.5 w-1.5' />
+    <div className='admin-badge-animate inline-flex items-center gap-0.5 rounded-full border border-[rgba(88,101,242,0.4)] bg-[#5865F2] px-1.5 py-0.5 text-[6px] font-semibold uppercase tracking-[0.16em] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]'>
+      <Shield className='h-2 w-2' />
       Admin
     </div>
   ) : null;
@@ -896,14 +903,14 @@ function HeaderNav({
         className='h-12 w-auto max-w-[165px] object-contain'
         onError={() => setLogoBroken(true)}
       />
-      {adminBadgeAbsolute}
+      {mobileHeaderAdminBadge}
     </div>
   ) : (
     <div className='relative inline-flex'>
       <div className='text-[1.05rem] font-semibold uppercase tracking-[0.38em] text-[var(--vf-text)]'>
         Paradigm Financial
       </div>
-      {adminBadgeAbsolute}
+      {mobileHeaderAdminBadge}
     </div>
   );
 
@@ -4933,7 +4940,10 @@ function UplineSelect({
   onChange: (value: string | null) => void;
   triggerClassName?: string;
 }) {
-  const filtered = uplineOptions.filter((o) => o.id !== agentId);
+  const [search, setSearch] = useState("");
+  const filtered = uplineOptions
+    .filter((o) => o.id !== agentId)
+    .filter((o) => o.name.toLowerCase().includes(search.toLowerCase()));
   const adminControlCls =
     "h-[52px] w-[220px] rounded-xl border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
 
@@ -4941,6 +4951,7 @@ function UplineSelect({
     <Select
       value={uplineId ?? "unassigned"}
       onValueChange={(v) => {
+        setSearch("");
         onChange(v === "unassigned" ? null : v);
       }}
       disabled={disabled}
@@ -4951,10 +4962,20 @@ function UplineSelect({
         </span>
       </SelectTrigger>
       <SelectContent
-        className='max-h-[300px] w-[var(--radix-popper-anchor-width)] p-2'
+        className='w-[var(--radix-popper-anchor-width)] overflow-hidden rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-panel)] p-2 text-[var(--vf-text)] overscroll-contain'
         align='start'
         alignItemWithTrigger={false}
       >
+        <div className='border-b border-[var(--vf-border)] bg-[var(--vf-panel)] pb-2'>
+          <input
+            autoFocus
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
+            placeholder='Search agents...'
+            className='h-11 w-full rounded-xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-3 text-sm text-[var(--vf-text)] outline-none placeholder:text-[var(--vf-muted)]'
+          />
+        </div>
         <SelectItem
           value='unassigned'
           className='rounded-lg px-3 py-2.5 text-sm'
@@ -5568,7 +5589,7 @@ export function AdminPage({
                             <AdminSortIcon columnKey='compPercentage' />
                           </button>
                         </th>
-                        <th className='px-4 py-4 font-medium'>Access</th>
+                        <th className='px-4 py-4 font-medium'>Role</th>
                         <th className='px-4 py-4 font-medium'>Upline</th>
                         <th className='px-4 py-4 font-medium' />
                       </tr>
@@ -6216,7 +6237,7 @@ export function AdminPage({
                   </div>
                 </div>
                 <div>
-                  <label className='mb-2 block text-sm text-[var(--vf-muted)]'>Access</label>
+                  <label className='mb-2 block text-sm text-[var(--vf-muted)]'>Role</label>
                   <Select
                     value={editAgentRole}
                     onValueChange={(value) => setEditAgentRole(value as "admin" | "agent")}
