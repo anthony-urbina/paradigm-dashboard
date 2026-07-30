@@ -4962,9 +4962,10 @@ function UplineSelect({
         </span>
       </SelectTrigger>
       <SelectContent
-        className='w-[var(--radix-popper-anchor-width)] overflow-hidden rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-panel)] p-2 text-[var(--vf-text)] overscroll-contain'
+        className='w-(--anchor-width) overflow-hidden rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-panel)] p-2 text-[var(--vf-text)]'
         align='start'
-        alignItemWithTrigger={false}
+        side='bottom'
+        sideOffset={8}
       >
         <div className='border-b border-[var(--vf-border)] bg-[var(--vf-panel)] pb-2'>
           <input
@@ -4976,24 +4977,26 @@ function UplineSelect({
             className='h-11 w-full rounded-xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-3 text-sm text-[var(--vf-text)] outline-none placeholder:text-[var(--vf-muted)]'
           />
         </div>
-        <SelectItem
-          value='unassigned'
-          className='rounded-lg px-3 py-2.5 text-sm'
-        >
-          Unassigned
-        </SelectItem>
-        {filtered.map((option) => (
+        <div className='max-h-[280px] overflow-y-auto overscroll-contain pt-2'>
           <SelectItem
-            key={option.id}
-            value={option.id}
+            value='unassigned'
             className='rounded-lg px-3 py-2.5 text-sm'
           >
-            {option.name}
+            Unassigned
           </SelectItem>
-        ))}
-        {filtered.length === 0 && (
-          <div className='px-3 py-3 text-sm text-[var(--vf-muted)]'>No agents found</div>
-        )}
+          {filtered.map((option) => (
+            <SelectItem
+              key={option.id}
+              value={option.id}
+              className='rounded-lg px-3 py-2.5 text-sm'
+            >
+              {option.name}
+            </SelectItem>
+          ))}
+          {filtered.length === 0 && (
+            <div className='px-3 py-3 text-sm text-[var(--vf-muted)]'>No agents found</div>
+          )}
+        </div>
       </SelectContent>
     </Select>
   );
