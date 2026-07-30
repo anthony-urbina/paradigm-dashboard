@@ -792,8 +792,9 @@ function NavLinks({
                 {inner}
               </TooltipTrigger>
               <TooltipContent
-                align='end'
-                side='top'
+                align='start'
+                alignOffset={6}
+                side='right'
                 sideOffset={10}
                 className='border border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)]'
               >
