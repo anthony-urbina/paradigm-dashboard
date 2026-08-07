@@ -11,6 +11,15 @@ const corsHeaders = {
 
 const SALES_INGEST_API_KEY = process.env.SALES_INGEST_API_KEY;
 
+// Normalize bot shorthand carrier names to their canonical DB names
+const CARRIER_ALIASES: Record<string, string> = {
+  "amam": "American Amicable",
+};
+
+function normalizeCarrier(carrier: string): string {
+  return CARRIER_ALIASES[carrier.toLowerCase()] ?? carrier;
+}
+
 const ingestSchema = z.object({
   discord_user_id: z.string(),
   sale: z.object({
@@ -84,7 +93,7 @@ export async function POST(req: Request) {
     agent_id:        agentRow?.id ?? null,
     discord_user_id,
     discord_sale_id: sale.id ?? null,
-    carrier:         sale.carrier,
+    carrier:         normalizeCarrier(sale.carrier),
     ap:              sale.ap,
     client_age:      sale.client_age ?? null,
     state:           sale.state ?? null,

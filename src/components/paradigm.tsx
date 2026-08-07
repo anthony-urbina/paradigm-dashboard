@@ -65,6 +65,7 @@ import type {
   LeaderboardPostsData,
   MySaleRow,
   MySalesMetrics,
+  ProductRecord,
   SubAgency,
   TeamAgentCompensationDetail,
   TeamAgentRecord,
@@ -5013,7 +5014,7 @@ export function AdminPage({
   subAgencies: initialSubAgencies,
 }: AdminProps) {
   const router = useRouter();
-  const [tab, setTab] = useState<"management" | "leaderboardPosts" | "subAgencies">("management");
+  const [tab, setTab] = useState<"management" | "leaderboardPosts" | "subAgencies" | "products">("management");
   const adminTabStorageKey = "paradigm-admin-tab";
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -5051,18 +5052,136 @@ export function AdminPage({
   const [editSaName, setEditSaName] = useState("");
   const [editSaLogoFile, setEditSaLogoFile] = useState<File | null>(null);
   const [savingEditSa, setSavingEditSa] = useState(false);
+  // ── Products tab ──────────────────────────────────────────────
+  const FFL_LEVELS = [65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145];
+  const PRODUCT_CATEGORIES = ["Whole Life", "Term", "IUL", "FIA"] as const;
+  type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
+
+  const [products, setProducts] = useState<ProductRecord[]>([]);
+  const [productsLoaded, setProductsLoaded] = useState(false);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [addProductOpen, setAddProductOpen] = useState(false);
+  const [addingProduct, setAddingProduct] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+  const [productCarrier, setProductCarrier] = useState("");
+  const [productName, setProductName] = useState("");
+  const [productCategory, setProductCategory] = useState<ProductCategory>("Whole Life");
+  const [productBaseRate, setProductBaseRate] = useState("");
+  const [productIsFlat, setProductIsFlat] = useState(false);
+  const [productFflRates, setProductFflRates] = useState<Record<number, string>>({});
+  const [productFillAll, setProductFillAll] = useState("");
+  const [productCategoryFilter, setProductCategoryFilter] = useState<"All" | ProductCategory>("All");
+
+  async function loadProducts() {
+    setProductsLoading(true);
+    try {
+      const res = await fetch("/api/admin/products");
+      const data = (await res.json()) as Array<{
+        id: string; carrier: string; product: string;
+        base_rate: number; is_flat_rate: boolean; category: string;
+      }> | { error?: string };
+      if (!res.ok) {
+        toast.error(("error" in data ? data.error : null) ?? "Failed to load products");
+        return;
+      }
+      setProducts(
+        (data as Array<{ id: string; carrier: string; product: string; base_rate: number; is_flat_rate: boolean; category: string }>).map((r) => ({
+          id: r.id,
+          carrier: r.carrier,
+          product: r.product,
+          baseRate: r.base_rate,
+          isFlat: r.is_flat_rate,
+          category: r.category as ProductRecord["category"],
+        }))
+      );
+    } finally {
+      setProductsLoading(false);
+      setProductsLoaded(true);
+    }
+  }
+
+  function resetProductForm() {
+    setProductCarrier("");
+    setProductName("");
+    setProductCategory("Whole Life");
+    setProductBaseRate("");
+    setProductIsFlat(false);
+    setProductFflRates({});
+    setProductFillAll("");
+  }
+
+  async function createProduct(e: React.FormEvent) {
+    e.preventDefault();
+    if (!productCarrier.trim() || !productName.trim()) return;
+    const missingLevels = FFL_LEVELS.filter((lvl) => !productFflRates[lvl]?.trim());
+    if (missingLevels.length > 0) {
+      toast.error(`Enter rates for FFL levels: ${missingLevels.join(", ")}`);
+      return;
+    }
+    setAddingProduct(true);
+    try {
+      const fflRatesPayload: Record<string, number> = {};
+      for (const lvl of FFL_LEVELS) {
+        fflRatesPayload[String(lvl)] = parseFloat(productFflRates[lvl]);
+      }
+      const res = await fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          carrier: productCarrier.trim(),
+          product: productName.trim(),
+          category: productCategory,
+          base_rate: parseFloat(productBaseRate) || 0,
+          is_flat_rate: productIsFlat,
+          ffl_rates: fflRatesPayload,
+        }),
+      });
+      const data = (await res.json()) as { id?: string; carrier?: string; product?: string; base_rate?: number; is_flat_rate?: boolean; category?: string; error?: string };
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to add product");
+        return;
+      }
+      setProducts((prev) => [
+        ...prev,
+        { id: data.id!, carrier: data.carrier!, product: data.product!, baseRate: data.base_rate!, isFlat: data.is_flat_rate!, category: (data.category ?? "Whole Life") as ProductRecord["category"] },
+      ]);
+      resetProductForm();
+      setAddProductOpen(false);
+      toast.success(`${productName.trim()} added`);
+    } finally {
+      setAddingProduct(false);
+    }
+  }
+
+  async function deleteProduct(id: string) {
+    setDeletingProductId(id);
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        toast.error(data.error ?? "Failed to delete product");
+        return;
+      }
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Product deleted");
+    } finally {
+      setDeletingProductId(null);
+    }
+  }
+
   const modalFieldCls =
     "min-h-[56px] w-full rounded-2xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-4 text-base text-[var(--vf-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
 
-  const sidebarItems: { label: string; key: "management" | "leaderboardPosts" | "subAgencies" }[] = [
+  const sidebarItems: { label: string; key: "management" | "leaderboardPosts" | "subAgencies" | "products" }[] = [
     { label: "Management", key: "management" },
     { label: "Sub-agencies", key: "subAgencies" },
+    { label: "Products", key: "products" },
     { label: "Leaderboard Posts", key: "leaderboardPosts" },
   ];
 
   useEffect(() => {
     const saved = window.localStorage.getItem(adminTabStorageKey);
-    if (saved === "management" || saved === "subAgencies" || saved === "leaderboardPosts") {
+    if (saved === "management" || saved === "subAgencies" || saved === "leaderboardPosts" || saved === "products") {
       setTab(saved);
     }
   }, []);
@@ -5070,6 +5189,13 @@ export function AdminPage({
   useEffect(() => {
     window.localStorage.setItem(adminTabStorageKey, tab);
   }, [adminTabStorageKey, tab]);
+
+  useEffect(() => {
+    if (tab === "products" && !productsLoaded && !productsLoading) {
+      void loadProducts();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   async function downloadLeaderboardPost(post: LeaderboardPostCard) {
     try {
@@ -5760,6 +5886,276 @@ export function AdminPage({
                 </div>
               ))}
             </div>
+          )}
+
+          {tab === "products" && (
+            <Panel className='p-6'>
+              <div className='flex items-start justify-between gap-4'>
+                <div>
+                  <h2 className='text-2xl font-semibold text-[var(--vf-text)]'>Products</h2>
+                  <p className='mt-1 text-sm text-[var(--vf-muted)]'>
+                    Manage the product catalog. Changes are reflected in the comp guide and the bot&apos;s product list.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setAddProductOpen(true)}
+                  className='shrink-0 rounded-2xl bg-[var(--vf-accent)] px-4 py-2.5 text-sm font-semibold text-[var(--vf-accent-fg)]'
+                >
+                  + Add product
+                </button>
+              </div>
+
+              {/* Category filter tabs */}
+              <div className='mt-5 flex gap-1 border-b border-[var(--vf-border)]'>
+                {(["All", ...PRODUCT_CATEGORIES] as const).map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setProductCategoryFilter(cat)}
+                    className={cn(
+                      "px-4 py-2.5 text-sm font-medium transition-colors",
+                      productCategoryFilter === cat
+                        ? "border-b-2 border-[var(--vf-accent)] text-[var(--vf-text)]"
+                        : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]",
+                    )}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              {productsLoading ? (
+                <div className='mt-5 flex flex-col gap-2'>
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className='h-10 w-full rounded-xl' />
+                  ))}
+                </div>
+              ) : (() => {
+                const filtered = productCategoryFilter === "All"
+                  ? products
+                  : products.filter((p) => p.category === productCategoryFilter);
+                return filtered.length === 0 ? (
+                  <div className='mt-8 flex flex-col items-center justify-center py-10 text-center'>
+                    <div className='text-sm text-[var(--vf-muted)]'>
+                      {products.length === 0 ? "No products yet" : `No ${productCategoryFilter} products`}
+                    </div>
+                    {products.length === 0 && (
+                      <div className='mt-1 text-xs text-[var(--vf-muted)] opacity-60'>
+                        Click &quot;Add product&quot; to add the first one.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                <div className='mt-5 overflow-x-auto rounded-[22px] border border-[var(--vf-border)]'>
+                  <table className='w-full min-w-[600px] text-left'>
+                    <thead className='bg-[var(--vf-surface)] text-sm text-[var(--vf-muted)]'>
+                      <tr>
+                        <th className='px-4 py-3 font-medium'>Carrier</th>
+                        <th className='px-4 py-3 font-medium'>Product</th>
+                        <th className='px-4 py-3 font-medium'>Category</th>
+                        <th className='px-4 py-3 font-medium'>Base rate</th>
+                        <th className='px-4 py-3 font-medium'></th>
+                      </tr>
+                    </thead>
+                    <tbody className='divide-y divide-[var(--vf-border)]'>
+                      {filtered.map((p) => (
+                        <tr key={p.id} className='text-sm text-[var(--vf-text)]'>
+                          <td className='px-4 py-3 font-medium'>{p.carrier}</td>
+                          <td className='px-4 py-3'>{p.product}</td>
+                          <td className='px-4 py-3'>
+                            <span className={cn(
+                              "rounded-full px-2 py-0.5 text-xs font-medium",
+                              p.category === "FIA" && "bg-purple-500/15 text-purple-300",
+                              p.category === "IUL" && "bg-blue-500/15 text-blue-300",
+                              p.category === "Term" && "bg-amber-500/15 text-amber-300",
+                              p.category === "Whole Life" && "bg-emerald-500/15 text-emerald-300",
+                            )}>
+                              {p.category}
+                            </span>
+                          </td>
+                          <td className='px-4 py-3 text-[var(--vf-muted)]'>
+                            {p.isFlat ? `${p.baseRate}% flat` : `${p.baseRate}%`}
+                          </td>
+                          <td className='px-4 py-3 text-right'>
+                            <button
+                              onClick={() => void deleteProduct(p.id)}
+                              disabled={deletingProductId === p.id}
+                              className='rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-300 transition hover:bg-red-500/20 disabled:opacity-50'
+                            >
+                              {deletingProductId === p.id ? "Deleting…" : "Delete"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                );
+              })()}
+
+              {/* Add product dialog */}
+              <Dialog open={addProductOpen} onOpenChange={(open) => { if (!open) { setAddProductOpen(false); resetProductForm(); } }}>
+                <DialogContent className='max-h-[90vh] overflow-y-auto border-[var(--vf-border)] bg-[var(--vf-panel)] text-[var(--vf-text)] sm:max-w-2xl'>
+                  <DialogHeader>
+                    <DialogTitle className='flex items-center gap-2 text-2xl font-semibold'>
+                      <Plus className='h-5 w-5 text-[var(--vf-accent)]' />
+                      Add product
+                    </DialogTitle>
+                    <DialogDescription className='text-[var(--vf-muted)]'>
+                      Enter carrier info and FFL commission rates for each contract level.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <form className='mt-4 space-y-5' onSubmit={(e) => void createProduct(e)}>
+                    <div className='grid gap-4 sm:grid-cols-2'>
+                      <div>
+                        <label className='mb-2 block text-sm text-[var(--vf-muted)]'>Carrier</label>
+                        <input
+                          type='text'
+                          value={productCarrier}
+                          onChange={(e) => setProductCarrier(e.target.value)}
+                          placeholder='e.g. Mutual of Omaha'
+                          required
+                          className={cn(modalFieldCls, "outline-none transition focus:border-[var(--vf-accent)]")}
+                        />
+                      </div>
+                      <div>
+                        <label className='mb-2 block text-sm text-[var(--vf-muted)]'>Product name</label>
+                        <input
+                          type='text'
+                          value={productName}
+                          onChange={(e) => setProductName(e.target.value)}
+                          placeholder='e.g. Living Promise (FEX)'
+                          required
+                          className={cn(modalFieldCls, "outline-none transition focus:border-[var(--vf-accent)]")}
+                        />
+                      </div>
+                      <div>
+                        <label className='mb-2 block text-sm text-[var(--vf-muted)]'>Category</label>
+                        <Select
+                          value={productCategory}
+                          onValueChange={(v) => {
+                            const cat = v as typeof productCategory;
+                            setProductCategory(cat);
+                            setProductIsFlat(cat === "FIA");
+                            if (cat === "FIA" && productFillAll) {
+                              const filled: Record<number, string> = {};
+                              FFL_LEVELS.forEach((lvl) => { filled[lvl] = productFillAll; });
+                              setProductFflRates(filled);
+                            }
+                          }}
+                        >
+                          <SelectTrigger className={cn(modalFieldCls, "data-[size=default]:h-auto")}>
+                            <span>{productCategory}</span>
+                          </SelectTrigger>
+                          <SelectContent align='start' side='bottom' sideOffset={8} alignItemWithTrigger={false} className='w-[var(--radix-popper-anchor-width)] p-2'>
+                            {PRODUCT_CATEGORIES.map((cat) => (
+                              <SelectItem key={cat} value={cat} className='rounded-lg px-3 py-2.5 text-base'>{cat}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className='mb-2 block text-sm text-[var(--vf-muted)]'>Base rate (%)</label>
+                        <div className='relative'>
+                          <input
+                            type='number'
+                            min={0}
+                            max={200}
+                            step='0.01'
+                            value={productBaseRate}
+                            onChange={(e) => setProductBaseRate(e.target.value)}
+                            placeholder='e.g. 92.50'
+                            className={cn(modalFieldCls, "pr-10 outline-none transition focus:border-[var(--vf-accent)]")}
+                          />
+                          <span className='pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[var(--vf-muted)]'>%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className='flex items-center gap-2'>
+                      <input
+                        type='checkbox'
+                        id='product-flat-rate'
+                        checked={productIsFlat}
+                        onChange={(e) => setProductIsFlat(e.target.checked)}
+                        className='h-4 w-4 rounded accent-[var(--vf-accent)]'
+                      />
+                      <label htmlFor='product-flat-rate' className='text-sm text-[var(--vf-muted)]'>
+                        Flat rate — same commission at every FFL level (FIA pattern)
+                      </label>
+                    </div>
+
+                    {/* FFL rate grid */}
+                    <div>
+                      <div className='mb-3 flex flex-wrap items-end justify-between gap-3'>
+                        <label className='text-sm font-medium text-[var(--vf-text)]'>FFL commission rates</label>
+                        <div className='flex items-center gap-2'>
+                          <input
+                            type='number'
+                            min={0}
+                            max={200}
+                            step='0.01'
+                            value={productFillAll}
+                            onChange={(e) => setProductFillAll(e.target.value)}
+                            placeholder='Rate to fill all'
+                            className='w-36 rounded-xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] px-3 py-2 text-sm text-[var(--vf-text)] outline-none transition focus:border-[var(--vf-accent)]'
+                          />
+                          <button
+                            type='button'
+                            onClick={() => {
+                              if (!productFillAll) return;
+                              const filled: Record<number, string> = {};
+                              FFL_LEVELS.forEach((lvl) => { filled[lvl] = productFillAll; });
+                              setProductFflRates(filled);
+                            }}
+                            className='rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-3 py-2 text-sm text-[var(--vf-text)] hover:bg-[var(--vf-surface-2)]'
+                          >
+                            Fill all
+                          </button>
+                        </div>
+                      </div>
+                      <div className='grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5'>
+                        {FFL_LEVELS.map((lvl) => (
+                          <div key={lvl}>
+                            <label className='mb-1 block text-xs text-[var(--vf-muted)]'>FFL {lvl}</label>
+                            <div className='relative'>
+                              <input
+                                type='number'
+                                min={0}
+                                max={200}
+                                step='0.01'
+                                value={productFflRates[lvl] ?? ""}
+                                onChange={(e) => setProductFflRates((prev) => ({ ...prev, [lvl]: e.target.value }))}
+                                placeholder='0'
+                                className='w-full rounded-xl border border-[var(--vf-surface-2)] bg-[var(--vf-surface)] py-2 pl-3 pr-7 text-sm text-[var(--vf-text)] outline-none transition focus:border-[var(--vf-accent)]'
+                              />
+                              <span className='pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[var(--vf-muted)]'>%</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className='flex justify-end gap-3 border-t border-[var(--vf-border)] pt-5'>
+                      <button
+                        type='button'
+                        onClick={() => { setAddProductOpen(false); resetProductForm(); }}
+                        className='rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-2 text-sm font-medium text-[var(--vf-text)] hover:bg-[var(--vf-surface-2)]'
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type='submit'
+                        disabled={addingProduct}
+                        className='rounded-xl bg-[var(--vf-accent)] px-4 py-2 text-sm font-semibold text-[var(--vf-accent-fg)] disabled:opacity-60'
+                      >
+                        {addingProduct ? "Adding…" : "Add product"}
+                      </button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </Panel>
           )}
 
           {tab === "subAgencies" && (

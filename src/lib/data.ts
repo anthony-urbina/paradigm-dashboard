@@ -1091,58 +1091,46 @@ export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
   };
 }
 
-const TERM_KEYS = new Set([
-  "americo::hms 125",
-  "mutual of omaha::tle (express)", "mutual of omaha::tla (answers)",
-  "american amicable::ez term", "american amicable::home protector",
-  "american amicable::oba (group level term)", "american amicable::term made simple",
-  "instabrain::term w/ lb (10yr)", "instabrain::term w/ lb (15yr)",
-  "instabrain::term w/ lb (20yr)", "instabrain::term w/ lb (30yr)",
-  "instabrain::pure term (10yr)", "instabrain::pure term (15yr)",
-  "instabrain::pure term (20yr)", "instabrain::pure term (30yr)",
-  "instabrain::rd senior life term",
-  "united home life::term", "royal neighbors::term",
-  "foresters::strong foundation",
-  "ethos::lga prime", "ethos::trustage sitl",
-  "ethos::ameritas si term", "ethos::jh rop",
-  "nlg::10/15 yr term", "nlg::20/30 yr term",
-]);
-
-const IUL_KEYS = new Set([
-  "americo::instant decision",
-  "nlg::flex life iul", "nlg::summit life iul",
-  "f&g::pathsetter (juvenile)", "f&g::pathsetter",
-  "f&g::everlast (juvenile)", "f&g::everlast",
-  "mutual of omaha::ul", "mutual of omaha::iule",
-  "transamerica::iul",
-  "american amicable::secure life", "american amicable::xul",
-  "ethos::ameritas iul",
-  "united home life::fx", "united home life::giwl",
-  "united home life::wl", "united home life::accidental",
-  "royal neighbors::secure life iul",
-  "global atlantic::iul",
-]);
-
-function classifyProduct(carrier: string, product: string): CompGuideRecord["category"] {
-  const key = `${carrier.toLowerCase()}::${product.toLowerCase()}`;
-  if (IUL_KEYS.has(key)) return "IUL / Annuity";
-  if (TERM_KEYS.has(key)) return "Term";
-  return "Whole Life";
-}
+export type ProductRecord = {
+  id: string;
+  carrier: string;
+  product: string;
+  baseRate: number;
+  isFlat: boolean;
+  category: "Whole Life" | "Term" | "IUL" | "FIA";
+};
 
 export async function getCompGuideData(): Promise<CompGuideRecord[]> {
   const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("ffl_rate_schedules")
-    .select("carrier, product, ffl_level, rate")
-    .order("carrier")
-    .order("product")
-    .order("ffl_level");
+  const [{ data: scheduleData }, { data: productData }] = await Promise.all([
+    supabase
+      .from("ffl_rate_schedules")
+      .select("carrier, product, ffl_level, rate")
+      .order("carrier")
+      .order("product")
+      .order("ffl_level"),
+    supabase
+      .from("carrier_product_comp_rates")
+      .select("carrier, product, category"),
+  ]);
 
-  if (!data) return [];
+  if (!scheduleData) return [];
+
+  // Build a category lookup from the DB — source of truth going forward
+  const categoryMap = new Map<string, string>();
+  for (const row of productData ?? []) {
+    categoryMap.set(`${row.carrier}::${row.product}`, row.category as string);
+  }
+
+  function resolveCategory(carrier: string, product: string): CompGuideRecord["category"] {
+    const cat = categoryMap.get(`${carrier}::${product}`);
+    if (cat === "Term") return "Term";
+    if (cat === "IUL" || cat === "FIA") return "IUL / Annuity";
+    return "Whole Life";
+  }
 
   const grouped = new Map<string, CompGuideRecord>();
-  for (const row of data) {
+  for (const row of scheduleData) {
     // Skip age-banded duplicate variants — keep canonical product names only
     if (/ \((50-69|70-79|80\+)\)$/.test(row.product)) continue;
     const key = `${row.carrier}::${row.product}`;
@@ -1150,7 +1138,7 @@ export async function getCompGuideData(): Promise<CompGuideRecord[]> {
       grouped.set(key, {
         carrier: row.carrier,
         product: row.product,
-        category: classifyProduct(row.carrier, row.product),
+        category: resolveCategory(row.carrier, row.product),
         rates: {},
       });
     }
