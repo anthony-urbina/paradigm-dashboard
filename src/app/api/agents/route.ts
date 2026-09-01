@@ -26,6 +26,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("agents")
     .select("id, name")
+    .is("deleted_at", null)
     .order("name");
 
   if (error) {
@@ -119,25 +120,17 @@ export async function DELETE(req: Request) {
 
   const supabase = createServiceClient();
 
-  // Remove non-nullable FK references before deleting the agent
-  const cleanups = await Promise.all([
-    supabase.from("sales").delete().eq("agent_id", id),
-    supabase.from("activity").delete().eq("agent_id", id),
-    supabase.from("goals").delete().eq("agent_id", id),
-    supabase.from("competition_members").delete().eq("agent_id", id),
-  ]);
-
-  for (const { error: e } of cleanups) {
-    if (e) return NextResponse.json({ error: e.message }, { status: 500 });
-  }
-
-  // Nullable FK references — null them out
+  // Detach downlines and clean up nullable FK references
   await Promise.all([
     supabase.from("agents").update({ upline_id: null }).eq("upline_id", id),
     supabase.from("competitions").update({ created_by: null }).eq("created_by", id),
   ]);
 
-  const { error } = await supabase.from("agents").delete().eq("id", id);
+  // Soft delete — preserve sales/activity/goals history
+  const { error } = await supabase
+    .from("agents")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

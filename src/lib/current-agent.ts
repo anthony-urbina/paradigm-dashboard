@@ -19,7 +19,8 @@ export async function getCurrentAgent(session: Session | null): Promise<CurrentA
   const supabase = createServiceClient();
   let query = supabase
     .from("agents")
-    .select("id, name, email, role, profile_image_url, comp_percentage");
+    .select("id, name, email, role, profile_image_url, comp_percentage")
+    .is("deleted_at", null);
 
   if (sessionAgentId) {
     query = query.eq("id", sessionAgentId);
@@ -33,6 +34,7 @@ export async function getCurrentAgent(session: Session | null): Promise<CurrentA
     const fallback = await supabase
       .from("agents")
       .select("id, name, email, role, profile_image_url, comp_percentage")
+      .is("deleted_at", null)
       .ilike("email", email)
       .maybeSingle();
 

@@ -595,7 +595,8 @@ export async function getTeamData(agentId: string, range: TimeRange = "30d") {
 
   const { data: agentsData } = await supabase
     .from("agents")
-    .select("id, name, upline_id, comp_percentage, profile_image_url, discord_avatar_url");
+    .select("id, name, upline_id, comp_percentage, profile_image_url, discord_avatar_url")
+    .is("deleted_at", null);
 
   const agents = (agentsData ?? []) as AgentNode[];
   const childrenByUpline = buildChildrenMap(agents);
@@ -799,7 +800,7 @@ export async function getAgencyData(range: TimeRange = "30d", currentAgentId?: s
 
   const prevRangeStart = getPrevRangeStart(range);
   const [agentsRes, salesRes, prevSalesRes, subAgenciesRes] = await Promise.all([
-    supabase.from("agents").select("id, name, upline_id, profile_image_url, discord_avatar_url"),
+    supabase.from("agents").select("id, name, upline_id, profile_image_url, discord_avatar_url").is("deleted_at", null),
     supabase
       .from("sales")
       .select("agent_id, ap, sold_at")
@@ -953,7 +954,7 @@ export async function getAdminData() {
   const supabase = createServiceClient();
   const [{ data, error }, { data: agentOptions }, leaderboardPosts, { data: subAgenciesData }] = await Promise.all([
     supabase.rpc("get_admin_agents"),
-    supabase.from("agents").select("id, name, upline_id, profile_image_url, discord_avatar_url").order("name"),
+    supabase.from("agents").select("id, name, upline_id, profile_image_url, discord_avatar_url").is("deleted_at", null).order("name"),
     getLeaderboardPostsData(),
     supabase.from("sub_agencies").select("id, name, logo_url, root_agent_id").order("created_at"),
   ]);
@@ -1042,7 +1043,7 @@ export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
       .select("agent_id, ap, sold_at")
       .gte("sold_at", earliestStart.toISOString())
       .order("sold_at", { ascending: false }),
-    supabase.from("agents").select("id, name, profile_image_url, discord_avatar_url"),
+    supabase.from("agents").select("id, name, profile_image_url, discord_avatar_url").is("deleted_at", null),
   ]);
 
   if (salesError || agentsError) {
@@ -1050,6 +1051,7 @@ export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
   }
 
   const agentsRaw = (agentsData ?? []) as { id: string; name: string; profile_image_url: string | null; discord_avatar_url: string | null }[];
+  const activeAgentIds = new Set(agentsRaw.map((a) => a.id));
   const agentNameById  = new Map(agentsRaw.map((a) => [a.id, a.name]));
   const agentImageById = new Map(agentsRaw.map((a) => [a.id, a.profile_image_url ?? a.discord_avatar_url]));
   const sales = (salesData ?? []) as SalesRow[];
@@ -1072,7 +1074,7 @@ export async function getLeaderboardPostsData(): Promise<LeaderboardPostsData> {
     shareLabel: "ready to share on Instagram (1080×1350)",
     entries: toLeaderboardPostEntries(sourceSales, agentNameById, agentImageById, limit),
     totalAp: roundCurrency(sourceSales.reduce((sum, sale) => sum + Number(sale.ap), 0)),
-    writingAgents: new Set(sourceSales.filter((sale) => sale.agent_id).map((sale) => sale.agent_id)).size,
+    writingAgents: new Set(sourceSales.filter((sale) => sale.agent_id && activeAgentIds.has(sale.agent_id)).map((sale) => sale.agent_id)).size,
     ready: sourceSales.length > 0,
     emptyMessage,
   });
@@ -1206,7 +1208,7 @@ export async function getTeamAgentCompensation(
   const rangeStart = getRangeStart(range);
 
   const [{ data: agentsData, error: agentsError }, fflRates] = await Promise.all([
-    supabase.from("agents").select("id, name, upline_id, comp_percentage"),
+    supabase.from("agents").select("id, name, upline_id, comp_percentage").is("deleted_at", null),
     getFflRateSchedules(),
   ]);
 
