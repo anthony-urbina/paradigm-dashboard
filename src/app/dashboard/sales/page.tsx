@@ -5,7 +5,7 @@ import { getMySalesData, type TimeRange } from "@/lib/data";
 
 function normalizeRange(value: string | string[] | undefined): TimeRange {
   const candidate = Array.isArray(value) ? value[0] : value;
-  return candidate === "7d" || candidate === "90d" || candidate === "180d" || candidate === "365d" ? candidate : "30d";
+  return candidate === "week" || candidate === "month" || candidate === "7d" || candidate === "90d" || candidate === "180d" || candidate === "365d" ? candidate : "month";
 }
 
 export default async function DashboardSalesPage({

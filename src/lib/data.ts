@@ -60,7 +60,7 @@ export type TeamAccessData = {
   directAgents: number;
 };
 
-export type TimeRange = "7d" | "30d" | "90d" | "180d" | "365d";
+export type TimeRange = "week" | "month" | "7d" | "30d" | "90d" | "180d" | "365d";
 
 type AgentNode = {
   id: string;
@@ -264,6 +264,8 @@ function resolveCommissionProduct(carrier: string, product: string, clientAge?: 
 
 function getRangeStart(range: TimeRange): string {
   const now = new Date();
+  if (range === "week") return startOfWeek(now, { weekStartsOn: 1 }).toISOString();
+  if (range === "month") return startOfMonth(now).toISOString();
   const daysBack = range === "7d" ? 6 : range === "30d" ? 29 : range === "90d" ? 89 : range === "180d" ? 179 : 364;
   const start = new Date(now);
   start.setDate(now.getDate() - daysBack);
@@ -272,6 +274,18 @@ function getRangeStart(range: TimeRange): string {
 
 function getPrevRangeStart(range: TimeRange): string {
   const now = new Date();
+  if (range === "week") {
+    const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const prevWeekStart = new Date(thisWeekStart);
+    prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+    return prevWeekStart.toISOString();
+  }
+  if (range === "month") {
+    const thisMonthStart = startOfMonth(now);
+    const prevMonthStart = new Date(thisMonthStart);
+    prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
+    return prevMonthStart.toISOString();
+  }
   const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : range === "180d" ? 180 : 365;
   const start = new Date(now);
   start.setDate(now.getDate() - days * 2);
@@ -279,6 +293,8 @@ function getPrevRangeStart(range: TimeRange): string {
 }
 
 function getRangeLabel(range: TimeRange): string {
+  if (range === "week") return "This week";
+  if (range === "month") return "This month";
   return range === "7d" ? "Last 7 days" : range === "30d" ? "Last 30 days" : range === "90d" ? "Last 90 days" : range === "180d" ? "Last 180 days" : "Last 365 days";
 }
 
