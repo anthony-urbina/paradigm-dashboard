@@ -65,21 +65,21 @@ $$;
 
 CREATE OR REPLACE FUNCTION get_admin_agents()
 RETURNS TABLE(
-  id uuid, name text, email text, vantage boolean, role text,
+  id uuid, name text, email text, comp_percentage numeric, role text,
   lifetime_ap numeric, lifetime_sales bigint, upline_name text, is_new boolean
 )
 LANGUAGE sql STABLE AS $$
 SELECT
-  a.id, a.name, a.email, a.vantage, a.role,
-  coalesce(sum(s.ap), 0)          AS lifetime_ap,
-  count(s.id)::bigint             AS lifetime_sales,
-  coalesce(u.name, 'Unassigned')  AS upline_name,
+  a.id, a.name, a.email, a.comp_percentage, a.role,
+  coalesce(sum(s.ap), 0)         AS lifetime_ap,
+  count(s.id)::bigint            AS lifetime_sales,
+  coalesce(u.name, 'Unassigned') AS upline_name,
   a.created_at > now() - interval '7 days' AS is_new
 FROM agents a
 LEFT JOIN sales   s ON s.agent_id  = a.id
 LEFT JOIN agents  u ON u.id        = a.upline_id AND u.deleted_at IS NULL
 WHERE a.deleted_at IS NULL
-GROUP BY a.id, a.name, a.email, a.paradigm, a.role, u.name, a.created_at
+GROUP BY a.id, a.name, a.email, a.comp_percentage, a.role, u.name, a.created_at
 ORDER BY lifetime_ap DESC;
 $$;
 
